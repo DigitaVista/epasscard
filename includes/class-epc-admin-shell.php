@@ -161,13 +161,14 @@ class EPC_Admin_Shell {
 		<div class="epc-app" data-epc-context="<?php echo esc_attr( (string) $args['context'] ); ?>">
 			<aside class="epc-app__sidebar" aria-label="<?php esc_attr_e( 'EpassCard navigation', 'epasscard' ); ?>">
 				<div class="epc-app__brand">
-					<div class="epc-app__brand-icon" aria-hidden="true">
-						<span class="epc-icon">confirmation_number</span>
-					</div>
-					<div>
-						<p class="epc-app__brand-name"><?php esc_html_e( 'EpassCard', 'epasscard' ); ?></p>
-						<p class="epc-app__brand-version"><?php echo esc_html( sprintf( /* translators: %s: plugin version */ __( 'v%s', 'epasscard' ), EPC_VERSION ) ); ?></p>
-					</div>
+					<img
+						class="epc-app__brand-logo"
+						src="<?php echo esc_url( EPC_PLUGIN_URL . 'admin/images/epasscard-logo.webp' ); ?>"
+						alt="<?php esc_attr_e( 'EpassCard', 'epasscard' ); ?>"
+						width="200"
+						height="67"
+					/>
+					<p class="epc-app__brand-version"><?php echo esc_html( sprintf( /* translators: %s: plugin version */ __( 'v%s', 'epasscard' ), EPC_VERSION ) ); ?></p>
 				</div>
 
 				<nav class="epc-app__nav epc-app__nav--primary">

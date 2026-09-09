@@ -66,6 +66,18 @@ class EPC_Api_Client {
 	}
 
 	/**
+	 * Public sign-up endpoint.
+	 *
+	 * @return string
+	 */
+	public static function sign_up_url() {
+		return (string) apply_filters(
+			'epc_sign_up_url',
+			self::api_base() . '/sign-up'
+		);
+	}
+
+	/**
 	 * Site timezone string for API requests (WordPress Settings → General).
 	 *
 	 * @return string
@@ -436,6 +448,98 @@ class EPC_Api_Client {
 	}
 
 	/**
+	 * Create an EpassCard account and receive an API key.
+	 *
+	 * @param string $name  Name or business name.
+	 * @param string $email Account email.
+	 * @return array{api_key: string, email: string, package_details: array<string,mixed>, message: string, data: array<string,mixed>}|\WP_Error
+	 */
+	public static function sign_up( $name, $email ) {
+		$name  = sanitize_text_field( (string) $name );
+		$email = sanitize_email( (string) $email );
+
+		if ( '' === $name ) {
+			return new WP_Error( 'epc_empty_name', __( 'Please enter a name or business name.', 'epasscard' ) );
+		}
+
+		$name_len = function_exists( 'mb_strlen' ) ? mb_strlen( $name, 'UTF-8' ) : strlen( $name );
+		if ( $name_len < 2 ) {
+			return new WP_Error( 'epc_short_name', __( 'Name must be at least 2 characters.', 'epasscard' ) );
+		}
+		if ( $name_len > 255 ) {
+			return new WP_Error( 'epc_long_name', __( 'Name must be 255 characters or fewer.', 'epasscard' ) );
+		}
+
+		if ( '' === $email || ! is_email( $email ) ) {
+			return new WP_Error( 'epc_invalid_email', __( 'Please enter a valid email address.', 'epasscard' ) );
+		}
+
+		$email_len = function_exists( 'mb_strlen' ) ? mb_strlen( $email, 'UTF-8' ) : strlen( $email );
+		if ( $email_len > 254 ) {
+			return new WP_Error( 'epc_invalid_email', __( 'Please enter a valid email address.', 'epasscard' ) );
+		}
+
+		$result = self::post_json(
+			self::sign_up_url(),
+			array(
+				'name'  => $name,
+				'email' => $email,
+			),
+			false
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$status = (int) ( $result['status'] ?? 0 );
+		if ( 201 !== $status && 200 !== $status ) {
+			$msg = isset( $result['message'] ) && is_string( $result['message'] )
+				? sanitize_text_field( $result['message'] )
+				: __( 'Could not create an EpassCard account with those details.', 'epasscard' );
+			return new WP_Error( 'epc_sign_up_failed', $msg );
+		}
+
+		$data = isset( $result['data'] ) && is_array( $result['data'] ) ? $result['data'] : array();
+		$key  = '';
+		if ( isset( $data['api_key'] ) ) {
+			$key = trim( (string) $data['api_key'] );
+		} elseif ( isset( $data['apiKey'] ) ) {
+			$key = trim( (string) $data['apiKey'] );
+		}
+
+		if ( '' === $key ) {
+			return new WP_Error( 'epc_sign_up_incomplete', __( 'The EpassCard server did not return an API key.', 'epasscard' ) );
+		}
+
+		$package = array();
+		if ( isset( $data['package_details'] ) && is_array( $data['package_details'] ) ) {
+			$package = $data['package_details'];
+		}
+
+		$account_email = $email;
+		if ( isset( $data['email'] ) ) {
+			$from_api = sanitize_email( (string) $data['email'] );
+			if ( '' !== $from_api && is_email( $from_api ) ) {
+				$account_email = $from_api;
+			}
+		}
+
+		$message = '';
+		if ( isset( $result['message'] ) && is_string( $result['message'] ) ) {
+			$message = sanitize_text_field( $result['message'] );
+		}
+
+		return array(
+			'api_key'         => $key,
+			'email'           => $account_email,
+			'package_details' => $package,
+			'message'         => $message,
+			'data'            => $data,
+		);
+	}
+
+	/**
 	 * Extend stored API key expiry by one year.
 	 *
 	 * @param string|null $api_key Optional plain key; uses stored key when null.
@@ -791,15 +895,21 @@ class EPC_Api_Client {
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+
 		if ( 200 !== $code && ! ( $allow_non_200 && $code >= 200 && $code < 300 ) ) {
+			$msg = __( 'The EpassCard API returned an error. Please try again later.', 'epasscard' );
+			if ( is_array( $data ) && isset( $data['message'] ) && is_string( $data['message'] ) && '' !== trim( $data['message'] ) ) {
+				$msg = sanitize_text_field( $data['message'] );
+			}
+
 			return new WP_Error(
 				'epc_http',
-				__( 'The EpassCard API returned an error. Please try again later.', 'epasscard' ),
+				$msg,
 				array( 'status' => $code )
 			);
 		}
 
-		$data = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( ! is_array( $data ) ) {
 			return new WP_Error( 'epc_bad_json', __( 'The EpassCard server returned an unexpected response.', 'epasscard' ) );
 		}

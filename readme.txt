@@ -92,6 +92,8 @@ EpassCard is a **wallet pass platform** connector — not a middleware automatio
 
 This plugin connects to the **EpassCard API** (`https://api.epasscard.com`) to validate credentials, fetch pass templates, and create/update wallet passes. Data sent includes mapped membership fields you configure. See [EpassCard Terms](https://epasscard.com/) and their privacy policy for how they handle data.
 
+## Our Products Tab showing our other plugins by calling https://webcartisan.com API. This is just showing html contents about our other plugins.
+
 ## Privacy Policy 
 EpassCard uses [Appsero](https://appsero.com) SDK to collect some telemetry data upon user's confirmation. This helps us to troubleshoot problems faster & make product improvements.
 

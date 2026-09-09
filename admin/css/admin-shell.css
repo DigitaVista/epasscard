@@ -112,37 +112,26 @@ body.epc-admin-ui .epc-app-root {
 
 .epc-app__brand {
 	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 8px;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	padding: 10px 10px 8px;
 	margin-bottom: 8px;
-}
-
-.epc-app__brand-icon {
-	width: 40px;
-	height: 40px;
 	border-radius: var(--epc-radius);
-	background: var(--epc-primary);
-	color: var(--epc-on-primary);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
 }
 
-.epc-app__brand-name {
-	margin: 0;
-	font-family: var(--epc-font-display);
-	font-size: 18px;
-	font-weight: 700;
-	color: var(--epc-primary);
-	line-height: 1.2;
+.epc-app__brand-logo {
+	display: block;
+	width: 100%;
+	height: auto;
+	max-width: 188px;
 }
 
 .epc-app__brand-version {
 	margin: 0;
+	padding-left: 2px;
 	font-size: 12px;
-	color: var(--epc-on-surface-variant);
+	color: #9ca3af;
 }
 
 .epc-app__nav {
@@ -375,6 +364,42 @@ body.epc-admin-ui .epc-app-root {
 	font-size: 14px;
 }
 
+.epc-overview-hero {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
+	gap: 24px 32px;
+	align-items: start;
+	margin-bottom: 24px;
+}
+
+.epc-overview-hero .epc-page-header {
+	margin-bottom: 0;
+}
+
+.epc-overview-video {
+	width: 100%;
+	justify-self: end;
+}
+
+.epc-overview-video__frame {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	overflow: hidden;
+	border-radius: var(--epc-radius);
+	background: #000;
+	border: 1px solid var(--epc-border-muted);
+	box-shadow: var(--epc-shadow-card);
+}
+
+.epc-overview-video__frame iframe {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
 /* Metric cards */
 .epc-metrics {
 	display: grid;
@@ -458,6 +483,98 @@ body.epc-admin-ui .epc-app-root {
 	gap: 16px;
 }
 
+.epc-app .epc-card.epc-card--tabs {
+	padding: 0;
+	overflow: hidden;
+}
+
+.epc-tabs__list {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	background: var(--epc-surface-low);
+	border-bottom: 1px solid var(--epc-border-muted);
+}
+
+body.epc-admin-ui .epc-tabs__tab {
+	appearance: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	margin: 0;
+	padding: 14px 16px;
+	border: 0;
+	border-radius: 0;
+	border-bottom: 2px solid transparent;
+	background: transparent;
+	color: var(--epc-on-surface-variant);
+	font-family: var(--epc-font-body);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.2;
+	min-height: 48px;
+	box-shadow: none;
+	box-sizing: border-box;
+	cursor: pointer;
+	transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+body.epc-admin-ui .epc-tabs__tab:hover {
+	color: var(--epc-on-surface);
+	background: var(--epc-surface-white);
+}
+
+body.epc-admin-ui .epc-tabs__tab:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+body.epc-admin-ui .epc-tabs__tab:focus-visible {
+	outline: 2px solid var(--epc-primary);
+	outline-offset: -2px;
+}
+
+body.epc-admin-ui .epc-tabs__tab.is-active {
+	background: var(--epc-surface-white);
+	color: var(--epc-primary);
+	border-bottom-color: var(--epc-primary);
+}
+
+.epc-tabs__panels {
+	padding: 24px;
+}
+
+.epc-tabs__panel > .description {
+	margin-top: 0;
+}
+
+.epc-tabs__panel[hidden] {
+	display: none;
+}
+
+.epc-required {
+	color: var(--epc-error);
+	margin-left: 2px;
+	font-weight: 700;
+}
+
+.epc-app input.epc-input--invalid {
+	border-color: var(--epc-error);
+	box-shadow: 0 0 0 1px var(--epc-error);
+}
+
+.epc-field-error {
+	display: block;
+	margin-top: 6px;
+	color: var(--epc-error);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.epc-field-error[hidden] {
+	display: none;
+}
+
 /* Buttons — keep WP classes, restyle inside shell */
 .epc-app .button,
 .epc-app .button-primary,
@@ -495,7 +612,6 @@ body.epc-admin-ui .epc-app-root {
 .epc-app .button-secondary:hover,
 .epc-app .button:hover {
 	border-color: var(--epc-primary);
-	color: var(--epc-primary);
 }
 
 .epc-app .epc-btn-outline-primary {
@@ -901,5 +1017,14 @@ body.epc-admin-ui .epc-app-root {
 
 	.epc-app__content {
 		padding: 16px;
+	}
+
+	.epc-overview-hero {
+		grid-template-columns: 1fr;
+	}
+
+	.epc-overview-video {
+		max-width: 480px;
+		justify-self: start;
 	}
 }

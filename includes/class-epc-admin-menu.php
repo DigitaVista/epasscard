@@ -24,6 +24,7 @@ class EPC_Admin_Menu {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 15 );
 		add_action( 'wp_ajax_epc_connect_api_key', array( __CLASS__, 'ajax_connect_api_key' ) );
 		add_action( 'wp_ajax_epc_connect_credentials', array( __CLASS__, 'ajax_connect_credentials' ) );
+		add_action( 'wp_ajax_epc_sign_up', array( __CLASS__, 'ajax_sign_up' ) );
 		add_action( 'wp_ajax_epc_disconnect', array( __CLASS__, 'ajax_disconnect' ) );
 		add_action( 'wp_ajax_epc_save_modules', array( __CLASS__, 'ajax_save_modules' ) );
 		add_action( 'wp_ajax_epc_get_templates', array( __CLASS__, 'ajax_get_templates' ) );
@@ -120,10 +121,16 @@ class EPC_Admin_Menu {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'epc_connection' ),
 				'i18n'    => array(
-					'connecting'   => __( 'Connecting…', 'epasscard' ),
-					'connected'    => __( 'Connected successfully.', 'epasscard' ),
-					'disconnected' => __( 'Disconnected.', 'epasscard' ),
-					'error'        => __( 'Connection failed. Please check your details.', 'epasscard' ),
+					'connecting'    => __( 'Connecting…', 'epasscard' ),
+					'signingUp'     => __( 'Creating account…', 'epasscard' ),
+					'connected'     => __( 'Connected successfully.', 'epasscard' ),
+					'disconnected'  => __( 'Disconnected.', 'epasscard' ),
+					'error'         => __( 'Connection failed. Please check your details.', 'epasscard' ),
+					'nameRequired'  => __( 'Please enter a name or business name.', 'epasscard' ),
+					'nameTooShort'  => __( 'Name must be at least 2 characters.', 'epasscard' ),
+					'nameTooLong'   => __( 'Name must be 255 characters or fewer.', 'epasscard' ),
+					'emailRequired' => __( 'Please enter an email address.', 'epasscard' ),
+					'emailInvalid'  => __( 'Please enter a valid email address.', 'epasscard' ),
 					'savingModules'=> __( 'Saving integrations…', 'epasscard' ),
 					'modulesSaved' => __( 'Integration settings saved. Reloading…', 'epasscard' ),
 					'copied'       => __( 'Copied to clipboard.', 'epasscard' ),
@@ -147,6 +154,7 @@ class EPC_Admin_Menu {
 		$expiry    = EPC_Connection::get_expiry_display();
 		$settings  = EPC_Connection::get_settings();
 		$email     = isset( $settings['connected_email'] ) ? (string) $settings['connected_email'] : '';
+		$package   = EPC_Connection::get_package_details();
 		$modules   = EPC_Module_Loader::get_registry();
 		$enabled   = EPC_Module_Settings::get_enabled_slugs();
 		$email_settings = EPC_Pass_Email::get_settings();
@@ -260,6 +268,46 @@ class EPC_Admin_Menu {
 		wp_send_json_success(
 			array(
 				'message' => __( 'Connected successfully.', 'epasscard' ),
+				'expiry'  => EPC_Connection::get_expiry_display(),
+			)
+		);
+	}
+
+	/**
+	 * AJAX: create an EpassCard account and connect with the returned API key.
+	 *
+	 * @return void
+	 */
+	public static function ajax_sign_up() {
+		check_ajax_referer( 'epc_connection', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
+		}
+
+		$name  = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['name'] ) ) : '';
+		$email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( (string) $_POST['email'] ) ) : '';
+
+		$signed_up = EPC_Api_Client::sign_up( $name, $email );
+		if ( is_wp_error( $signed_up ) ) {
+			wp_send_json_error( array( 'message' => $signed_up->get_error_message() ), 400 );
+		}
+
+		$valid     = EPC_Api_Client::validate_api_key( $signed_up['api_key'] );
+		$validated = is_wp_error( $valid ) ? array() : $valid;
+		$validated = array_merge( $validated, is_array( $signed_up['data'] ) ? $signed_up['data'] : array() );
+		$saved     = EPC_Connection::save_api_key( $signed_up['api_key'], $validated, $signed_up['email'] );
+		if ( is_wp_error( $saved ) ) {
+			wp_send_json_error( array( 'message' => $saved->get_error_message() ), 500 );
+		}
+
+		$message = ! empty( $signed_up['message'] )
+			? $signed_up['message']
+			: __( 'Account created and connected successfully.', 'epasscard' );
+
+		wp_send_json_success(
+			array(
+				'message' => $message,
 				'expiry'  => EPC_Connection::get_expiry_display(),
 			)
 		);

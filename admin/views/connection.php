@@ -18,26 +18,49 @@ EPC_Admin_Shell::render_open(
 ?>
 <div class="wrap epc-wrap">
 	<div id="epc-section-overview" class="epc-section epc-section--overview">
-		<div class="epc-page-header">
-			<h1 class="epc-page-title"><?php esc_html_e( 'EpassCard Connection', 'epasscard' ); ?></h1>
-			<p class="description">
-				<?php
-				printf(
-					/* translators: %s: EpassCard app URL */
-					esc_html__( 'Connect your site to EpassCard to issue wallet passes. Get an API key from %s or sign in below to generate one.', 'epasscard' ),
-					'<a href="https://app.epasscard.com" target="_blank" rel="noopener noreferrer">app.epasscard.com</a>'
-				);
-				?>
-			</p>
-		</div>
+		<div class="epc-overview-hero">
+			<div class="epc-page-header">
+				<h1 class="epc-page-title"><?php esc_html_e( 'EpassCard Connection', 'epasscard' ); ?></h1>
+				<p class="description">
+					<?php
+					printf(
+						/* translators: %s: EpassCard app URL */
+						esc_html__( 'Connect your site to EpassCard to issue wallet passes. Get an API key from %s or sign in below to generate one.', 'epasscard' ),
+						'<a href="https://app.epasscard.com" target="_blank" rel="noopener noreferrer">app.epasscard.com</a>'
+					);
+					?>
+				</p>
 
-		<div id="epc-connection-status" class="epc-notice" aria-live="polite"></div>
-
+				
 		<?php if ( $connected ) : ?>
 			<div class="epc-connection-alert epc-connection-alert--connected">
 				<p><strong><?php esc_html_e( 'Connected', 'epasscard' ); ?></strong>
 				<?php if ( '' !== $email ) : ?>
 					— <?php echo esc_html( $email ); ?>
+				<?php endif; ?>
+				<?php
+				$package_name = isset( $package['package_name'] ) ? (string) $package['package_name'] : '';
+				$pass_limit   = isset( $package['num_of_pass'] ) ? (int) $package['num_of_pass'] : 0;
+				if ( '' !== $package_name ) :
+					?>
+					<br /><span class="description">
+						<?php
+						if ( $pass_limit > 0 ) {
+							printf(
+								/* translators: 1: plan name, 2: number of passes */
+								esc_html__( 'Plan: %1$s (%2$s passes)', 'epasscard' ),
+								esc_html( $package_name ),
+								esc_html( number_format_i18n( $pass_limit ) )
+							);
+						} else {
+							printf(
+								/* translators: %s: plan name */
+								esc_html__( 'Plan: %s', 'epasscard' ),
+								esc_html( $package_name )
+							);
+						}
+						?>
+					</span>
 				<?php endif; ?>
 				<?php if ( '' !== $expiry ) : ?>
 					<br /><span class="description"><?php esc_html_e( 'Key expires:', 'epasscard' ); ?> <?php echo esc_html( $expiry ); ?></span>
@@ -45,6 +68,23 @@ EPC_Admin_Shell::render_open(
 				</p>
 			</div>
 		<?php endif; ?>
+			</div>
+			<div class="epc-overview-video">
+				<div class="epc-overview-video__frame">
+					<iframe
+						src="<?php echo esc_url( 'https://www.youtube-nocookie.com/embed/EYD18OHWUhM' ); ?>"
+						title="<?php echo esc_attr__( 'EpassCard connection overview', 'epasscard' ); ?>"
+						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+						allowfullscreen
+						loading="lazy"
+						referrerpolicy="strict-origin-when-cross-origin"
+					></iframe>
+				</div>
+			</div>
+		</div>
+
+		<div id="epc-connection-status" class="epc-notice" aria-live="polite"></div>
+
 	</div>
 
 	<div id="epc-section-connect" class="epc-section epc-section--connect">
@@ -91,26 +131,110 @@ EPC_Admin_Shell::render_open(
 					<button type="button" class="button button-primary" id="epc-connect-key" <?php disabled( $connected ); ?>>
 						<?php esc_html_e( 'Connect', 'epasscard' ); ?>
 					</button>
+					<a class="button button-secondary" href="<?php echo esc_url( 'https://app.epasscard.com/api-keys' ); ?>" target="_blank" rel="noopener noreferrer">
+						<?php esc_html_e( 'Get an API key', 'epasscard' ); ?>
+					</a>
 				</p>
 			</div>
 
-			<div class="epc-card">
-				<h2><?php esc_html_e( 'Sign in to generate key', 'epasscard' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Use your EpassCard email and password to generate and store an API key.', 'epasscard' ); ?></p>
-				<p>
-					<label for="epc-email"><strong><?php esc_html_e( 'Email', 'epasscard' ); ?></strong></label><br />
-					<input type="email" id="epc-email" class="regular-text" autocomplete="username" <?php disabled( $connected ); ?> />
-				</p>
-				<p>
-					<label for="epc-password"><strong><?php esc_html_e( 'Password', 'epasscard' ); ?></strong></label><br />
-					<input type="password" id="epc-password" class="regular-text" autocomplete="current-password" <?php disabled( $connected ); ?> />
-				</p>
-				<p style="margin-bottom:0;">
-					<button type="button" class="button button-primary" id="epc-connect-credentials" <?php disabled( $connected ); ?>>
-						<?php esc_html_e( 'Generate & connect', 'epasscard' ); ?>
-					</button>
-				</p>
+			<div class="epc-card epc-card--tabs">
+				<div class="epc-tabs" data-epc-tabs>
+					<div class="epc-tabs__list" role="tablist" aria-label="<?php esc_attr_e( 'Account', 'epasscard' ); ?>">
+						<button
+							type="button"
+							class="epc-tabs__tab is-active"
+							role="tab"
+							id="epc-tab-sign-in"
+							aria-controls="epc-panel-sign-in"
+							aria-selected="true"
+							tabindex="0"
+						>
+							<?php esc_html_e( 'Sign in', 'epasscard' ); ?>
+						</button>
+						<button
+							type="button"
+							class="epc-tabs__tab"
+							role="tab"
+							id="epc-tab-sign-up"
+							aria-controls="epc-panel-sign-up"
+							aria-selected="false"
+							tabindex="-1"
+						>
+							<?php esc_html_e( 'Sign up', 'epasscard' ); ?>
+						</button>
+					</div>
+
+					<div class="epc-tabs__panels">
+						<div class="epc-tabs__panel" role="tabpanel" id="epc-panel-sign-in" aria-labelledby="epc-tab-sign-in">
+							<p class="description"><?php esc_html_e( 'Use your EpassCard email and password to generate and store an API key.', 'epasscard' ); ?></p>
+							<p>
+								<label for="epc-signin-email"><strong><?php esc_html_e( 'Email', 'epasscard' ); ?></strong></label><br />
+								<input type="email" id="epc-signin-email" class="regular-text" autocomplete="username" <?php disabled( $connected ); ?> />
+							</p>
+							<p>
+								<label for="epc-signin-password"><strong><?php esc_html_e( 'Password', 'epasscard' ); ?></strong></label><br />
+								<input type="password" id="epc-signin-password" class="regular-text" autocomplete="current-password" <?php disabled( $connected ); ?> />
+							</p>
+							<p style="margin-bottom:0;">
+								<button type="button" class="button button-primary" id="epc-connect-credentials" <?php disabled( $connected ); ?>>
+									<?php esc_html_e( 'Generate & connect', 'epasscard' ); ?>
+								</button>
+							</p>
+						</div>
+
+						<div class="epc-tabs__panel" role="tabpanel" id="epc-panel-sign-up" aria-labelledby="epc-tab-sign-up" hidden>
+							<p class="description"><?php esc_html_e( 'Create an EpassCard account. Your password will be emailed to you, and this site will connect with the new API key.', 'epasscard' ); ?></p>
+							<form id="epc-signup-form" class="epc-signup-form" method="post" action="" novalidate>
+								<p>
+									<label for="epc-signup-name">
+										<strong><?php esc_html_e( 'Name / Business Name', 'epasscard' ); ?></strong>
+										<span class="epc-required" aria-hidden="true">*</span>
+									</label><br />
+									<input
+										type="text"
+										id="epc-signup-name"
+										class="regular-text"
+										name="epc_signup_name"
+										autocomplete="name"
+										required
+										aria-required="true"
+										aria-describedby="epc-signup-name-error"
+										minlength="2"
+										maxlength="255"
+										<?php disabled( $connected ); ?>
+									/>
+									<span id="epc-signup-name-error" class="epc-field-error" hidden></span>
+								</p>
+								<p>
+									<label for="epc-signup-email">
+										<strong><?php esc_html_e( 'Email', 'epasscard' ); ?></strong>
+										<span class="epc-required" aria-hidden="true">*</span>
+									</label><br />
+									<input
+										type="email"
+										id="epc-signup-email"
+										class="regular-text"
+										name="epc_signup_email"
+										autocomplete="email"
+										required
+										aria-required="true"
+										aria-describedby="epc-signup-email-error"
+										maxlength="254"
+										<?php disabled( $connected ); ?>
+									/>
+									<span id="epc-signup-email-error" class="epc-field-error" hidden></span>
+								</p>
+								<p style="margin-bottom:0;">
+									<button type="submit" class="button button-primary" id="epc-signup-now" <?php disabled( $connected ); ?>>
+										<?php esc_html_e( 'Sign up & Connect Now', 'epasscard' ); ?>
+									</button>
+								</p>
+							</form>
+						</div>
+					</div>
+				</div>
 			</div>
+
 		</div>
 	</div>
 

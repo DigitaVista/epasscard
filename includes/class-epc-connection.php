@@ -32,6 +32,7 @@ class EPC_Connection {
 			'key_expires_utc'   => '',
 			'org_id'            => 0,
 			'connected_email'   => '',
+			'package_details'   => array(),
 		);
 	}
 
@@ -203,10 +204,52 @@ class EPC_Connection {
 			$settings['connected_email'] = sanitize_email( $email );
 		}
 
+		$package_raw = array();
+		if ( isset( $validated['package_details'] ) && is_array( $validated['package_details'] ) ) {
+			$package_raw = $validated['package_details'];
+		}
+		$settings['package_details'] = self::sanitize_package_details( $package_raw );
+
 		update_option( self::OPTION, $settings );
 		self::schedule_cron();
 
 		return true;
+	}
+
+	/**
+	 * Sanitize stored package details from the sign-up API.
+	 *
+	 * @param mixed $raw Raw package payload.
+	 * @return array<string, mixed>
+	 */
+	public static function sanitize_package_details( $raw ) {
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+
+		$price_per_card = isset( $raw['price_per_card'] ) && is_numeric( $raw['price_per_card'] ) ? (float) $raw['price_per_card'] : 0.0;
+		$total_price    = isset( $raw['total_price'] ) && is_numeric( $raw['total_price'] ) ? (float) $raw['total_price'] : 0.0;
+
+		return array(
+			'package_id'     => isset( $raw['package_id'] ) ? absint( $raw['package_id'] ) : 0,
+			'package_name'   => isset( $raw['package_name'] ) ? sanitize_text_field( (string) $raw['package_name'] ) : '',
+			'num_of_pass'    => isset( $raw['num_of_pass'] ) ? absint( $raw['num_of_pass'] ) : 0,
+			'price_per_card' => $price_per_card,
+			'total_price'    => $total_price,
+			'billing_period' => isset( $raw['billing_period'] ) ? sanitize_text_field( (string) $raw['billing_period'] ) : '',
+		);
+	}
+
+	/**
+	 * Stored package details for the connected account.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function get_package_details() {
+		$settings = self::get_settings();
+		$raw      = isset( $settings['package_details'] ) ? $settings['package_details'] : array();
+
+		return self::sanitize_package_details( $raw );
 	}
 
 	/**
