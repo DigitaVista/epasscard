@@ -3,7 +3,7 @@
  * Plugin Name:       EpassCard (Google Wallet, Apple Wallet, and more)
  * Plugin URI:        https://webcartisan.com/plugins/epasscard
  * Description:       WordPress wallet pass plugin for Apple Wallet and Google Wallet. Auto-issue digital membership cards, pkpass passes, and subscription wallet passes.
- * Version:           1.0.7
+ * Version:           1.0.6
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            WebCartisan
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EPC_VERSION', '1.0.7' );
+define( 'EPC_VERSION', '1.0.6' );
 define( 'EPC_PLUGIN_FILE', __FILE__ );
 define( 'EPC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EPC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

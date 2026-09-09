@@ -2,9 +2,9 @@
 Contributors: wooxperto, hasan350
 Tags: Apple Wallet, Google Wallet, PKPass, Wallet Pass, WooCommerce, Membership, Loyalty, Event Tickets, Digital Wallet
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.7
+Stable tag: 1.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -182,11 +182,9 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 
 == Changelog ==
 
-= 1.0.7 =
-* Removed standalone Event Tickets module — use The Events Calendar only (avoids duplicate passes for the same attendee). Map events under EpassCard → The Events Calendar; Event Tickets remains required as the TEC add-on for attendees.
-
 = 1.0.6 =
 * New integration: The Events Calendar (event mapping; Event Tickets attendees; venue/organizer fields; before-event push).
+* Removed standalone Event Tickets module — use The Events Calendar only (avoids duplicate passes for the same attendee). Map events under EpassCard → The Events Calendar; Event Tickets remains required as the TEC add-on for attendees.
 
 = 1.0.5 =
 * Free setup help notice updated
