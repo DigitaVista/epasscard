@@ -207,6 +207,134 @@ class EPC_Api_Client {
 	}
 
 	/**
+	 * Extract package_details from an API payload.
+	 *
+	 * Supports sign-up / generate (`package_details`) and validate-api-key
+	 * (`organization.package` plus optional `organization.subscription`).
+	 *
+	 * @param array<string, mixed> $data Response data or merged connection payload.
+	 * @return array<string, mixed>
+	 */
+	public static function extract_package_details( array $data ) {
+		$sources = array( $data );
+		if ( isset( $data['data'] ) && is_array( $data['data'] ) ) {
+			$sources[] = $data['data'];
+		}
+
+		foreach ( $sources as $source ) {
+			foreach ( array( 'package_details', 'packageDetails' ) as $key ) {
+				if ( isset( $source[ $key ] ) && is_array( $source[ $key ] ) ) {
+					return self::normalize_package_payload( $source[ $key ], $source );
+				}
+			}
+
+			$org = ( isset( $source['organization'] ) && is_array( $source['organization'] ) )
+				? $source['organization']
+				: array();
+
+			if ( isset( $org['package'] ) && is_array( $org['package'] ) ) {
+				return self::normalize_package_payload( $org['package'], $org );
+			}
+
+			if ( isset( $source['package'] ) && is_array( $source['package'] ) ) {
+				return self::normalize_package_payload( $source['package'], $source );
+			}
+		}
+
+		return array();
+	}
+
+	/**
+	 * Map API package objects onto the stored package_details keys.
+	 *
+	 * Validate-api-key uses `id` / `name`; sign-up uses `package_id` / `package_name`.
+	 *
+	 * @param array<string, mixed> $package Package object from the API.
+	 * @param array<string, mixed> $context Parent object (organization or data) for subscription fields.
+	 * @return array<string, mixed>
+	 */
+	private static function normalize_package_payload( array $package, array $context = array() ) {
+		$normalized = array(
+			'package_id'     => 0,
+			'package_name'   => '',
+			'num_of_pass'    => 0,
+			'price_per_card' => 0.0,
+			'total_price'    => 0.0,
+			'billing_period' => '',
+		);
+
+		if ( isset( $package['package_id'] ) ) {
+			$normalized['package_id'] = absint( $package['package_id'] );
+		} elseif ( isset( $package['id'] ) ) {
+			$normalized['package_id'] = absint( $package['id'] );
+		}
+
+		if ( isset( $package['package_name'] ) ) {
+			$normalized['package_name'] = sanitize_text_field( (string) $package['package_name'] );
+		} elseif ( isset( $package['name'] ) ) {
+			$normalized['package_name'] = sanitize_text_field( (string) $package['name'] );
+		}
+
+		if ( isset( $package['num_of_pass'] ) ) {
+			$normalized['num_of_pass'] = absint( $package['num_of_pass'] );
+		}
+
+		if ( isset( $package['price_per_card'] ) && is_numeric( $package['price_per_card'] ) ) {
+			$normalized['price_per_card'] = (float) $package['price_per_card'];
+		}
+
+		if ( isset( $package['total_price'] ) && is_numeric( $package['total_price'] ) ) {
+			$normalized['total_price'] = (float) $package['total_price'];
+		}
+
+		if ( isset( $package['billing_period'] ) ) {
+			$normalized['billing_period'] = sanitize_text_field( (string) $package['billing_period'] );
+		}
+
+		$subscription = array();
+		if ( isset( $context['subscription'] ) && is_array( $context['subscription'] ) ) {
+			$subscription = $context['subscription'];
+		}
+
+		if ( 0.0 === $normalized['total_price'] && isset( $subscription['price'] ) && is_numeric( $subscription['price'] ) ) {
+			$normalized['total_price'] = (float) $subscription['price'];
+		}
+
+		if ( '' === $normalized['billing_period'] && isset( $subscription['billing_type'] ) ) {
+			$normalized['billing_period'] = sanitize_text_field( (string) $subscription['billing_type'] );
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Extract account email from an API payload.
+	 *
+	 * @param array<string, mixed> $data     Response data or merged connection payload.
+	 * @param string               $fallback Email to use when the payload has none.
+	 * @return string
+	 */
+	public static function extract_account_email( array $data, $fallback = '' ) {
+		$sources = array( $data );
+		if ( isset( $data['data'] ) && is_array( $data['data'] ) ) {
+			$sources[] = $data['data'];
+		}
+
+		foreach ( $sources as $source ) {
+			if ( isset( $source['email'] ) ) {
+				$email = sanitize_email( (string) $source['email'] );
+				if ( '' !== $email && is_email( $email ) ) {
+					return $email;
+				}
+			}
+		}
+
+		$fallback = sanitize_email( (string) $fallback );
+
+		return ( '' !== $fallback && is_email( $fallback ) ) ? $fallback : '';
+	}
+
+	/**
 	 * Whether a usable API key is stored.
 	 *
 	 * @return bool
@@ -362,6 +490,22 @@ class EPC_Api_Client {
 			return new WP_Error( 'epc_inactive_key', __( 'This API key is not active.', 'epasscard' ) );
 		}
 
+		$package = self::extract_package_details( $data );
+		if ( empty( $package ) ) {
+			$package = self::extract_package_details( $result );
+		}
+		if ( ! empty( $package ) ) {
+			$data['package_details'] = $package;
+		}
+
+		$email = self::extract_account_email( $data );
+		if ( '' === $email ) {
+			$email = self::extract_account_email( $result );
+		}
+		if ( '' !== $email ) {
+			$data['email'] = $email;
+		}
+
 		return $data;
 	}
 
@@ -392,7 +536,7 @@ class EPC_Api_Client {
 	 *
 	 * @param string $email    Account email.
 	 * @param string $password Account password.
-	 * @return array{api_key: string, data: array<string,mixed>}|\WP_Error
+	 * @return array{api_key: string, email: string, package_details: array<string,mixed>, data: array<string,mixed>}|\WP_Error
 	 */
 	public static function generate_api_key( $email, $password ) {
 		$email = sanitize_email( (string) $email );
@@ -441,9 +585,20 @@ class EPC_Api_Client {
 			return new WP_Error( 'epc_generate_incomplete', __( 'The EpassCard server did not return an API key.', 'epasscard' ) );
 		}
 
+		$package = self::extract_package_details( $data );
+		if ( empty( $package ) ) {
+			$package = self::extract_package_details( $result );
+		}
+		$account_email = self::extract_account_email( $data, $email );
+		if ( '' === $account_email ) {
+			$account_email = self::extract_account_email( $result, $email );
+		}
+
 		return array(
-			'api_key' => $key,
-			'data'    => $data,
+			'api_key'         => $key,
+			'email'           => $account_email,
+			'package_details' => $package,
+			'data'            => $data,
 		);
 	}
 
@@ -512,17 +667,13 @@ class EPC_Api_Client {
 			return new WP_Error( 'epc_sign_up_incomplete', __( 'The EpassCard server did not return an API key.', 'epasscard' ) );
 		}
 
-		$package = array();
-		if ( isset( $data['package_details'] ) && is_array( $data['package_details'] ) ) {
-			$package = $data['package_details'];
+		$package       = self::extract_package_details( $data );
+		if ( empty( $package ) ) {
+			$package = self::extract_package_details( $result );
 		}
-
-		$account_email = $email;
-		if ( isset( $data['email'] ) ) {
-			$from_api = sanitize_email( (string) $data['email'] );
-			if ( '' !== $from_api && is_email( $from_api ) ) {
-				$account_email = $from_api;
-			}
+		$account_email = self::extract_account_email( $data, $email );
+		if ( '' === $account_email ) {
+			$account_email = self::extract_account_email( $result, $email );
 		}
 
 		$message = '';

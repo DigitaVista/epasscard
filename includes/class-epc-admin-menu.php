@@ -219,7 +219,8 @@ class EPC_Admin_Menu {
 			wp_send_json_error( array( 'message' => $valid->get_error_message() ), 400 );
 		}
 
-		$saved = EPC_Connection::save_api_key( $api_key, $valid );
+		$email = EPC_Api_Client::extract_account_email( $valid );
+		$saved = EPC_Connection::save_api_key( $api_key, $valid, $email );
 		if ( is_wp_error( $saved ) ) {
 			wp_send_json_error( array( 'message' => $saved->get_error_message() ), 500 );
 		}
@@ -260,7 +261,15 @@ class EPC_Admin_Menu {
 		}
 
 		$validated = array_merge( $valid, is_array( $generated['data'] ) ? $generated['data'] : array() );
-		$saved     = EPC_Connection::save_api_key( $generated['api_key'], $validated, $email );
+		$package   = ! empty( $generated['package_details'] ) && is_array( $generated['package_details'] )
+			? $generated['package_details']
+			: EPC_Api_Client::extract_package_details( $validated );
+		if ( ! empty( $package ) ) {
+			$validated['package_details'] = $package;
+		}
+
+		$save_email = ! empty( $generated['email'] ) ? (string) $generated['email'] : $email;
+		$saved      = EPC_Connection::save_api_key( $generated['api_key'], $validated, $save_email );
 		if ( is_wp_error( $saved ) ) {
 			wp_send_json_error( array( 'message' => $saved->get_error_message() ), 500 );
 		}
@@ -296,6 +305,12 @@ class EPC_Admin_Menu {
 		$valid     = EPC_Api_Client::validate_api_key( $signed_up['api_key'] );
 		$validated = is_wp_error( $valid ) ? array() : $valid;
 		$validated = array_merge( $validated, is_array( $signed_up['data'] ) ? $signed_up['data'] : array() );
+		$package   = ! empty( $signed_up['package_details'] ) && is_array( $signed_up['package_details'] )
+			? $signed_up['package_details']
+			: EPC_Api_Client::extract_package_details( $validated );
+		if ( ! empty( $package ) ) {
+			$validated['package_details'] = $package;
+		}
 		$saved     = EPC_Connection::save_api_key( $signed_up['api_key'], $validated, $signed_up['email'] );
 		if ( is_wp_error( $saved ) ) {
 			wp_send_json_error( array( 'message' => $saved->get_error_message() ), 500 );

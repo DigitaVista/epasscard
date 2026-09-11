@@ -200,15 +200,17 @@ class EPC_Connection {
 		$settings['api_key_encrypted'] = $encrypted;
 		$settings['key_expires_utc']   = self::resolve_expire_at( $validated );
 		$settings['org_id']            = isset( $validated['org_id'] ) ? absint( $validated['org_id'] ) : 0;
+
+		if ( '' === $email ) {
+			$email = EPC_Api_Client::extract_account_email( $validated );
+		}
 		if ( '' !== $email ) {
 			$settings['connected_email'] = sanitize_email( $email );
 		}
 
-		$package_raw = array();
-		if ( isset( $validated['package_details'] ) && is_array( $validated['package_details'] ) ) {
-			$package_raw = $validated['package_details'];
-		}
-		$settings['package_details'] = self::sanitize_package_details( $package_raw );
+		$settings['package_details'] = self::sanitize_package_details(
+			EPC_Api_Client::extract_package_details( $validated )
+		);
 
 		update_option( self::OPTION, $settings );
 		self::schedule_cron();
@@ -217,7 +219,7 @@ class EPC_Connection {
 	}
 
 	/**
-	 * Sanitize stored package details from the sign-up API.
+	 * Sanitize stored package details from connection API responses.
 	 *
 	 * @param mixed $raw Raw package payload.
 	 * @return array<string, mixed>
@@ -227,16 +229,61 @@ class EPC_Connection {
 			return array();
 		}
 
-		$price_per_card = isset( $raw['price_per_card'] ) && is_numeric( $raw['price_per_card'] ) ? (float) $raw['price_per_card'] : 0.0;
-		$total_price    = isset( $raw['total_price'] ) && is_numeric( $raw['total_price'] ) ? (float) $raw['total_price'] : 0.0;
+		$package_name = '';
+		if ( isset( $raw['package_name'] ) ) {
+			$package_name = sanitize_text_field( (string) $raw['package_name'] );
+		} elseif ( isset( $raw['packageName'] ) ) {
+			$package_name = sanitize_text_field( (string) $raw['packageName'] );
+		} elseif ( isset( $raw['name'] ) ) {
+			$package_name = sanitize_text_field( (string) $raw['name'] );
+		}
+
+		$num_of_pass = 0;
+		if ( isset( $raw['num_of_pass'] ) ) {
+			$num_of_pass = absint( $raw['num_of_pass'] );
+		} elseif ( isset( $raw['numOfPass'] ) ) {
+			$num_of_pass = absint( $raw['numOfPass'] );
+		}
+
+		$package_id = 0;
+		if ( isset( $raw['package_id'] ) ) {
+			$package_id = absint( $raw['package_id'] );
+		} elseif ( isset( $raw['packageId'] ) ) {
+			$package_id = absint( $raw['packageId'] );
+		} elseif ( isset( $raw['id'] ) ) {
+			$package_id = absint( $raw['id'] );
+		}
+
+		$price_per_card = 0.0;
+		if ( isset( $raw['price_per_card'] ) && is_numeric( $raw['price_per_card'] ) ) {
+			$price_per_card = (float) $raw['price_per_card'];
+		} elseif ( isset( $raw['pricePerCard'] ) && is_numeric( $raw['pricePerCard'] ) ) {
+			$price_per_card = (float) $raw['pricePerCard'];
+		}
+
+		$total_price = 0.0;
+		if ( isset( $raw['total_price'] ) && is_numeric( $raw['total_price'] ) ) {
+			$total_price = (float) $raw['total_price'];
+		} elseif ( isset( $raw['totalPrice'] ) && is_numeric( $raw['totalPrice'] ) ) {
+			$total_price = (float) $raw['totalPrice'];
+		}
+
+		$billing_period = '';
+		if ( isset( $raw['billing_period'] ) ) {
+			$billing_period = sanitize_text_field( (string) $raw['billing_period'] );
+		} elseif ( isset( $raw['billingPeriod'] ) ) {
+			$billing_period = sanitize_text_field( (string) $raw['billingPeriod'] );
+		} elseif ( isset( $raw['billing_type'] ) ) {
+			$billing_period = sanitize_text_field( (string) $raw['billing_type'] );
+		}
 
 		return array(
-			'package_id'     => isset( $raw['package_id'] ) ? absint( $raw['package_id'] ) : 0,
-			'package_name'   => isset( $raw['package_name'] ) ? sanitize_text_field( (string) $raw['package_name'] ) : '',
-			'num_of_pass'    => isset( $raw['num_of_pass'] ) ? absint( $raw['num_of_pass'] ) : 0,
+			'package_id'     => $package_id,
+			'package_name'   => $package_name,
+			'num_of_pass'    => $num_of_pass,
 			'price_per_card' => $price_per_card,
 			'total_price'    => $total_price,
-			'billing_period' => isset( $raw['billing_period'] ) ? sanitize_text_field( (string) $raw['billing_period'] ) : '',
+			'billing_period' => $billing_period,
 		);
 	}
 
