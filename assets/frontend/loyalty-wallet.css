@@ -1,0 +1,72 @@
+.epc-loyalty-wallet {
+	margin: 0 0 2em;
+}
+
+.epc-loyalty-wallet__header h2 {
+	margin-bottom: 0.25em;
+}
+
+.epc-loyalty-wallet__member {
+	margin: 0 0 1.25em;
+	opacity: 0.85;
+}
+
+.epc-loyalty-wallet__metrics {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 1em;
+	margin-bottom: 1.5em;
+}
+
+.epc-loyalty-wallet__metric {
+	padding: 1em;
+	border: 1px solid #e2e2e2;
+	border-radius: 6px;
+	background: #fafafa;
+}
+
+.epc-loyalty-wallet__label {
+	display: block;
+	font-size: 0.85em;
+	margin-bottom: 0.35em;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.epc-loyalty-wallet__metric strong {
+	font-size: 1.4em;
+}
+
+.epc-loyalty-wallet__progress,
+.epc-loyalty-wallet__redemption,
+.epc-loyalty-wallet__rewards,
+.epc-loyalty-wallet__history {
+	margin: 1.5em 0;
+}
+
+.epc-loyalty-wallet__claim-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.epc-loyalty-wallet__claim {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 1em;
+	padding: 0.85em 0;
+	border-bottom: 1px solid #eee;
+}
+
+.epc-loyalty-wallet__claim-status.is-error {
+	color: #b32d2e;
+}
+
+.epc-loyalty-wallet__claim-status.is-success {
+	color: #1e7a34;
+}
+
+.epc-loyalty-wallet__table {
+	width: 100%;
+}

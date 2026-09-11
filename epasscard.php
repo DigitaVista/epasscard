@@ -23,7 +23,7 @@ define( 'EPC_VERSION', '1.0.6' );
 define( 'EPC_PLUGIN_FILE', __FILE__ );
 define( 'EPC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EPC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'EPC_DB_VERSION', '1.2.0' );
+define( 'EPC_DB_VERSION', '1.3.0' );
 
 /**
  * Appsero project hash (from https://dashboard.appsero.com).
@@ -42,6 +42,22 @@ if ( ! class_exists( 'Appsero\Client' ) ) {
 
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-appsero.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-plugin.php';
+
+/**
+ * Declare compatibility with WooCommerce High-Performance Order Storage.
+ *
+ * @return void
+ */
+function epc_declare_woocommerce_compatibility() {
+	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility(
+			'custom_order_tables',
+			EPC_PLUGIN_FILE,
+			true
+		);
+	}
+}
+add_action( 'before_woocommerce_init', 'epc_declare_woocommerce_compatibility' );
 
 /**
  * Plugin bootstrap.

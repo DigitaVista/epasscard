@@ -36,6 +36,7 @@ Markdown sources remain in this folder for editing and version control.
 | [Pass email API](developer/pass-email.md) | Programmatic email delivery |
 | [Database](developer/database.md) | Custom tables and options |
 | [Push notifications](developer/push-notifications.md) | Push API, cron, module extension |
+| [Loyalty template API v2](developer/loyalty-template-api-v2.md) | Reviewed live v2 create/read + specified update contract |
 
 ## Quick links
 

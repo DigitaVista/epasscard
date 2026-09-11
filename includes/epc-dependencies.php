@@ -75,6 +75,19 @@ function epc_is_woocommerce_subscriptions_active() {
 }
 
 /**
+ * Whether WooCommerce core is installed and active.
+ *
+ * @return bool
+ */
+function epc_is_woocommerce_active() {
+	if ( defined( 'WC_VERSION' ) || class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) {
+		return true;
+	}
+
+	return epc_is_plugin_active( 'woocommerce/woocommerce.php' );
+}
+
+/**
  * Whether Paid Memberships Pro is installed and active.
  *
  * @return bool

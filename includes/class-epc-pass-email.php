@@ -331,17 +331,38 @@ class EPC_Pass_Email {
 			return;
 		}
 
-		$passes = self::get_passes_for_order( $order );
+		$passes = self::get_passes_for_order( $order, $email );
 		if ( empty( $passes ) ) {
 			return;
 		}
 
-		$lines = array( __( 'Your wallet passes:', 'epasscard' ) );
-		foreach ( $passes as $pass ) {
-			$lines[] = (string) $pass->pass_link;
+		if ( $plain_text ) {
+			$lines = array( __( 'Your wallet passes:', 'epasscard' ) );
+			foreach ( $passes as $pass ) {
+				$label   = self::get_order_email_pass_label( $pass );
+				$lines[] = $label . ': ' . (string) $pass->pass_link;
+			}
+			$text = implode( "\n", $lines );
+
+			/**
+			 * Filter WooCommerce order email pass block HTML/text.
+			 *
+			 * @param string        $text   Output.
+			 * @param array<object> $passes Pass rows.
+			 * @param WC_Order      $order  Order.
+			 */
+			$text = (string) apply_filters( 'epc_pass_email_wc_order_block', $text, $passes, $order );
+
+			echo "\n\n" . esc_html( wp_strip_all_tags( $text ) ) . "\n";
+			return;
 		}
 
-		$text = implode( $plain_text ? "\n" : '<br />', $lines );
+		$html = '<h2>' . esc_html__( 'Wallet passes', 'epasscard' ) . '</h2><ul>';
+		foreach ( $passes as $pass ) {
+			$label = self::get_order_email_pass_label( $pass );
+			$html .= '<li><a href="' . esc_url( (string) $pass->pass_link ) . '">' . esc_html( $label ) . '</a></li>';
+		}
+		$html .= '</ul>';
 
 		/**
 		 * Filter WooCommerce order email pass block HTML/text.
@@ -350,24 +371,46 @@ class EPC_Pass_Email {
 		 * @param array<object> $passes Pass rows.
 		 * @param WC_Order      $order  Order.
 		 */
-		$text = (string) apply_filters( 'epc_pass_email_wc_order_block', $text, $passes, $order );
+		$html = (string) apply_filters( 'epc_pass_email_wc_order_block', $html, $passes, $order );
 
-		if ( $plain_text ) {
-			echo "\n\n" . esc_html( wp_strip_all_tags( $text ) ) . "\n";
-			return;
+		echo wp_kses_post( $html );
+	}
+
+	/**
+	 * Human label for a pass in order emails.
+	 *
+	 * @param object $pass Pass row.
+	 * @return string
+	 */
+	private static function get_order_email_pass_label( $pass ) {
+		$label = __( 'Wallet pass', 'epasscard' );
+		if ( ! empty( $pass->module ) && function_exists( 'epc_plugin' ) ) {
+			$mod = epc_plugin()->get_module( (string) $pass->module );
+			if ( $mod ) {
+				$label = $mod->get_label();
+				if ( ! empty( $pass->entity_id ) ) {
+					$entity = $mod->get_entity_label( (int) $pass->entity_id );
+					if ( '' !== $entity ) {
+						$label = $entity;
+					}
+				}
+			}
 		}
-
-		echo '<h2>' . esc_html__( 'Wallet passes', 'epasscard' ) . '</h2>';
-		echo '<p>' . wp_kses_post( $text ) . '</p>';
+		return $label;
 	}
 
 	/**
 	 * Find pass rows related to a WooCommerce order.
 	 *
-	 * @param WC_Order $order Order.
+	 * Subscription passes tied to the order are included first. Other modules
+	 * (including loyalty) append via {@see 'epc_pass_email_order_passes'} so
+	 * unrelated active passes are not dumped into every order email.
+	 *
+	 * @param WC_Order      $order Order.
+	 * @param WC_Email|null $email Optional email instance.
 	 * @return array<int, object>
 	 */
-	public static function get_passes_for_order( $order ) {
+	public static function get_passes_for_order( $order, $email = null ) {
 		$passes  = array();
 		$user_id = (int) $order->get_user_id();
 
@@ -384,15 +427,29 @@ class EPC_Pass_Email {
 			}
 		}
 
-		if ( $user_id > 0 ) {
-			foreach ( EPC_DB::get_active_passes_for_user( $user_id ) as $pass ) {
-				if ( ! empty( $pass->pass_link ) ) {
-					$passes[ (int) $pass->id ] = $pass;
-				}
+		/**
+		 * Filter passes included in a WooCommerce order email.
+		 *
+		 * Prefer order-relevant passes. Loyalty and other modules should append
+		 * only the pass that belongs to this order/customer context.
+		 *
+		 * @param array<int, object> $passes Pass rows keyed later by id.
+		 * @param WC_Order           $order  Order.
+		 * @param WC_Email|null      $email  Email instance when available.
+		 */
+		$filtered = (array) apply_filters( 'epc_pass_email_order_passes', array_values( $passes ), $order, $email );
+
+		$indexed = array();
+		foreach ( $filtered as $pass ) {
+			if ( is_object( $pass ) && ! empty( $pass->pass_link ) ) {
+				$key             = ! empty( $pass->id ) ? (int) $pass->id : count( $indexed );
+				$indexed[ $key ] = $pass;
 			}
 		}
 
-		return array_values( $passes );
+		unset( $user_id );
+
+		return array_values( $indexed );
 	}
 
 	/**

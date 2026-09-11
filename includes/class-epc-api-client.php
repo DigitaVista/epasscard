@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * HTTP wrapper for EpassCard public v1 API.
+ * HTTP wrapper for EpassCard public API (v1 + documented v2 template endpoints).
  */
 class EPC_Api_Client {
 
@@ -24,6 +24,23 @@ class EPC_Api_Client {
 			(string) apply_filters(
 				'epc_api_base',
 				'https://api.epasscard.com/api/public/v1'
+			),
+			'/'
+		);
+	}
+
+	/**
+	 * Filterable public API v2 base (no trailing slash).
+	 *
+	 * Live contract: https://app.epasscard.com/doc/api/v2 (OpenAPI at /api/docs/openapi.json).
+	 *
+	 * @return string
+	 */
+	public static function api_base_v2() {
+		return rtrim(
+			(string) apply_filters(
+				'epc_api_base_v2',
+				'https://api.epasscard.com/api/public/v2'
 			),
 			'/'
 		);
@@ -422,24 +439,27 @@ class EPC_Api_Client {
 	/**
 	 * PUT JSON with X-Api-Key.
 	 *
-	 * @param string               $path Path after v1/.
-	 * @param array<string, mixed> $body Request body.
+	 * @param string               $path_or_url Path after v1/, or absolute https URL.
+	 * @param array<string, mixed> $body        Request body.
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public static function put_json( $path, array $body ) {
+	public static function put_json( $path_or_url, array $body ) {
 		if ( ! self::is_configured() ) {
 			return new WP_Error( 'epc_no_key', __( 'EpassCard API key is not configured.', 'epasscard' ) );
 		}
 
-		$url       = self::api_base() . '/' . ltrim( (string) $path, '/' );
-		$body_json = wp_json_encode( $body );
+		$path_or_url = (string) $path_or_url;
+		$url         = preg_match( '#^https?://#i', $path_or_url )
+			? $path_or_url
+			: self::api_base() . '/' . ltrim( $path_or_url, '/' );
+		$body_json   = wp_json_encode( $body );
 
 		return self::remote_request(
 			'PUT',
 			$url,
 			array(
 				'method'  => 'PUT',
-				'timeout' => 30,
+				'timeout' => 60,
 				'headers' => array(
 					'X-Api-Key'    => EPC_Connection::get_api_key(),
 					'Content-Type' => 'application/json',
@@ -740,6 +760,153 @@ class EPC_Api_Client {
 			'expire_at' => $expire_at,
 			'data'      => $data,
 		);
+	}
+
+	/**
+	 * Create a pass template via public API v2 (simplified loyalty-compatible contract).
+	 *
+	 * POST /api/public/v2/create-pass-template
+	 *
+	 * @param array<string, mixed> $payload Sanitized create payload.
+	 * @return array<string,mixed>|\WP_Error Template data (uid, fields, …).
+	 */
+	public static function create_pass_template_v2( array $payload ) {
+		if ( ! self::is_configured() ) {
+			return new WP_Error( 'epc_no_key', __( 'EpassCard API key is not configured.', 'epasscard' ) );
+		}
+
+		if ( class_exists( 'EPC_Api_Log' ) ) {
+			EPC_Api_Log::set_request_context( 'loyalty:create_pass_template_v2' );
+		}
+
+		$url       = self::api_base_v2() . '/create-pass-template';
+		$body_json = wp_json_encode( $payload );
+		$body      = self::remote_request(
+			'POST',
+			$url,
+			array(
+				'timeout' => 90,
+				'headers' => array(
+					'X-Api-Key'    => EPC_Connection::get_api_key(),
+					'Content-Type' => 'application/json',
+					'Accept'       => 'application/json',
+				),
+				'body'    => $body_json,
+			),
+			$body_json,
+			true
+		);
+
+		if ( is_wp_error( $body ) ) {
+			return $body;
+		}
+
+		$status = (int) ( $body['status'] ?? 0 );
+		if ( 201 !== $status && 200 !== $status ) {
+			$msg = isset( $body['message'] ) && is_string( $body['message'] )
+				? sanitize_text_field( $body['message'] )
+				: __( 'The loyalty pass template could not be created.', 'epasscard' );
+			return new WP_Error( 'epc_template_create_failed', $msg, array( 'response' => $body ) );
+		}
+
+		$data = isset( $body['data'] ) && is_array( $body['data'] ) ? $body['data'] : $body;
+		$uid  = isset( $data['uid'] ) ? self::sanitize_uid( (string) $data['uid'] ) : false;
+		if ( false === $uid ) {
+			return new WP_Error( 'epc_template_create_incomplete', __( 'The EpassCard response did not include a template UID.', 'epasscard' ) );
+		}
+
+		$data['uid'] = $uid;
+		return $data;
+	}
+
+	/**
+	 * Update a pass template via the documented public API v2 simplified contract.
+	 *
+	 * PUT /api/public/v2/update-pass-template/{uid}
+	 *
+	 * When this route is not yet deployed on the SaaS, the API returns 404 and callers
+	 * retain the previous local design (see docs/developer/loyalty-template-api-v2.md).
+	 *
+	 * @param string               $template_uid Template UUID.
+	 * @param array<string, mixed> $payload      Same simplified shape as create (minus locked certificate when passes exist).
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public static function update_pass_template_v2( $template_uid, array $payload ) {
+		$san = self::sanitize_uid( $template_uid );
+		if ( false === $san ) {
+			return new WP_Error( 'epc_bad_uid', __( 'Invalid template identifier.', 'epasscard' ) );
+		}
+
+		if ( ! self::is_configured() ) {
+			return new WP_Error( 'epc_no_key', __( 'EpassCard API key is not configured.', 'epasscard' ) );
+		}
+
+		if ( class_exists( 'EPC_Api_Log' ) ) {
+			EPC_Api_Log::set_request_context( 'loyalty:update_pass_template_v2' );
+		}
+
+		$body = self::put_json(
+			self::api_base_v2() . '/update-pass-template/' . rawurlencode( $san ),
+			$payload
+		);
+
+		if ( is_wp_error( $body ) ) {
+			$status = (int) ( $body->get_error_data()['status'] ?? 0 );
+			if ( 404 === $status ) {
+				return new WP_Error(
+					'epc_template_update_unavailable',
+					__( 'The EpassCard API v2 template update endpoint is not available yet. The previous loyalty pass design was kept. See the loyalty template API contract in the plugin docs.', 'epasscard' ),
+					array( 'status' => 404 )
+				);
+			}
+			return $body;
+		}
+
+		$status = (int) ( $body['status'] ?? 0 );
+		if ( 200 !== $status && 0 !== $status ) {
+			$msg = isset( $body['message'] ) && is_string( $body['message'] )
+				? sanitize_text_field( $body['message'] )
+				: __( 'The loyalty pass template could not be updated.', 'epasscard' );
+			return new WP_Error( 'epc_template_update_failed', $msg, array( 'response' => $body ) );
+		}
+
+		$data = isset( $body['data'] ) && is_array( $body['data'] ) ? $body['data'] : $body;
+		if ( empty( $data['uid'] ) ) {
+			$data['uid'] = $san;
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Read one template (v1 details endpoint referenced by v2 create responses).
+	 *
+	 * GET /api/public/v1/template-details/{uid}
+	 *
+	 * @param string $template_uid Template UUID.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public static function get_template_details( $template_uid ) {
+		$san = self::sanitize_uid( $template_uid );
+		if ( false === $san ) {
+			return new WP_Error( 'epc_bad_uid', __( 'Invalid template identifier.', 'epasscard' ) );
+		}
+
+		if ( class_exists( 'EPC_Api_Log' ) ) {
+			EPC_Api_Log::set_request_context( 'loyalty:get_template_details' );
+		}
+
+		$body = self::get( 'template-details/' . rawurlencode( $san ) );
+		if ( is_wp_error( $body ) ) {
+			return $body;
+		}
+
+		$data = isset( $body['data'] ) && is_array( $body['data'] ) ? $body['data'] : $body;
+		if ( empty( $data['template_uid'] ) && empty( $data['uid'] ) ) {
+			$data['template_uid'] = $san;
+		}
+
+		return $data;
 	}
 
 	/**

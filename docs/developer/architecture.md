@@ -27,6 +27,7 @@ WordPress (membership / events / gift cards plugin)
 | `EPC_Module` | Abstract integration (mapping UI, hooks) |
 | `EPC_Pass_Service` | Create/update passes from mappings |
 | `EPC_Api_Client` | HTTP client, templates, pass CRUD |
+| `EPC_Loyalty_Pass_Design_Service` | Loyalty StoreCard designer → API v2 create/update |
 | `EPC_DB` | `epc_passes` table |
 | `EPC_Api_Log` | Request/response logging |
 | `EPC_Pass_Email` | `wp_mail` delivery |

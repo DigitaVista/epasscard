@@ -274,6 +274,21 @@ class EPC_Admin_Shell {
 				);
 			}
 
+			foreach ( $module->get_extra_admin_nav_items() as $extra ) {
+				if ( empty( $extra['id'] ) || empty( $extra['label'] ) ) {
+					continue;
+				}
+				$section = isset( $extra['section'] ) ? sanitize_html_class( (string) $extra['section'] ) : sanitize_html_class( (string) $extra['id'] );
+				$primary[] = array(
+					'id'    => sanitize_key( (string) $extra['id'] ),
+					'label' => (string) $extra['label'],
+					'url'   => ! empty( $extra['url'] )
+						? (string) $extra['url']
+						: $page_url . '#epc-section-' . $section,
+					'icon'  => isset( $extra['icon'] ) ? (string) $extra['icon'] : 'tune',
+				);
+			}
+
 			$primary[] = array(
 				'id'    => 'mapping',
 				'label' => __( 'Template Mapping', 'epasscard' ),

@@ -20,6 +20,21 @@ class EPC_DB {
 	public const TABLE = 'epc_passes';
 
 	/**
+	 * Loyalty account table name without prefix.
+	 */
+	public const LOYALTY_ACCOUNTS_TABLE = 'epc_loyalty_accounts';
+
+	/**
+	 * Loyalty ledger table name without prefix.
+	 */
+	public const LOYALTY_LEDGER_TABLE = 'epc_loyalty_ledger';
+
+	/**
+	 * Loyalty reward claims table name without prefix.
+	 */
+	public const LOYALTY_CLAIMS_TABLE = 'epc_loyalty_claims';
+
+	/**
 	 * Install or upgrade schema.
 	 *
 	 * @return void
@@ -52,10 +67,83 @@ class EPC_DB {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
 
+		self::install_loyalty_tables();
+
 		require_once EPC_PLUGIN_DIR . 'includes/class-epc-api-log.php';
 		EPC_Api_Log::install();
 
 		update_option( 'epc_db_version', EPC_DB_VERSION );
+	}
+
+	/**
+	 * Install loyalty transactional tables.
+	 *
+	 * @return void
+	 */
+	private static function install_loyalty_tables() {
+		global $wpdb;
+
+		$accounts        = self::loyalty_accounts_table_name();
+		$ledger          = self::loyalty_ledger_table_name();
+		$claims          = self::loyalty_claims_table_name();
+		$charset_collate = $wpdb->get_charset_collate();
+
+		$accounts_sql = "CREATE TABLE {$accounts} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) unsigned NOT NULL,
+			member_id varchar(64) NOT NULL,
+			points_balance bigint(20) NOT NULL DEFAULT 0,
+			lifetime_points bigint(20) NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY user_id (user_id),
+			UNIQUE KEY member_id (member_id)
+		) ENGINE=InnoDB {$charset_collate};";
+
+		$ledger_sql = "CREATE TABLE {$ledger} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) unsigned NOT NULL,
+			event_key varchar(191) NOT NULL,
+			entry_type varchar(32) NOT NULL,
+			points_delta bigint(20) NOT NULL DEFAULT 0,
+			lifetime_delta bigint(20) NOT NULL DEFAULT 0,
+			order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			refund_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			amount decimal(20,6) NOT NULL DEFAULT 0,
+			currency varchar(8) NOT NULL DEFAULT '',
+			description text NULL,
+			meta longtext NULL,
+			expires_at datetime NULL DEFAULT NULL,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY event_key (event_key),
+			KEY user_created (user_id, created_at),
+			KEY order_id (order_id),
+			KEY refund_id (refund_id),
+			KEY expires_at (expires_at)
+		) ENGINE=InnoDB {$charset_collate};";
+
+		$claims_sql = "CREATE TABLE {$claims} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) unsigned NOT NULL,
+			reward_key varchar(191) NOT NULL,
+			reward_type varchar(32) NOT NULL DEFAULT '',
+			status varchar(24) NOT NULL DEFAULT 'available',
+			usage_count bigint(20) unsigned NOT NULL DEFAULT 0,
+			meta longtext NULL,
+			expires_at datetime NULL DEFAULT NULL,
+			claimed_at datetime NULL DEFAULT NULL,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY user_reward (user_id, reward_key),
+			KEY status_expires (status, expires_at)
+		) ENGINE=InnoDB {$charset_collate};";
+
+		dbDelta( $accounts_sql );
+		dbDelta( $ledger_sql );
+		dbDelta( $claims_sql );
 	}
 
 	/**
@@ -216,6 +304,36 @@ class EPC_DB {
 	public static function table_name() {
 		global $wpdb;
 		return $wpdb->prefix . self::TABLE;
+	}
+
+	/**
+	 * Full loyalty accounts table name.
+	 *
+	 * @return string
+	 */
+	public static function loyalty_accounts_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . self::LOYALTY_ACCOUNTS_TABLE;
+	}
+
+	/**
+	 * Full loyalty ledger table name.
+	 *
+	 * @return string
+	 */
+	public static function loyalty_ledger_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . self::LOYALTY_LEDGER_TABLE;
+	}
+
+	/**
+	 * Full loyalty claims table name.
+	 *
+	 * @return string
+	 */
+	public static function loyalty_claims_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . self::LOYALTY_CLAIMS_TABLE;
 	}
 
 	/**

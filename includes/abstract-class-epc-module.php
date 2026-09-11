@@ -297,6 +297,15 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * Extra sidebar nav items for this module admin page.
+	 *
+	 * @return array<int, array{id: string, label: string, url?: string, icon?: string, section?: string}>
+	 */
+	public function get_extra_admin_nav_items() {
+		return array();
+	}
+
+	/**
 	 * Whether the current user can manage passes.
 	 *
 	 * @return bool
@@ -848,7 +857,7 @@ abstract class EPC_Module {
 	 * @return void
 	 */
 	public function render_admin_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! $this->current_user_can_manage_passes() ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'epasscard' ) );
 		}
 
