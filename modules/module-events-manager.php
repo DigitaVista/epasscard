@@ -38,6 +38,22 @@ class EPC_Module_Events_Manager extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'events-manager',
+				'label'       => __( 'Events Manager', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'events-manager',
+				'plugin_file' => 'events-manager/events-manager.php',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_events_manager_active();
 	}

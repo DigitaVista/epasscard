@@ -29,17 +29,27 @@ class EPC_Loyalty_Pass_Design_Service {
 	public static function placeholder_source_map() {
 		return array(
 			'points'           => 'points_balance',
+			'point'            => 'points_balance',
+			'points balance'   => 'points_balance',
+			'spendable points' => 'points_balance',
+			'balance'          => 'points_balance',
 			'name'             => 'user_full_name',
+			'full name'        => 'user_full_name',
+			'member name'      => 'user_full_name',
+			'customer name'    => 'user_full_name',
 			'member no'        => 'member_id',
+			'member number'    => 'member_id',
 			'member id'        => 'member_id',
 			'membership id'    => 'member_id',
 			'tier'             => 'tier',
+			'level'            => 'tier',
 			'next tier'        => 'next_tier',
 			'next reward'      => 'next_reward',
 			'milestone'        => 'milestone',
 			'lifetime points'  => 'lifetime_points',
 			'email'            => 'user_email',
 			'reward summary'   => 'reward_summary',
+			'rewards'          => 'reward_summary',
 		);
 	}
 
@@ -57,6 +67,7 @@ class EPC_Loyalty_Pass_Design_Service {
 		return array(
 			'version'            => 1,
 			'template_uid'       => '',
+			'design_source'      => 'form',
 			'template_name'      => sprintf(
 				/* translators: %s: site name. */
 				__( '%s Loyalty', 'epasscard' ),
@@ -130,6 +141,9 @@ class EPC_Loyalty_Pass_Design_Service {
 			$design['template_uid'] = $raw_uid;
 		}
 
+		$source = sanitize_key( (string) ( $raw['design_source'] ?? 'form' ) );
+		$design['design_source'] = in_array( $source, array( 'form', 'builder' ), true ) ? $source : 'form';
+
 		$design['template_name']     = sanitize_text_field( (string) ( $raw['template_name'] ?? $defaults['template_name'] ) );
 		$design['organization_name'] = sanitize_text_field( (string) ( $raw['organization_name'] ?? $defaults['organization_name'] ) );
 		$design['certificate']       = sanitize_text_field( (string) ( $raw['certificate'] ?? $defaults['certificate'] ) );
@@ -142,15 +156,27 @@ class EPC_Loyalty_Pass_Design_Service {
 		$design['card_type'] = in_array( $card_type, $allowed_types, true ) ? $card_type : 'StoreCard';
 
 		foreach ( array( 'logo', 'strip' ) as $slot ) {
-			$id_key  = $slot . '_id';
-			$url_key = $slot . '_url';
-			$design[ $id_key ]  = absint( $raw[ $id_key ] ?? 0 );
-			$design[ $url_key ] = esc_url_raw( (string) ( $raw[ $url_key ] ?? '' ) );
-			if ( $design[ $id_key ] > 0 ) {
-				$from_id = wp_get_attachment_image_url( $design[ $id_key ], 'full' );
-				if ( is_string( $from_id ) && '' !== $from_id ) {
-					$design[ $url_key ] = esc_url_raw( $from_id );
+			$id_key     = $slot . '_id';
+			$url_key    = $slot . '_url';
+			$posted_id  = absint( $raw[ $id_key ] ?? 0 );
+			$posted_url = self::sanitize_image_reference( (string) ( $raw[ $url_key ] ?? '' ) );
+
+			if ( '' !== $posted_url ) {
+				$design[ $url_key ] = $posted_url;
+				$design[ $id_key ]  = 0;
+				if ( $posted_id > 0 ) {
+					$from_id = wp_get_attachment_image_url( $posted_id, 'full' );
+					if ( is_string( $from_id ) && esc_url_raw( $from_id ) === $posted_url ) {
+						$design[ $id_key ] = $posted_id;
+					}
 				}
+			} elseif ( $posted_id > 0 ) {
+				$from_id = wp_get_attachment_image_url( $posted_id, 'full' );
+				$design[ $id_key ]  = $posted_id;
+				$design[ $url_key ] = is_string( $from_id ) ? esc_url_raw( $from_id ) : '';
+			} else {
+				$design[ $id_key ]  = 0;
+				$design[ $url_key ] = '';
 			}
 		}
 
@@ -214,20 +240,31 @@ class EPC_Loyalty_Pass_Design_Service {
 	 */
 	public static function save_and_sync( array $raw ) {
 		$previous = self::get_design();
-		$design   = self::sanitize_design( array_merge( $previous, $raw ), true );
-
-		if ( '' === $design['logo_url'] || '' === $design['strip_url'] ) {
-			return new WP_Error(
-				'epc_loyalty_design_media',
-				__( 'Logo and strip image are required before the loyalty pass design can be saved.', 'epasscard' )
-			);
+		foreach ( array( 'logo_url', 'strip_url' ) as $url_key ) {
+			$incoming = trim( (string) ( $raw[ $url_key ] ?? '' ) );
+			if ( '' === $incoming && self::is_data_image_uri( (string) ( $previous[ $url_key ] ?? '' ) ) ) {
+				unset( $raw[ $url_key ] );
+			}
 		}
+		$design = self::sanitize_design( array_merge( $previous, $raw ), true );
 
 		if ( ! EPC_Api_Client::is_configured() ) {
 			return new WP_Error( 'epc_no_key', __( 'Connect EpassCard before saving the loyalty pass design.', 'epasscard' ) );
 		}
 
+		if ( 'builder' === $design['design_source'] ) {
+			return self::save_from_builder_template( $design );
+		}
+
+		if ( '' === $design['logo_url'] || '' === $design['strip_url'] ) {
+			return new WP_Error(
+				'epc_loyalty_design_media',
+				__( 'Logo and strip image URLs are required before the loyalty pass design can be saved.', 'epasscard' )
+			);
+		}
+
 		$payload = self::build_remote_payload( $design );
+		
 		$has_uid = '' !== $design['template_uid'];
 
 		if ( $has_uid ) {
@@ -268,6 +305,89 @@ class EPC_Loyalty_Pass_Design_Service {
 		do_action( 'epc_loyalty_pass_design_saved', $design, $remote );
 
 		return $design;
+	}
+
+	/**
+	 * Attach an existing EpassCard dashboard template without overwriting its design.
+	 *
+	 * @param array<string, mixed> $design Sanitized design.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private static function save_from_builder_template( array $design ) {
+		if ( '' === (string) $design['template_uid'] ) {
+			return new WP_Error(
+				'epc_loyalty_builder_template',
+				__( 'Select a template from the EpassCard template builder before saving.', 'epasscard' )
+			);
+		}
+
+		$details = EPC_Api_Client::get_template_details( $design['template_uid'] );
+		if ( ! is_wp_error( $details ) ) {
+			$name = '';
+			if ( ! empty( $details['template_name'] ) ) {
+				$name = (string) $details['template_name'];
+			} elseif ( ! empty( $details['name'] ) ) {
+				$name = (string) $details['name'];
+			} elseif ( ! empty( $details['template']['template_name'] ) ) {
+				$name = (string) $details['template']['template_name'];
+			}
+			if ( '' !== $name ) {
+				$design['template_name'] = sanitize_text_field( $name );
+			}
+		}
+
+		$fields = EPC_Api_Client::get_pass_fields( $design['template_uid'] );
+		if ( is_wp_error( $fields ) ) {
+			return $fields;
+		}
+
+		$design['field_uids'] = self::extract_field_uids_from_pass_fields( (array) ( $fields['passFields'] ?? array() ) );
+		$design['updated_at'] = gmdate( 'c' );
+		$design               = self::sanitize_design( $design, false );
+
+		update_option( self::OPTION_KEY, $design, false );
+		$field_mapping = self::sync_program_mapping( $design );
+
+		if ( empty( $field_mapping ) ) {
+			return new WP_Error(
+				'epc_loyalty_builder_mapping',
+				__( 'The template was linked, but none of its fields could be mapped to loyalty data. In the EpassCard template builder, name fields like Points, Name, Member No, Tier, Email, or Lifetime Points — then refresh and save again. Or choose “Create a starter card” instead.', 'epasscard' )
+			);
+		}
+
+		do_action( 'epc_loyalty_pass_design_saved', $design, is_wp_error( $details ) ? array() : $details );
+
+		return $design;
+	}
+
+	/**
+	 * Keep public image URLs and PNG/JPEG data URIs the template API accepts.
+	 *
+	 * @param string $url Raw image reference.
+	 * @return string
+	 */
+	public static function sanitize_image_reference( $url ) {
+		$url = trim( (string) $url );
+		if ( self::is_data_image_uri( $url ) ) {
+			return $url;
+		}
+
+		return esc_url_raw( $url );
+	}
+
+	/**
+	 * Whether a value is a PNG or JPEG data URI safe to send and print.
+	 *
+	 * @param string $url Image reference.
+	 * @return bool
+	 */
+	public static function is_data_image_uri( $url ) {
+		$url = (string) $url;
+		if ( strlen( $url ) > 1500000 ) {
+			return false;
+		}
+
+		return (bool) preg_match( '#^data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+$#', $url );
 	}
 
 	/**
@@ -395,7 +515,7 @@ class EPC_Loyalty_Pass_Design_Service {
 	 * Write the loyalty program mapping from template field UIDs.
 	 *
 	 * @param array<string, mixed> $design Saved design.
-	 * @return void
+	 * @return array<string, mixed> Field mapping that was saved (may be empty).
 	 */
 	public static function sync_program_mapping( array $design ) {
 		$module = epc_plugin()->get_module( 'woocommerce-loyalty' );
@@ -403,26 +523,26 @@ class EPC_Loyalty_Pass_Design_Service {
 			$module = epc_plugin()->get_all_modules()['woocommerce-loyalty'] ?? null;
 		}
 		if ( ! $module instanceof EPC_Module ) {
-			return;
+			return array();
 		}
 
 		$template_uid = (string) ( $design['template_uid'] ?? '' );
 		if ( '' === $template_uid ) {
-			return;
+			return array();
 		}
 
 		$field_mapping = array();
 		$field_uids    = isset( $design['field_uids'] ) && is_array( $design['field_uids'] ) ? $design['field_uids'] : array();
-		$map           = self::placeholder_source_map();
 
 		foreach ( $field_uids as $name => $uid ) {
-			$normalized = strtolower( trim( (string) $name ) );
-			if ( ! isset( $map[ $normalized ] ) ) {
+			$source = self::resolve_loyalty_source_for_field( (string) $name );
+			$san    = EPC_Api_Client::sanitize_uid( (string) $uid );
+			if ( '' === $source || false === $san ) {
 				continue;
 			}
-			$field_mapping[ $uid ] = array(
+			$field_mapping[ $san ] = array(
 				'type'   => 'source',
-				'source' => $map[ $normalized ],
+				'source' => $source,
 			);
 		}
 
@@ -434,13 +554,14 @@ class EPC_Loyalty_Pass_Design_Service {
 						continue;
 					}
 					$uid  = isset( $field['uid'] ) ? EPC_Api_Client::sanitize_uid( (string) $field['uid'] ) : false;
-					$name = isset( $field['name'] ) ? strtolower( trim( (string) $field['name'] ) ) : '';
-					if ( false === $uid || '' === $name || ! isset( $map[ $name ] ) ) {
+					$name = (string) ( $field['name'] ?? $field['field_name'] ?? $field['label'] ?? $field['fieldName'] ?? '' );
+					$source = self::resolve_loyalty_source_for_field( $name );
+					if ( false === $uid || '' === $source ) {
 						continue;
 					}
 					$field_mapping[ $uid ] = array(
 						'type'   => 'source',
-						'source' => $map[ $name ],
+						'source' => $source,
 					);
 				}
 			}
@@ -455,6 +576,53 @@ class EPC_Loyalty_Pass_Design_Service {
 				'source'        => 'loyalty_designer',
 			)
 		);
+
+		return $field_mapping;
+	}
+
+	/**
+	 * Map a pass-template field label to a loyalty source slug.
+	 *
+	 * Exact placeholder names win first; otherwise a light fuzzy match is used so
+	 * templates designed in the EpassCard builder still wire up common fields.
+	 *
+	 * @param string $field_name Pass field label.
+	 * @return string Source slug or empty string.
+	 */
+	public static function resolve_loyalty_source_for_field( $field_name ) {
+		$normalized = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $field_name ) ) );
+		$normalized = trim( preg_replace( '/[^a-z0-9\s]/', '', $normalized ) );
+		if ( '' === $normalized ) {
+			return '';
+		}
+
+		$map = self::placeholder_source_map();
+		if ( isset( $map[ $normalized ] ) ) {
+			return $map[ $normalized ];
+		}
+
+		$fuzzy = array(
+			'lifetime_points' => array( 'lifetime points', 'lifetime', 'total points', 'points earned' ),
+			'points_balance'  => array( 'points balance', 'spendable points', 'points', 'point', 'balance' ),
+			'user_full_name'  => array( 'full name', 'member name', 'customer name', 'cardholder', 'name' ),
+			'member_id'       => array( 'member no', 'member number', 'membership id', 'member id', 'card number', 'barcode' ),
+			'next_tier'       => array( 'next tier', 'upcoming tier' ),
+			'next_reward'     => array( 'next reward', 'upcoming reward' ),
+			'reward_summary'  => array( 'reward summary', 'rewards' ),
+			'user_email'      => array( 'email', 'e mail' ),
+			'tier'            => array( 'tier', 'level', 'rank' ),
+			'milestone'       => array( 'milestone', 'progress' ),
+		);
+
+		foreach ( $fuzzy as $source => $needles ) {
+			foreach ( $needles as $needle ) {
+				if ( $normalized === $needle || 0 === strpos( $normalized, $needle ) || false !== strpos( $normalized, $needle ) ) {
+					return $source;
+				}
+			}
+		}
+
+		return '';
 	}
 
 	/**
@@ -470,7 +638,13 @@ class EPC_Loyalty_Pass_Design_Service {
 			return new WP_Error( 'epc_loyalty_design_missing', __( 'Save the loyalty pass design before issuing a test pass.', 'epasscard' ) );
 		}
 
-		self::sync_program_mapping( $design );
+		$field_mapping = self::sync_program_mapping( $design );
+		if ( empty( $field_mapping ) ) {
+			return new WP_Error(
+				'epc_loyalty_builder_mapping',
+				__( 'The selected pass template has no usable field mapping. Use fields named Points, Name, Member No, or Tier in the template builder, or switch to “Create a starter card”.', 'epasscard' )
+			);
+		}
 
 		$module = epc_plugin()->get_module( 'woocommerce-loyalty' );
 		if ( ! $module instanceof EPC_Module_WooCommerce_Loyalty ) {

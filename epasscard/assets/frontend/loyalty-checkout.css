@@ -1,0 +1,48 @@
+.epc-loyalty-redemption {
+	margin: 1em 0 1.5em;
+	padding: 1em;
+	border: 1px solid #e2e2e2;
+	border-radius: 4px;
+	background: #fafafa;
+}
+
+.epc-loyalty-redemption__title {
+	margin: 0 0 0.5em;
+	font-size: 1.1em;
+}
+
+.epc-loyalty-redemption__controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5em;
+	align-items: center;
+	margin: 0.75em 0;
+}
+
+.epc-loyalty-redemption__input {
+	width: 8em;
+	max-width: 100%;
+}
+
+.epc-loyalty-redemption__hint,
+.epc-loyalty-redemption__message,
+.epc-loyalty-redemption__balance,
+.epc-loyalty-redemption__status {
+	margin: 0.35em 0;
+}
+
+.epc-loyalty-redemption__status.is-error {
+	color: #b32d2e;
+}
+
+.epc-loyalty-redemption__status.is-success {
+	color: #1e7a34;
+}
+
+.epc-loyalty-guest-notice a {
+	font-weight: 600;
+}
+
+.epc-loyalty-redemption--blocks {
+	margin-top: 1em;
+}

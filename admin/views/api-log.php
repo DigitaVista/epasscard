@@ -29,18 +29,18 @@ EPC_Admin_Shell::render_open(
 	)
 );
 ?>
-<div class="wrap epc-wrap epc-api-log-wrap">
+<div class="epc-api-log-wrap">
 	<div class="epc-page-header">
 		<h1 class="epc-page-title"><?php esc_html_e( 'API Log', 'epasscard' ); ?></h1>
 		<p class="description"><?php esc_html_e( 'Review API requests sent to EpassCard. Logs are retained based on your settings below.', 'epasscard' ); ?></p>
 	</div>
 
 	<?php if ( 'settings_saved' === $notice ) : ?>
-		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Log settings saved.', 'epasscard' ); ?></p></div>
+		<div class="notice notice-success is-dismissible inline"><p><?php esc_html_e( 'Log settings saved.', 'epasscard' ); ?></p></div>
 	<?php elseif ( 'purged' === $notice ) : ?>
-		<div class="notice notice-success is-dismissible"><p><?php echo esc_html( sprintf( /* translators: %d: number of deleted rows */ __( 'Removed %d expired log entries.', 'epasscard' ), $deleted ) ); ?></p></div>
+		<div class="notice notice-success is-dismissible inline"><p><?php echo esc_html( sprintf( /* translators: %d: number of deleted rows */ __( 'Removed %d expired log entries.', 'epasscard' ), $deleted ) ); ?></p></div>
 	<?php elseif ( 'cleared' === $notice ) : ?>
-		<div class="notice notice-success is-dismissible"><p><?php echo esc_html( sprintf( /* translators: %d: number of deleted rows */ __( 'Removed %d log entries.', 'epasscard' ), $deleted ) ); ?></p></div>
+		<div class="notice notice-success is-dismissible inline"><p><?php echo esc_html( sprintf( /* translators: %d: number of deleted rows */ __( 'Removed %d log entries.', 'epasscard' ), $deleted ) ); ?></p></div>
 	<?php endif; ?>
 
 	<div class="epc-api-log-toolbar">

@@ -16,7 +16,6 @@ EPC_Admin_Shell::render_open(
 	)
 );
 ?>
-<div class="wrap epc-wrap">
 	<div id="epc-section-overview" class="epc-section epc-section--overview">
 		<div class="epc-overview-hero">
 			<div class="epc-page-header">
@@ -365,6 +364,5 @@ EPC_Admin_Shell::render_open(
 			</div>
 		</div>
 	</div>
-</div>
 <?php
 EPC_Admin_Shell::render_close();

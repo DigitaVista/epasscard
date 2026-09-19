@@ -321,6 +321,52 @@ function epc_format_user_full_name( $first_name, $last_name, $fallback = '' ) {
 }
 
 /**
+ * Resolve the WordPress user that should own a gift card wallet pass.
+ *
+ * Prefers a user matching the recipient email. If none exists, falls back to
+ * the WooCommerce order customer (then billing email) so the purchaser can
+ * still see the pass under My Account → Wallet passes.
+ *
+ * @param string $recipient_email Gift card recipient email.
+ * @param int    $order_id        Originating order ID.
+ * @return int User ID or 0.
+ */
+function epc_resolve_gift_card_user_id( $recipient_email, $order_id = 0 ) {
+	$recipient_email = sanitize_email( (string) $recipient_email );
+	if ( $recipient_email && is_email( $recipient_email ) ) {
+		$user = get_user_by( 'email', $recipient_email );
+		if ( $user ) {
+			return (int) $user->ID;
+		}
+	}
+
+	$order_id = absint( $order_id );
+	if ( $order_id <= 0 || ! function_exists( 'wc_get_order' ) ) {
+		return 0;
+	}
+
+	$order = wc_get_order( $order_id );
+	if ( ! $order ) {
+		return 0;
+	}
+
+	$user_id = (int) $order->get_user_id();
+	if ( $user_id > 0 ) {
+		return $user_id;
+	}
+
+	$billing = sanitize_email( (string) $order->get_billing_email() );
+	if ( $billing && is_email( $billing ) ) {
+		$user = get_user_by( 'email', $billing );
+		if ( $user ) {
+			return (int) $user->ID;
+		}
+	}
+
+	return 0;
+}
+
+/**
  * Years ahead used for lifetime / open-ended expiry on wallet passes.
  *
  * Global EpassCard rule: when an expiry/end date field is mapped but the source

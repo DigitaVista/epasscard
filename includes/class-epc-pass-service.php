@@ -167,22 +167,15 @@ class EPC_Pass_Service {
 	}
 
 	/**
-	 * Build update payload (field_value key).
+	 * Build update payload (same shape as create: uid + fieldValue).
 	 *
-	 * @param array<string, mixed> $mapping Saved mapping config.
+	 * @param array<string, mixed>  $mapping       Saved mapping config.
 	 * @param array<string, string> $source_values Source values.
-	 * @return array<int, array{uid: string, field_value: string}>
+	 * @param string                $module_slug   Module slug.
+	 * @return array<int, array{uid: string, fieldValue: string}>
 	 */
 	public static function build_update_fields( array $mapping, array $source_values, $module_slug = '' ) {
-		$create = self::build_create_fields( $mapping, $source_values, $module_slug );
-		$out    = array();
-		foreach ( $create as $row ) {
-			$out[] = array(
-				'uid'          => $row['uid'],
-				'field_value'  => $row['fieldValue'],
-			);
-		}
-		return $out;
+		return self::build_create_fields( $mapping, $source_values, $module_slug );
 	}
 
 	/**

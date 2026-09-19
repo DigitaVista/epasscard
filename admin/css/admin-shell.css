@@ -36,18 +36,23 @@ body.epc-admin-ui #wpbody-content {
 	padding-top: 0;
 }
 
-body.epc-admin-ui #wpbody-content > .notice {
-	margin: 16px 32px 0;
-	max-width: none;
-}
-
 body.epc-admin-ui .wrap.epc-wrap {
 	margin: 0;
 	max-width: none;
 }
 
-body.epc-admin-ui .wrap.epc-wrap > h1 {
-	display: none;
+/* WP core moves notices after .wp-header-end — keep them above the app shell. */
+body.epc-admin-ui .wrap.epc-wrap > .notice,
+body.epc-admin-ui .wrap.epc-wrap > .updated,
+body.epc-admin-ui .wrap.epc-wrap > .error {
+	margin: 16px 32px 0;
+	max-width: none;
+}
+
+body.epc-admin-ui .wrap.epc-wrap > .wp-header-end {
+	margin: 0;
+	border: 0;
+	height: 0;
 }
 
 body.epc-admin-ui .epc-app-root {
@@ -423,6 +428,16 @@ body.epc-admin-ui .epc-app-root {
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: var(--epc-on-surface-variant);
+}
+
+.epc-metric-card__label a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.epc-metric-card__label a:hover {
+	color: var(--epc-primary);
+	text-decoration: underline;
 }
 
 .epc-metric-card__value {
@@ -1009,7 +1024,9 @@ body.epc-admin-ui .epc-tabs__tab.is-active {
 		display: none;
 	}
 
-	body.epc-admin-ui #wpbody-content > .notice {
+	body.epc-admin-ui .wrap.epc-wrap > .notice,
+	body.epc-admin-ui .wrap.epc-wrap > .updated,
+	body.epc-admin-ui .wrap.epc-wrap > .error {
 		margin-left: 16px;
 		margin-right: 16px;
 	}

@@ -38,6 +38,30 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'the-events-calendar',
+				'label'       => __( 'The Events Calendar', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'the-events-calendar',
+				'plugin_file' => 'the-events-calendar/the-events-calendar.php',
+				'url'         => '',
+			),
+			array(
+				'key'         => 'event-tickets',
+				'label'       => __( 'Event Tickets', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'event-tickets',
+				'plugin_file' => 'event-tickets/event-tickets.php',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_the_events_calendar_active();
 	}

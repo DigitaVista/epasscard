@@ -17,6 +17,31 @@ class EPC_Loyalty_Notification_Service {
 	public const OPTION_KEY = 'epc_loyalty_notifications';
 
 	/**
+	 * Nested suppress counter for bulk jobs.
+	 *
+	 * @var int
+	 */
+	private static $suppress = 0;
+
+	/**
+	 * Pause email and wallet push until restore().
+	 *
+	 * @return void
+	 */
+	public static function suppress() {
+		++self::$suppress;
+	}
+
+	/**
+	 * Resume notifications after suppress().
+	 *
+	 * @return void
+	 */
+	public static function restore() {
+		self::$suppress = max( 0, self::$suppress - 1 );
+	}
+
+	/**
 	 * Register event listeners.
 	 *
 	 * @return void
@@ -45,6 +70,16 @@ class EPC_Loyalty_Notification_Service {
 	}
 
 	/**
+	 * Whether an event can send wallet push (requires the pass already in a wallet).
+	 *
+	 * @param string $type Event type.
+	 * @return bool
+	 */
+	public static function supports_push( $type ) {
+		return 'pass_ready' !== sanitize_key( (string) $type );
+	}
+
+	/**
 	 * Sanitized notification settings merged with defaults.
 	 *
 	 * @return array<string, array<string, mixed>>
@@ -61,12 +96,38 @@ class EPC_Loyalty_Notification_Service {
 			unset( $label );
 			$rule = isset( $saved[ $type ] ) && is_array( $saved[ $type ] ) ? $saved[ $type ] : array();
 			$base = $defaults[ $type ];
+
+			if ( array_key_exists( 'email_message', $rule ) ) {
+				$email_message = (string) $rule['email_message'];
+			} elseif ( array_key_exists( 'message', $rule ) ) {
+				$email_message = (string) $rule['message'];
+			} else {
+				$email_message = (string) ( $base['email_message'] ?? $base['message'] );
+			}
+
+			if ( array_key_exists( 'push_message', $rule ) ) {
+				$push_message = (string) $rule['push_message'];
+			} elseif ( array_key_exists( 'message', $rule ) && ! array_key_exists( 'email_message', $rule ) ) {
+				// Legacy shared message: keep the same copy for push until edited.
+				$push_message = (string) $rule['message'];
+			} else {
+				$push_message = (string) ( $base['push_message'] ?? $base['message'] );
+			}
+
+			$email_message = sanitize_textarea_field( $email_message );
+			$push_message  = sanitize_textarea_field( $push_message );
+			$allows_push   = self::supports_push( $type );
+
 			$clean[ $type ] = array(
 				'email_enabled' => ! empty( $rule['email_enabled'] ),
-				'push_enabled'  => ! empty( $rule['push_enabled'] ),
+				// Pass-ready push is impossible: the pass is not in the wallet yet.
+				'push_enabled'  => $allows_push && ! empty( $rule['push_enabled'] ),
 				'subject'       => sanitize_text_field( (string) ( $rule['subject'] ?? $base['subject'] ) ),
 				'title'         => sanitize_text_field( (string) ( $rule['title'] ?? $base['title'] ) ),
-				'message'       => sanitize_textarea_field( (string) ( $rule['message'] ?? $base['message'] ) ),
+				'email_message' => $email_message,
+				'push_message'  => $allows_push ? $push_message : '',
+				// Keep legacy key in sync for older readers.
+				'message'       => $email_message,
 			);
 			if ( 'points_expiring' === $type ) {
 				$clean[ $type ]['days'] = min( 90, max( 1, absint( $rule['days'] ?? $base['days'] ) ) );
@@ -233,6 +294,10 @@ class EPC_Loyalty_Notification_Service {
 	 * @return bool
 	 */
 	public static function send( $type, $user_id, array $replacements = array() ) {
+		if ( self::$suppress > 0 ) {
+			return false;
+		}
+
 		$type     = sanitize_key( (string) $type );
 		$user_id  = absint( $user_id );
 		$settings = self::get_settings();
@@ -250,16 +315,28 @@ class EPC_Loyalty_Notification_Service {
 			),
 			$replacements
 		);
-		$subject = EPC_Pass_Notifications::replace_tags( $rule['subject'], $tags );
-		$title   = EPC_Pass_Notifications::replace_tags( $rule['title'], $tags );
-		$message = EPC_Pass_Notifications::replace_tags( $rule['message'], $tags );
-		$sent    = false;
+		$subject       = EPC_Pass_Notifications::replace_tags( $rule['subject'], $tags );
+		$title         = EPC_Pass_Notifications::replace_tags( $rule['title'], $tags );
+		$email_message = EPC_Pass_Notifications::replace_tags(
+			(string) ( $rule['email_message'] ?? $rule['message'] ?? '' ),
+			$tags
+		);
+		$push_message = EPC_Pass_Notifications::replace_tags(
+			(string) ( $rule['push_message'] ?? $rule['message'] ?? '' ),
+			$tags
+		);
+		$sent = false;
 
-		if ( ! empty( $rule['email_enabled'] ) && '' !== trim( $subject ) && '' !== trim( $message ) ) {
-			$sent = wp_mail( $user->user_email, $subject, $message ) || $sent;
+		if ( ! empty( $rule['email_enabled'] ) && '' !== trim( $subject ) && '' !== trim( $email_message ) ) {
+			$sent = wp_mail( $user->user_email, $subject, $email_message ) || $sent;
 		}
-		if ( ! empty( $rule['push_enabled'] ) && '' !== trim( $title ) && '' !== trim( $message ) ) {
-			$sent = EPC_Pass_Notifications::send_for_module_source( 'woocommerce-loyalty', $user_id, $title, $message ) || $sent;
+		if (
+			self::supports_push( $type )
+			&& ! empty( $rule['push_enabled'] )
+			&& '' !== trim( $title )
+			&& '' !== trim( $push_message )
+		) {
+			$sent = EPC_Pass_Notifications::send_for_module_source( 'woocommerce-loyalty', $user_id, $title, $push_message ) || $sent;
 		}
 
 		return $sent;
@@ -273,35 +350,47 @@ class EPC_Loyalty_Notification_Service {
 	private static function defaults() {
 		return array(
 			'pass_ready' => array(
-				'subject' => __( 'Your loyalty pass is ready', 'epasscard' ),
-				'title'   => __( 'Your loyalty pass is ready', 'epasscard' ),
-				'message' => __( 'Hi {customer_name}, your loyalty wallet pass is ready: {pass_link}', 'epasscard' ),
+				'subject'       => __( 'Your loyalty pass is ready', 'epasscard' ),
+				'title'         => '',
+				'message'       => __( 'Hi {customer_name}, your loyalty wallet pass is ready: {pass_link}', 'epasscard' ),
+				'email_message' => __( 'Hi {customer_name}, your loyalty wallet pass is ready: {pass_link}', 'epasscard' ),
+				'push_message'  => '',
 			),
 			'points_earned' => array(
-				'subject' => __( 'You earned {points} loyalty points', 'epasscard' ),
-				'title'   => __( 'Points earned', 'epasscard' ),
-				'message' => __( 'You earned {points} points. Your balance is now {balance}.', 'epasscard' ),
+				'subject'       => __( 'You earned {points} loyalty points', 'epasscard' ),
+				'title'         => __( 'Points earned', 'epasscard' ),
+				'message'       => __( 'You earned {points} points. Your balance is now {balance}.', 'epasscard' ),
+				'email_message' => __( 'You earned {points} points. Your balance is now {balance}.', 'epasscard' ),
+				'push_message'  => __( '+{points} points. Balance: {balance}.', 'epasscard' ),
 			),
 			'points_reversed' => array(
-				'subject' => __( 'Your loyalty points changed', 'epasscard' ),
-				'title'   => __( 'Points updated', 'epasscard' ),
-				'message' => __( '{points} points were removed. Your balance is now {balance}. {reason}', 'epasscard' ),
+				'subject'       => __( 'Your loyalty points changed', 'epasscard' ),
+				'title'         => __( 'Points updated', 'epasscard' ),
+				'message'       => __( '{points} points were removed. Your balance is now {balance}. {reason}', 'epasscard' ),
+				'email_message' => __( '{points} points were removed. Your balance is now {balance}. {reason}', 'epasscard' ),
+				'push_message'  => __( '{points} points removed. Balance: {balance}.', 'epasscard' ),
 			),
 			'points_expiring' => array(
-				'subject' => __( '{points} loyalty points expire soon', 'epasscard' ),
-				'title'   => __( 'Points expiring soon', 'epasscard' ),
-				'message' => __( '{points} points expire on {expires_at}. Your current balance is {balance}.', 'epasscard' ),
-				'days'    => 30,
+				'subject'       => __( '{points} loyalty points expire soon', 'epasscard' ),
+				'title'         => __( 'Points expiring soon', 'epasscard' ),
+				'message'       => __( '{points} points expire on {expires_at}. Your current balance is {balance}.', 'epasscard' ),
+				'email_message' => __( '{points} points expire on {expires_at}. Your current balance is {balance}.', 'epasscard' ),
+				'push_message'  => __( '{points} points expire on {expires_at}.', 'epasscard' ),
+				'days'          => 30,
 			),
 			'tier_reached' => array(
-				'subject' => __( 'You reached the {tier} tier', 'epasscard' ),
-				'title'   => __( 'New loyalty tier', 'epasscard' ),
-				'message' => __( 'Congratulations {customer_name}, you reached the {tier} tier.', 'epasscard' ),
+				'subject'       => __( 'You reached the {tier} tier', 'epasscard' ),
+				'title'         => __( 'New loyalty tier', 'epasscard' ),
+				'message'       => __( 'Congratulations {customer_name}, you reached the {tier} tier.', 'epasscard' ),
+				'email_message' => __( 'Congratulations {customer_name}, you reached the {tier} tier.', 'epasscard' ),
+				'push_message'  => __( 'You reached the {tier} tier.', 'epasscard' ),
 			),
 			'reward_available' => array(
-				'subject' => __( 'A new loyalty reward is available', 'epasscard' ),
-				'title'   => __( 'New loyalty reward', 'epasscard' ),
-				'message' => __( 'You unlocked {reward}. Expiry: {expires_at}', 'epasscard' ),
+				'subject'       => __( 'A new loyalty reward is available', 'epasscard' ),
+				'title'         => __( 'New loyalty reward', 'epasscard' ),
+				'message'       => __( 'You unlocked {reward}. Expiry: {expires_at}', 'epasscard' ),
+				'email_message' => __( 'You unlocked {reward}. Expiry: {expires_at}', 'epasscard' ),
+				'push_message'  => __( 'Reward unlocked: {reward}', 'epasscard' ),
 			),
 		);
 	}

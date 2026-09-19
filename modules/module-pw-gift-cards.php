@@ -38,6 +38,22 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'pw-woocommerce-gift-cards',
+				'label'       => __( 'PW WooCommerce Gift Cards', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'pw-woocommerce-gift-cards',
+				'plugin_file' => 'pw-woocommerce-gift-cards/pw-gift-cards.php',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_pw_gift_cards_active();
 	}
@@ -398,6 +414,96 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 		add_action( 'pwgc_activity_deactivate', array( $this, 'on_card_activity' ), 20, 1 );
 		add_action( 'pwgc_activity_reactivate', array( $this, 'on_card_activity' ), 20, 1 );
 		add_action( 'pwgc_property_updated_active', array( $this, 'on_active_property_updated' ), 20, 1 );
+
+		add_action( 'pwgc_admin_search_results_row_after_number', array( $this, 'render_balances_pass_actions' ), 10, 1 );
+		add_filter( 'epc_pass_email_order_passes', array( $this, 'append_order_passes' ), 10, 2 );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function should_enqueue_pass_action_assets( $hook ) {
+		if ( parent::should_enqueue_pass_action_assets( $hook ) ) {
+			return true;
+		}
+
+		// PW Balances UI (top-level or WooCommerce submenu).
+		if ( is_string( $hook ) && substr( $hook, -strlen( 'pw-gift-cards' ) ) === 'pw-gift-cards' ) {
+			return true;
+		}
+
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return in_array( $page, array( 'pw-gift-cards', 'wc-pw-gift-cards' ), true );
+	}
+
+	/**
+	 * Create / Update pass controls on PW Balances search results.
+	 *
+	 * @param mixed $gift_card Card object.
+	 * @return void
+	 */
+	public function render_balances_pass_actions( $gift_card ) {
+		if ( ! $gift_card instanceof PW_Gift_Card || ! $this->current_user_can_manage_passes() ) {
+			return;
+		}
+
+		$card_id = absint( $gift_card->get_id() );
+		if ( $card_id <= 0 ) {
+			return;
+		}
+
+		$links = $this->render_pass_action_links( $card_id );
+		if ( '' === $links ) {
+			return;
+		}
+
+		echo '<div class="epc-pwgc-pass-actions" style="margin-top:8px;">';
+		echo self::kses_pass_action_html( $links );
+		echo '</div>';
+	}
+
+	/**
+	 * Append PW gift card passes belonging to a WooCommerce order.
+	 *
+	 * @param array<int, object> $passes Pass rows.
+	 * @param WC_Order           $order  Order.
+	 * @return array<int, object>
+	 */
+	public function append_order_passes( $passes, $order ) {
+		if ( ! $order instanceof WC_Order || ! class_exists( 'PW_Gift_Card' ) ) {
+			return is_array( $passes ) ? $passes : array();
+		}
+
+		$passes  = is_array( $passes ) ? $passes : array();
+		$indexed = array();
+		foreach ( $passes as $row ) {
+			if ( is_object( $row ) && ! empty( $row->id ) ) {
+				$indexed[ (int) $row->id ] = $row;
+			}
+		}
+
+		$meta_key = defined( 'PWGC_GIFT_CARD_NUMBER_META_KEY' ) ? PWGC_GIFT_CARD_NUMBER_META_KEY : 'pw_gift_card_number';
+
+		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
+			unset( $item );
+			$numbers = (array) wc_get_order_item_meta( absint( $item_id ), $meta_key, false );
+			foreach ( $numbers as $number ) {
+				$number = trim( (string) $number );
+				if ( '' === $number ) {
+					continue;
+				}
+				$card = new PW_Gift_Card( $number );
+				if ( ! $card->get_id() ) {
+					continue;
+				}
+				$pass = EPC_DB::get_pass( $this->get_slug(), absint( $card->get_id() ) );
+				if ( $pass && ! empty( $pass->pass_link ) && 'active' === (string) $pass->status ) {
+					$indexed[ (int) $pass->id ] = $pass;
+				}
+			}
+		}
+
+		return array_values( $indexed );
 	}
 
 	/**
@@ -487,18 +593,19 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 
 		$recipient = isset( $meta['recipient_email'] ) ? (string) $meta['recipient_email'] : '';
 		$from_name = isset( $meta['from_name'] ) ? (string) $meta['from_name'] : '';
-		$user_id   = 0;
+		$order_id  = isset( $meta['order_id'] ) ? absint( $meta['order_id'] ) : 0;
+		$user_id   = epc_resolve_gift_card_user_id( $recipient, $order_id );
 		$first     = '';
 		$last      = '';
 		$display   = $from_name;
 
+		// Prefer recipient profile for pass field values when that account exists.
 		if ( $recipient && is_email( $recipient ) ) {
-			$user = get_user_by( 'email', $recipient );
-			if ( $user ) {
-				$user_id = (int) $user->ID;
-				$first   = (string) get_user_meta( $user_id, 'first_name', true );
-				$last    = (string) get_user_meta( $user_id, 'last_name', true );
-				$display = (string) $user->display_name;
+			$recipient_user = get_user_by( 'email', $recipient );
+			if ( $recipient_user ) {
+				$first   = (string) get_user_meta( (int) $recipient_user->ID, 'first_name', true );
+				$last    = (string) get_user_meta( (int) $recipient_user->ID, 'last_name', true );
+				$display = (string) $recipient_user->display_name;
 			}
 		}
 
@@ -666,7 +773,7 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 	 */
 	private function format_money( $amount ) {
 		if ( function_exists( 'wc_price' ) ) {
-			return wp_strip_all_tags( wc_price( $amount ) );
+			return html_entity_decode( wp_strip_all_tags( wc_price( $amount ) ), ENT_QUOTES, get_bloginfo( 'charset' ) );
 		}
 
 		return (string) $amount;

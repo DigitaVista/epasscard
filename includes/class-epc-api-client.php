@@ -403,12 +403,13 @@ class EPC_Api_Client {
 	/**
 	 * POST JSON with optional API key header.
 	 *
-	 * @param string               $url  Full URL.
-	 * @param array<string, mixed> $body Request body.
+	 * @param string               $url     Full URL.
+	 * @param array<string, mixed> $body    Request body.
 	 * @param bool                 $use_key Send X-Api-Key header.
+	 * @param int                  $timeout Request timeout in seconds.
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public static function post_json( $url, array $body, $use_key = false ) {
+	public static function post_json( $url, array $body, $use_key = false, $timeout = 30 ) {
 		$headers = array(
 			'Content-Type' => 'application/json',
 			'Accept'       => 'application/json',
@@ -427,7 +428,7 @@ class EPC_Api_Client {
 			'POST',
 			$url,
 			array(
-				'timeout' => 30,
+				'timeout' => max( 5, (int) $timeout ),
 				'headers' => $headers,
 				'body'    => $body_json,
 			),
@@ -654,20 +655,31 @@ class EPC_Api_Client {
 			return new WP_Error( 'epc_invalid_email', __( 'Please enter a valid email address.', 'epasscard' ) );
 		}
 
-		$result = self::post_json(
-			self::sign_up_url(),
-			array(
-				'name'  => $name,
-				'email' => $email,
-			),
-			false
+		$payload = array(
+			'name'  => $name,
+			'email' => $email,
 		);
+
+		if ( function_exists( 'set_time_limit' ) ) {
+			set_time_limit( 120 );
+		}
+
+		$result = self::post_json( self::sign_up_url(), $payload, false, 45 );
+		if ( self::is_timeout_error( $result ) ) {
+			$result = self::post_json( self::sign_up_url(), $payload, false, 45 );
+		}
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
 		$status = (int) ( $result['status'] ?? 0 );
+		if ( 409 === $status ) {
+			return new WP_Error(
+				'epc_sign_up_exists',
+				__( 'An account with this email already exists. Use Sign in and connect with the password that was emailed to you.', 'epasscard' )
+			);
+		}
 		if ( 201 !== $status && 200 !== $status ) {
 			$msg = isset( $result['message'] ) && is_string( $result['message'] )
 				? sanitize_text_field( $result['message'] )
@@ -820,15 +832,14 @@ class EPC_Api_Client {
 	}
 
 	/**
-	 * Update a pass template via the documented public API v2 simplified contract.
+	 * Update a pass template via the public API v2 simplified contract.
 	 *
-	 * PUT /api/public/v2/update-pass-template/{uid}
+	 * PUT /api/public/v2/update-pass-template/{templateUid}
 	 *
-	 * When this route is not yet deployed on the SaaS, the API returns 404 and callers
-	 * retain the previous local design (see docs/developer/loyalty-template-api-v2.md).
+	 * Request body is the same simplified object as create-pass-template.
 	 *
-	 * @param string               $template_uid Template UUID.
-	 * @param array<string, mixed> $payload      Same simplified shape as create (minus locked certificate when passes exist).
+	 * @param string               $template_uid Template UUID from create.
+	 * @param array<string, mixed> $payload      Same simplified shape as create_pass_template_v2().
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function update_pass_template_v2( $template_uid, array $payload ) {
@@ -845,9 +856,22 @@ class EPC_Api_Client {
 			EPC_Api_Log::set_request_context( 'loyalty:update_pass_template_v2' );
 		}
 
-		$body = self::put_json(
-			self::api_base_v2() . '/update-pass-template/' . rawurlencode( $san ),
-			$payload
+		$url       = self::api_base_v2() . '/update-pass-template/' . rawurlencode( $san );
+		$body_json = wp_json_encode( $payload );
+		$body      = self::remote_request(
+			'PUT',
+			$url,
+			array(
+				'timeout' => 90,
+				'headers' => array(
+					'X-Api-Key'    => EPC_Connection::get_api_key(),
+					'Content-Type' => 'application/json',
+					'Accept'       => 'application/json',
+				),
+				'body'    => $body_json,
+			),
+			$body_json,
+			true
 		);
 
 		if ( is_wp_error( $body ) ) {
@@ -855,7 +879,7 @@ class EPC_Api_Client {
 			if ( 404 === $status ) {
 				return new WP_Error(
 					'epc_template_update_unavailable',
-					__( 'The EpassCard API v2 template update endpoint is not available yet. The previous loyalty pass design was kept. See the loyalty template API contract in the plugin docs.', 'epasscard' ),
+					__( 'The EpassCard API could not find that pass template to update. Check the template UID and API Log.', 'epasscard' ),
 					array( 'status' => 404 )
 				);
 			}
@@ -863,16 +887,19 @@ class EPC_Api_Client {
 		}
 
 		$status = (int) ( $body['status'] ?? 0 );
-		if ( 200 !== $status && 0 !== $status ) {
+		if ( 200 !== $status && 201 !== $status && 0 !== $status ) {
 			$msg = isset( $body['message'] ) && is_string( $body['message'] )
 				? sanitize_text_field( $body['message'] )
-				: __( 'The loyalty pass template could not be updated.', 'epasscard' );
+				: __( 'The pass template could not be updated.', 'epasscard' );
 			return new WP_Error( 'epc_template_update_failed', $msg, array( 'response' => $body ) );
 		}
 
 		$data = isset( $body['data'] ) && is_array( $body['data'] ) ? $body['data'] : $body;
-		if ( empty( $data['uid'] ) ) {
+		$uid  = isset( $data['uid'] ) ? self::sanitize_uid( (string) $data['uid'] ) : false;
+		if ( false === $uid ) {
 			$data['uid'] = $san;
+		} else {
+			$data['uid'] = $uid;
 		}
 
 		return $data;
@@ -1020,8 +1047,8 @@ class EPC_Api_Client {
 	/**
 	 * Update an existing pass.
 	 *
-	 * @param string              $pass_uid Pass UUID.
-	 * @param array<int, array{uid: string, field_value: string}> $fields Fields.
+	 * @param string                                             $pass_uid Pass UUID.
+	 * @param array<int, array{uid: string, fieldValue: string}> $fields   Fields from GET /pass-fields/{templateUid}.
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function update_pass( $pass_uid, array $fields ) {
@@ -1170,8 +1197,19 @@ class EPC_Api_Client {
 		$started_at = microtime( true );
 		$method     = strtoupper( (string) $method );
 
-		$headers = isset( $args['headers'] ) && is_array( $args['headers'] ) ? $args['headers'] : array();
+		$headers         = isset( $args['headers'] ) && is_array( $args['headers'] ) ? $args['headers'] : array();
 		$args['headers'] = array_merge( self::api_request_headers(), $headers );
+		// WordPress defaults to HTTP/1.0, which can hang behind Cloudflare with 0 bytes received.
+		if ( empty( $args['httpversion'] ) ) {
+			$args['httpversion'] = '1.1';
+		}
+
+		$force_ipv4 = static function ( $handle ) {
+			if ( defined( 'CURL_IPRESOLVE_V4' ) ) {
+				curl_setopt( $handle, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
+			}
+		};
+		add_action( 'http_api_curl', $force_ipv4 );
 
 		if ( 'GET' === $method ) {
 			$response = wp_remote_get( $url, $args );
@@ -1179,6 +1217,8 @@ class EPC_Api_Client {
 			$args['method'] = $method;
 			$response       = wp_remote_request( $url, $args );
 		}
+
+		remove_action( 'http_api_curl', $force_ipv4 );
 
 		$parsed = self::parse_response( $response, $allow_non_200 );
 
@@ -1209,7 +1249,7 @@ class EPC_Api_Client {
 	 */
 	private static function parse_response( $response, $allow_non_200 = false ) {
 		if ( is_wp_error( $response ) ) {
-			return $response;
+			return self::normalize_transport_error( $response );
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
@@ -1233,5 +1273,60 @@ class EPC_Api_Client {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Whether a request failed because the remote server did not answer in time.
+	 *
+	 * @param mixed $result Parsed response or error.
+	 * @return bool
+	 */
+	private static function is_timeout_error( $result ) {
+		if ( ! is_wp_error( $result ) ) {
+			return false;
+		}
+
+		$data = $result->get_error_data();
+		return is_array( $data ) && ! empty( $data['timeout'] );
+	}
+
+	/**
+	 * Replace raw cURL transport errors with a message merchants can act on.
+	 *
+	 * @param WP_Error $error Transport error.
+	 * @return WP_Error
+	 */
+	private static function normalize_transport_error( WP_Error $error ) {
+		$message = $error->get_error_message();
+		$timeout = false !== stripos( $message, 'timed out' ) || false !== stripos( $message, 'cURL error 28' );
+		if ( $timeout ) {
+			return new WP_Error(
+				'epc_timeout',
+				__( 'EpassCard took too long to respond. If a password email arrived, use Sign in and connect. Otherwise try again in a moment.', 'epasscard' ),
+				array( 'timeout' => true )
+			);
+		}
+
+		if ( 'http_request_failed' === $error->get_error_code() ) {
+			$detail = trim( wp_strip_all_tags( $message ) );
+			$friendly = __( 'Could not reach EpassCard. Check your connection and try again.', 'epasscard' );
+			if ( '' !== $detail && 0 !== strcasecmp( $detail, $friendly ) ) {
+				$friendly = sprintf(
+					/* translators: %s: underlying HTTP/cURL error from WordPress */
+					__( 'Could not reach EpassCard (%s). Check your connection and try again.', 'epasscard' ),
+					$detail
+				);
+			}
+
+			return new WP_Error(
+				'epc_http_transport',
+				$friendly,
+				array(
+					'transport' => $detail,
+				)
+			);
+		}
+
+		return $error;
 	}
 }

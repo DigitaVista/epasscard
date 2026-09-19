@@ -45,6 +45,22 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'yith-woocommerce-gift-cards',
+				'label'       => __( 'YITH WooCommerce Gift Cards', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'yith-woocommerce-gift-cards',
+				'plugin_file' => 'yith-woocommerce-gift-cards/init.php',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_yith_gift_cards_active();
 	}
@@ -405,6 +421,133 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		add_action( 'updated_post_meta', array( $this, 'on_updated_post_meta' ), 20, 4 );
 		add_action( 'transition_post_status', array( $this, 'on_transition_post_status' ), 20, 3 );
 		add_action( 'before_delete_post', array( $this, 'on_before_delete_post' ), 20, 1 );
+
+		add_filter( 'yith_wcgc_custom_columns_title', array( $this, 'gift_card_columns' ) );
+		// Priority 20: YITH renders known columns at 10 and kses-strips unknown column HTML.
+		add_action( 'manage_gift_card_posts_custom_column', array( $this, 'render_gift_card_column' ), 20, 2 );
+		add_filter( 'epc_pass_email_order_passes', array( $this, 'append_order_passes' ), 10, 2 );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function should_enqueue_pass_action_assets( $hook ) {
+		if ( parent::should_enqueue_pass_action_assets( $hook ) ) {
+			return true;
+		}
+
+		if ( 'edit.php' !== $hook ) {
+			return false;
+		}
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		return $screen && 'gift_card' === $screen->post_type;
+	}
+
+	/**
+	 * Add EpassCard column to YITH gift cards list.
+	 *
+	 * @param array<string, string> $columns Columns.
+	 * @return array<string, string>
+	 */
+	public function gift_card_columns( $columns ) {
+		$columns = is_array( $columns ) ? $columns : array();
+		$new     = array();
+
+		foreach ( $columns as $key => $label ) {
+			if ( 'actions' === $key ) {
+				$new['epasscard_pass'] = __( 'Wallet pass', 'epasscard' );
+			}
+			$new[ $key ] = $label;
+		}
+
+		if ( ! isset( $new['epasscard_pass'] ) ) {
+			$new['epasscard_pass'] = __( 'Wallet pass', 'epasscard' );
+		}
+
+		return $new;
+	}
+
+	/**
+	 * Render Create / Update pass controls in YITH list table.
+	 *
+	 * @param string $column  Column key.
+	 * @param int    $post_id Gift card post ID.
+	 * @return void
+	 */
+	public function render_gift_card_column( $column, $post_id ) {
+		if ( 'epasscard_pass' !== $column || ! $this->current_user_can_manage_passes() ) {
+			return;
+		}
+
+		$links = $this->render_pass_action_links( absint( $post_id ) );
+		echo '' !== $links ? self::kses_pass_action_html( $links ) : '&mdash;';
+	}
+
+	/**
+	 * Append YITH gift card passes belonging to a WooCommerce order.
+	 *
+	 * @param array<int, object> $passes Pass rows.
+	 * @param WC_Order           $order  Order.
+	 * @return array<int, object>
+	 */
+	public function append_order_passes( $passes, $order ) {
+		if ( ! $order instanceof WC_Order ) {
+			return is_array( $passes ) ? $passes : array();
+		}
+
+		$passes  = is_array( $passes ) ? $passes : array();
+		$indexed = array();
+		foreach ( $passes as $row ) {
+			if ( is_object( $row ) && ! empty( $row->id ) ) {
+				$indexed[ (int) $row->id ] = $row;
+			}
+		}
+
+		$card_ids = array();
+		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
+			unset( $item );
+			if ( function_exists( 'ywgc_get_order_item_giftcards' ) ) {
+				foreach ( (array) ywgc_get_order_item_giftcards( absint( $item_id ) ) as $gift_id ) {
+					$gift_id = absint( $gift_id );
+					if ( $gift_id > 0 ) {
+						$card_ids[ $gift_id ] = $gift_id;
+					}
+				}
+			}
+		}
+
+		// Fallback: cards stored with this order id.
+		if ( empty( $card_ids ) ) {
+			$query_ids = get_posts(
+				array(
+					'post_type'              => 'gift_card',
+					'post_status'            => 'any',
+					'posts_per_page'         => 50,
+					'fields'                 => 'ids',
+					'no_found_rows'          => true,
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+					'meta_key'               => '_ywgc_order_id',
+					'meta_value'             => (string) $order->get_id(),
+				)
+			);
+			foreach ( (array) $query_ids as $gift_id ) {
+				$gift_id = absint( $gift_id );
+				if ( $gift_id > 0 ) {
+					$card_ids[ $gift_id ] = $gift_id;
+				}
+			}
+		}
+
+		foreach ( $card_ids as $card_id ) {
+			$pass = EPC_DB::get_pass( $this->get_slug(), $card_id );
+			if ( $pass && ! empty( $pass->pass_link ) && 'active' === (string) $pass->status ) {
+				$indexed[ (int) $pass->id ] = $pass;
+			}
+		}
+
+		return array_values( $indexed );
 	}
 
 	/**
@@ -583,18 +726,19 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		$recipient_email = (string) $card->recipient;
 		$recipient_name  = (string) $card->recipient_name;
 		$sender_name     = (string) $card->sender_name;
-		$user_id         = 0;
+		$order_id        = isset( $card->order_id ) ? absint( $card->order_id ) : 0;
+		$user_id         = epc_resolve_gift_card_user_id( $recipient_email, $order_id );
 		$first           = '';
 		$last            = '';
 		$display         = $recipient_name ? $recipient_name : $sender_name;
 
+		// Prefer recipient profile for pass field values when that account exists.
 		if ( $recipient_email && is_email( $recipient_email ) ) {
-			$user = get_user_by( 'email', $recipient_email );
-			if ( $user ) {
-				$user_id = (int) $user->ID;
-				$first   = (string) get_user_meta( $user_id, 'first_name', true );
-				$last    = (string) get_user_meta( $user_id, 'last_name', true );
-				$display = (string) $user->display_name;
+			$recipient_user = get_user_by( 'email', $recipient_email );
+			if ( $recipient_user ) {
+				$first   = (string) get_user_meta( (int) $recipient_user->ID, 'first_name', true );
+				$last    = (string) get_user_meta( (int) $recipient_user->ID, 'last_name', true );
+				$display = (string) $recipient_user->display_name;
 			}
 		}
 
@@ -680,7 +824,7 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 	 */
 	private function format_money( $amount ) {
 		if ( function_exists( 'wc_price' ) ) {
-			return wp_strip_all_tags( wc_price( $amount ) );
+			return html_entity_decode( wp_strip_all_tags( wc_price( $amount ) ), ENT_QUOTES, get_bloginfo( 'charset' ) );
 		}
 
 		return (string) $amount;

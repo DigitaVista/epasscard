@@ -87,20 +87,16 @@ class EPC_Module_Settings {
 	}
 
 	/**
-	 * Default enabled modules on first run (available dependencies only).
+	 * Default enabled modules on first run.
+	 *
+	 * Nothing is enabled until the Setup Wizard or Connection → Integrations
+	 * opts a module in. Auto-enabling every available dependency was surprising
+	 * when the wizard only set up one use case.
 	 *
 	 * @return array<int, string>
 	 */
 	public static function default_enabled_slugs() {
-		$slugs = array();
-
-		foreach ( EPC_Module_Loader::get_registry() as $slug => $module ) {
-			if ( $module->is_available() ) {
-				$slugs[] = $slug;
-			}
-		}
-
-		return $slugs;
+		return array();
 	}
 
 	/**

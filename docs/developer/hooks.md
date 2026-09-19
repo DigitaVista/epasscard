@@ -49,8 +49,10 @@ Helper: `epc_register_module( $slug, $file, $class_name )` in `epc-dependencies.
 | Hook | Type | Description |
 |------|------|-------------|
 | `epc_frontend_user_passes` | filter | `( $passes, $user_id )` |
-| `epc_frontend_pass_label` | filter | `( $label, $pass_row )` |
+| `epc_frontend_pass_label` | filter | Card title `( $title, $pass_row )` |
 | `epc_enqueue_frontend_assets` | filter | `( $should_load )` |
+| `epc_loyalty_my_account_data` | filter | Wallet payload `( $data, $user_id )` |
+| `epc_loyalty_my_account_history_per_page` | filter | Ledger rows per page `( $per_page, $user_id )` |
 
 ## Push notifications
 

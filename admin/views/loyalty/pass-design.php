@@ -29,6 +29,14 @@ $text = ! empty( $design['colors']['text'] ) ? $design['colors']['text'] : '#FFF
 $member_id = (string) ( $preview['member_id'] ?? 'LYL-DEMO-001' );
 $barcode_format = strtoupper( (string) ( $design['barcode_format'] ?? 'QR' ) );
 $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_url( $barcode_format, $member_id );
+$design_source = ( 'builder' === ( $design['design_source'] ?? '' ) ) ? 'builder' : 'form';
+$builder_url   = 'https://app.epasscard.com/pass-templates';
+$logo_url      = (string) ( $design['logo_url'] ?? '' );
+$strip_url     = (string) ( $design['strip_url'] ?? '' );
+$logo_inline   = EPC_Loyalty_Pass_Design_Service::is_data_image_uri( $logo_url );
+$strip_inline  = EPC_Loyalty_Pass_Design_Service::is_data_image_uri( $strip_url );
+$logo_field    = $logo_inline ? '' : $logo_url;
+$strip_field   = $strip_inline ? '' : $strip_url;
 ?>
 <div id="epc-section-loyalty-pass-design" class="epc-section epc-loyalty-pass-design">
 	<div class="epc-page-header">
@@ -56,12 +64,66 @@ $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_ur
 		<form id="epc-loyalty-pass-design-form" class="epc-card epc-loyalty-designer__form" method="post" action="">
 			<p class="epc-form-notice" aria-live="polite"></p>
 
+			<input type="hidden" name="template_uid_current" id="epc-loyalty-template-uid-current" value="<?php echo esc_attr( (string) $design['template_uid'] ); ?>" />
+
 			<table class="form-table" role="presentation">
 				<tbody>
 					<tr>
+						<th scope="row"><?php esc_html_e( 'Template source', 'epasscard' ); ?></th>
+						<td>
+							<fieldset class="epc-loyalty-source-options">
+								<label>
+									<input type="radio" name="design_source" value="form" <?php checked( $design_source, 'form' ); ?> />
+									<?php esc_html_e( 'Design in WordPress', 'epasscard' ); ?>
+								</label>
+								<label>
+									<input type="radio" name="design_source" value="builder" <?php checked( $design_source, 'builder' ); ?> />
+									<?php esc_html_e( 'Use EpassCard template builder', 'epasscard' ); ?>
+								</label>
+							</fieldset>
+							<p class="description"><?php esc_html_e( 'Create a loyalty template from the fields below, or select a template you already designed in the EpassCard dashboard.', 'epasscard' ); ?></p>
+						</td>
+					</tr>
+					<tr class="epc-loyalty-builder-row" data-epc-design-panel="builder">
+						<th scope="row"><label for="epc-loyalty-template-select"><?php esc_html_e( 'Template builder', 'epasscard' ); ?></label></th>
+						<td>
+							<div class="epc-template-toolbar">
+								<select id="epc-loyalty-template-select" name="builder_template_uid" class="regular-text">
+									<option value=""><?php esc_html_e( '— Select a template —', 'epasscard' ); ?></option>
+									<?php if ( ! empty( $design['template_uid'] ) ) : ?>
+										<option value="<?php echo esc_attr( (string) $design['template_uid'] ); ?>" data-name="<?php echo esc_attr( (string) $design['template_name'] ); ?>" selected>
+											<?php echo esc_html( (string) $design['template_name'] ); ?>
+										</option>
+									<?php endif; ?>
+								</select>
+								<button type="button" class="button epc-refresh-templates" id="epc-loyalty-refresh-templates" title="<?php esc_attr_e( 'Refresh template list', 'epasscard' ); ?>" aria-label="<?php esc_attr_e( 'Refresh template list', 'epasscard' ); ?>">
+									<span class="dashicons dashicons-update" aria-hidden="true"></span>
+								</button>
+							</div>
+							<p class="epc-template-actions">
+								<a href="<?php echo esc_url( $builder_url ); ?>" target="_blank" rel="noopener noreferrer">
+									<?php esc_html_e( 'Open template builder', 'epasscard' ); ?>
+									<span class="dashicons dashicons-external" aria-hidden="true"></span>
+								</a>
+							</p>
+							<div class="notice notice-warning inline epc-loyalty-builder-notice">
+								<p>
+									<?php
+									echo wp_kses(
+										__( 'Important: name template fields like <strong>Points</strong>, <strong>Name</strong>, <strong>Member No</strong>, and <strong>Tier</strong> so loyalty data maps automatically. Then refresh this list and select the template.', 'epasscard' ),
+										array(
+											'strong' => array(),
+										)
+									);
+									?>
+								</p>
+							</div>
+						</td>
+					</tr>
+					<tr data-epc-design-panel="form">
 						<th scope="row"><label for="epc-loyalty-template-name"><?php esc_html_e( 'Template name', 'epasscard' ); ?></label></th>
 						<td>
-							<input id="epc-loyalty-template-name" name="template_name" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['template_name'] ); ?>" required />
+							<input id="epc-loyalty-template-name" name="template_name" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['template_name'] ); ?>" />
 							<?php if ( ! empty( $design['template_uid'] ) ) : ?>
 								<p class="description">
 									<?php
@@ -75,31 +137,37 @@ $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_ur
 							<?php endif; ?>
 						</td>
 					</tr>
-					<tr>
+					<tr data-epc-design-panel="form">
 						<th scope="row"><label for="epc-loyalty-org-name"><?php esc_html_e( 'Organization name', 'epasscard' ); ?></label></th>
-						<td><input id="epc-loyalty-org-name" name="organization_name" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['organization_name'] ); ?>" required /></td>
+						<td><input id="epc-loyalty-org-name" name="organization_name" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['organization_name'] ); ?>" /></td>
 					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Logo', 'epasscard' ); ?></th>
+					<tr data-epc-design-panel="form">
+						<th scope="row"><label for="epc-loyalty-logo-url"><?php esc_html_e( 'Logo URL', 'epasscard' ); ?></label></th>
 						<td>
 							<input type="hidden" name="logo_id" id="epc-loyalty-logo-id" value="<?php echo esc_attr( (string) (int) $design['logo_id'] ); ?>" />
-							<input type="hidden" name="logo_url" id="epc-loyalty-logo-url" value="<?php echo esc_attr( (string) $design['logo_url'] ); ?>" />
-							<button type="button" class="button epc-loyalty-media-pick" data-target="logo"><?php esc_html_e( 'Select logo', 'epasscard' ); ?></button>
-							<button type="button" class="button-link-delete epc-loyalty-media-clear" data-target="logo"><?php esc_html_e( 'Clear', 'epasscard' ); ?></button>
-							<p class="description"><?php esc_html_e( 'Upper-left mark (also used as the pass icon). The image URL must be publicly reachable so EpassCard can fetch it.', 'epasscard' ); ?></p>
+							<div class="epc-loyalty-media-row">
+								<img id="epc-loyalty-logo-thumb" class="epc-loyalty-media-thumb" src="<?php echo $logo_inline ? esc_attr( $logo_url ) : esc_url( $logo_url ); ?>" alt="" data-inline-src="<?php echo $logo_inline ? esc_attr( $logo_url ) : ''; ?>" <?php echo '' === $logo_url ? 'hidden' : ''; ?> />
+								<input id="epc-loyalty-logo-url" name="logo_url" type="url" class="regular-text" value="<?php echo esc_attr( $logo_field ); ?>" placeholder="<?php esc_attr_e( 'https://example.com/logo.png', 'epasscard' ); ?>" />
+								<button type="button" class="button epc-loyalty-media-pick" data-target="logo"><?php esc_html_e( 'Select logo', 'epasscard' ); ?></button>
+								<button type="button" class="button-link-delete epc-loyalty-media-clear" data-target="logo"><?php esc_html_e( 'Clear', 'epasscard' ); ?></button>
+							</div>
+							<p class="description"><?php esc_html_e( 'Upper-left mark (also used as the pass icon). Use a public https URL so EpassCard can fetch it. Best view size is 200 × 200 px.', 'epasscard' ); ?></p>
 						</td>
 					</tr>
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Strip image', 'epasscard' ); ?></th>
+					<tr data-epc-design-panel="form">
+						<th scope="row"><label for="epc-loyalty-strip-url"><?php esc_html_e( 'Strip image URL', 'epasscard' ); ?></label></th>
 						<td>
 							<input type="hidden" name="strip_id" id="epc-loyalty-strip-id" value="<?php echo esc_attr( (string) (int) $design['strip_id'] ); ?>" />
-							<input type="hidden" name="strip_url" id="epc-loyalty-strip-url" value="<?php echo esc_attr( (string) $design['strip_url'] ); ?>" />
-							<button type="button" class="button epc-loyalty-media-pick" data-target="strip"><?php esc_html_e( 'Select strip', 'epasscard' ); ?></button>
-							<button type="button" class="button-link-delete epc-loyalty-media-clear" data-target="strip"><?php esc_html_e( 'Clear', 'epasscard' ); ?></button>
-							<p class="description"><?php esc_html_e( 'Wide banner under the header on StoreCard layouts.', 'epasscard' ); ?></p>
+							<div class="epc-loyalty-media-row">
+								<img id="epc-loyalty-strip-thumb" class="epc-loyalty-media-thumb epc-loyalty-media-thumb--wide" src="<?php echo $strip_inline ? esc_attr( $strip_url ) : esc_url( $strip_url ); ?>" alt="" data-inline-src="<?php echo $strip_inline ? esc_attr( $strip_url ) : ''; ?>" <?php echo '' === $strip_url ? 'hidden' : ''; ?> />
+								<input id="epc-loyalty-strip-url" name="strip_url" type="url" class="regular-text" value="<?php echo esc_attr( $strip_field ); ?>" placeholder="<?php esc_attr_e( 'https://example.com/strip.png', 'epasscard' ); ?>" />
+								<button type="button" class="button epc-loyalty-media-pick" data-target="strip"><?php esc_html_e( 'Select strip', 'epasscard' ); ?></button>
+								<button type="button" class="button-link-delete epc-loyalty-media-clear" data-target="strip"><?php esc_html_e( 'Clear', 'epasscard' ); ?></button>
+							</div>
+							<p class="description"><?php esc_html_e( 'Wide banner under the header on StoreCard layouts. Public https URL required. Best view size is 1125 × 432 px.', 'epasscard' ); ?></p>
 						</td>
 					</tr>
-					<tr>
+					<tr data-epc-design-panel="form">
 						<th scope="row"><?php esc_html_e( 'Colors', 'epasscard' ); ?></th>
 						<td class="epc-loyalty-color-grid">
 							<label>
@@ -112,15 +180,15 @@ $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_ur
 							</label>
 						</td>
 					</tr>
-					<tr>
+					<tr data-epc-design-panel="form">
 						<th scope="row"><label for="epc-loyalty-points-label"><?php esc_html_e( 'Points header label', 'epasscard' ); ?></label></th>
 						<td><input id="epc-loyalty-points-label" name="points_label" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['points_label'] ); ?>" /></td>
 					</tr>
-					<tr>
+					<tr data-epc-design-panel="form">
 						<th scope="row"><label for="epc-loyalty-name-label"><?php esc_html_e( 'Name field label', 'epasscard' ); ?></label></th>
 						<td><input id="epc-loyalty-name-label" name="name_label" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['name_label'] ); ?>" /></td>
 					</tr>
-					<tr>
+					<tr data-epc-design-panel="form">
 						<th scope="row"><label for="epc-loyalty-secondary-mode"><?php esc_html_e( 'Secondary value', 'epasscard' ); ?></label></th>
 						<td>
 							<select id="epc-loyalty-secondary-mode" name="secondary_mode">
@@ -131,7 +199,7 @@ $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_ur
 							<input id="epc-loyalty-secondary-label" name="secondary_label" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['secondary_label'] ); ?>" aria-label="<?php esc_attr_e( 'Secondary field label', 'epasscard' ); ?>" />
 						</td>
 					</tr>
-					<tr>
+					<tr data-epc-design-panel="form">
 						<th scope="row"><label for="epc-loyalty-barcode-format"><?php esc_html_e( 'QR/Barcode format', 'epasscard' ); ?></label></th>
 						<td>
 							<select id="epc-loyalty-barcode-format" name="barcode_format">
@@ -142,8 +210,8 @@ $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_ur
 							<p class="description"><?php esc_html_e( 'Encoded value is the non-secret loyalty membership ID.', 'epasscard' ); ?></p>
 						</td>
 					</tr>
-					<tr>
-						<th scope="row"><label for="epc-loyalty-expire-date"><?php esc_html_e( 'Template expiry', 'epasscard' ); ?></label></th>
+					<tr data-epc-design-panel="form">
+						<th scope="row"><label for="epc-loyalty-expire-date"><?php esc_html_e( 'Pass expiry', 'epasscard' ); ?></label></th>
 						<td>
 							<input id="epc-loyalty-expire-date" name="expire_date" type="text" class="regular-text" value="<?php echo esc_attr( (string) $design['expire_date'] ); ?>" placeholder="<?php esc_attr_e( 'Optional — YYYY-MM-DD HH:mm:ss', 'epasscard' ); ?>" />
 							<p class="description"><?php esc_html_e( 'Optional. Leave blank for near-lifetime passes (~99 years). Otherwise use a MySQL datetime in your organization timezone, or a placeholder such as {Valid Until}.', 'epasscard' ); ?></p>
@@ -173,7 +241,7 @@ $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_ur
 			>
 				<div class="epc-loyalty-preview-card__header">
 					<div class="epc-loyalty-preview-card__logo-wrap">
-						<img class="epc-loyalty-preview-card__logo" id="epc-loyalty-preview-logo" src="<?php echo esc_url( (string) $design['logo_url'] ); ?>" alt="" <?php echo empty( $design['logo_url'] ) ? 'hidden' : ''; ?> />
+						<img class="epc-loyalty-preview-card__logo" id="epc-loyalty-preview-logo" src="<?php echo $logo_inline ? esc_attr( $logo_url ) : esc_url( $logo_url ); ?>" alt="" data-inline-src="<?php echo $logo_inline ? esc_attr( $logo_url ) : ''; ?>" <?php echo empty( $design['logo_url'] ) ? 'hidden' : ''; ?> />
 						<span class="epc-loyalty-preview-card__logo-fallback" id="epc-loyalty-preview-logo-fallback" <?php echo empty( $design['logo_url'] ) ? '' : 'hidden'; ?>><?php esc_html_e( 'Logo', 'epasscard' ); ?></span>
 					</div>
 					<div class="epc-loyalty-preview-card__points">
@@ -182,7 +250,7 @@ $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_ur
 					</div>
 				</div>
 				<div class="epc-loyalty-preview-card__strip" id="epc-loyalty-preview-strip">
-					<img id="epc-loyalty-preview-strip-img" src="<?php echo esc_url( (string) $design['strip_url'] ); ?>" alt="" <?php echo empty( $design['strip_url'] ) ? 'hidden' : ''; ?> />
+					<img id="epc-loyalty-preview-strip-img" src="<?php echo $strip_inline ? esc_attr( $strip_url ) : esc_url( $strip_url ); ?>" alt="" data-inline-src="<?php echo $strip_inline ? esc_attr( $strip_url ) : ''; ?>" <?php echo empty( $design['strip_url'] ) ? 'hidden' : ''; ?> />
 				</div>
 				<div class="epc-loyalty-preview-card__body">
 					<div class="epc-loyalty-preview-card__field">

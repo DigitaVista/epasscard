@@ -17,6 +17,7 @@ Markdown sources remain in this folder for editing and version control.
 | Topic | Description |
 |-------|-------------|
 | [Getting started](user/getting-started.md) | Install, connect, enable integrations |
+| [Onboarding flow](user/onboarding-flow.md) | First-run path from install to first wallet pass |
 | [Connection](user/connection.md) | API key, integrations, pass email settings |
 | [Integrations](user/integrations.md) | All modules: membership, WCS, events, gift cards |
 | [Template mapping](user/mapping.md) | Map membership data to pass fields |

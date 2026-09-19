@@ -28,6 +28,7 @@ class EPC_Frontend {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_frontend_assets' ) );
 		add_filter( 'woocommerce_account_menu_items', array( __CLASS__, 'wc_account_menu_item' ) );
 		add_action( 'woocommerce_account_' . self::WC_ENDPOINT . '_endpoint', array( __CLASS__, 'render_wc_account_passes' ) );
+		add_action( 'woocommerce_thankyou', array( __CLASS__, 'render_order_thankyou_passes' ), 25 );
 
 		add_action( 'mepr_account_nav', array( __CLASS__, 'mepr_account_nav_link' ) );
 		add_action( 'mepr_account_nav_content', array( __CLASS__, 'mepr_account_content' ), 10, 2 );
@@ -52,20 +53,22 @@ class EPC_Frontend {
 	 * @return void
 	 */
 	public static function enqueue_frontend_assets() {
-		if ( ! is_user_logged_in() ) {
-			return;
-		}
-
 		$should_load = false;
 
-		if ( function_exists( 'is_account_page' ) && is_account_page() ) {
-            $should_load = true;
-        }
+		if ( function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
+			$should_load = true;
+		}
 
-		if ( is_singular() ) {
-			$post = get_post();
-			if ( $post instanceof WP_Post && has_shortcode( (string) $post->post_content, 'epc_my_passes' ) ) {
+		if ( is_user_logged_in() ) {
+			if ( function_exists( 'is_account_page' ) && is_account_page() ) {
 				$should_load = true;
+			}
+
+			if ( is_singular() ) {
+				$post = get_post();
+				if ( $post instanceof WP_Post && has_shortcode( (string) $post->post_content, 'epc_my_passes' ) ) {
+					$should_load = true;
+				}
 			}
 		}
 
@@ -78,11 +81,12 @@ class EPC_Frontend {
 			return;
 		}
 
+		$style_path = EPC_PLUGIN_DIR . 'assets/frontend/wallet-passes.css';
 		wp_enqueue_style(
 			'epc-frontend',
-			EPC_PLUGIN_URL . 'admin/css/admin.css',
+			EPC_PLUGIN_URL . 'assets/frontend/wallet-passes.css',
 			array(),
-			EPC_VERSION
+			file_exists( $style_path ) ? (string) filemtime( $style_path ) : EPC_VERSION
 		);
 	}
 
@@ -119,6 +123,63 @@ class EPC_Frontend {
 	 */
 	public static function render_wc_account_passes() {
 		self::render_passes_list( get_current_user_id() );
+	}
+
+	/**
+	 * Show Add to wallet buttons on the order thank-you page when passes exist.
+	 *
+	 * @param int $order_id Order ID.
+	 * @return void
+	 */
+	public static function render_order_thankyou_passes( $order_id ) {
+		$order_id = absint( $order_id );
+		if ( $order_id <= 0 || ! function_exists( 'wc_get_order' ) || ! class_exists( 'EPC_Pass_Email' ) ) {
+			return;
+		}
+
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof WC_Order ) {
+			return;
+		}
+
+		$passes = EPC_Pass_Email::get_passes_for_order( $order );
+		$passes = array_values(
+			array_filter(
+				(array) $passes,
+				static function ( $pass ) {
+					if ( ! is_object( $pass ) || empty( $pass->pass_link ) ) {
+						return false;
+					}
+					$slug = isset( $pass->module ) ? sanitize_key( (string) $pass->module ) : '';
+					return '' !== $slug && class_exists( 'EPC_Module_Settings' ) && EPC_Module_Settings::is_enabled( $slug );
+				}
+			)
+		);
+		$passes = self::unique_passes( $passes );
+
+		$pass_items = array();
+		foreach ( $passes as $pass ) {
+			$item = self::get_pass_item( $pass );
+			if ( ! empty( $item['url'] ) ) {
+				$pass_items[] = $item;
+			}
+		}
+
+		/**
+		 * Filter thank-you page wallet pass items.
+		 *
+		 * @param array<int, array<string, string>> $pass_items Pass display items.
+		 * @param WC_Order                          $order      Order.
+		 */
+		$pass_items = (array) apply_filters( 'epc_thankyou_pass_items', $pass_items, $order );
+		if ( empty( $pass_items ) ) {
+			return;
+		}
+
+		echo '<section class="epc-order-passes woocommerce-order-epasscard" style="margin:2em 0;">';
+		echo '<h2 class="woocommerce-order-epasscard__title">' . esc_html__( 'Add to wallet', 'epasscard' ) . '</h2>';
+		include EPC_PLUGIN_DIR . 'assets/frontend/wallet-passes.php';
+		echo '</section>';
 	}
 
 	/**
@@ -202,7 +263,12 @@ class EPC_Frontend {
 			array_filter(
 				$passes,
 				static function ( $pass ) {
-					return is_object( $pass ) && ! empty( $pass->pass_link );
+					if ( ! is_object( $pass ) || empty( $pass->pass_link ) ) {
+						return false;
+					}
+
+					$slug = isset( $pass->module ) ? sanitize_key( (string) $pass->module ) : '';
+					return '' !== $slug && class_exists( 'EPC_Module_Settings' ) && EPC_Module_Settings::is_enabled( $slug );
 				}
 			)
 		);
@@ -213,51 +279,147 @@ class EPC_Frontend {
 		 * @param array<int, object> $passes  Pass rows.
 		 * @param int                $user_id User id.
 		 */
-		$passes = (array) apply_filters( 'epc_frontend_user_passes', $passes, $user_id );
+		$passes = self::unique_passes( (array) apply_filters( 'epc_frontend_user_passes', $passes, $user_id ) );
 
-		if ( empty( $passes ) ) {
-			echo '<p>' . esc_html__( 'You do not have any wallet passes yet.', 'epasscard' ) . '</p>';
-			return;
-		}
-
-		echo '<ul class="epc-pass-list">';
+		$pass_items = array();
 		foreach ( $passes as $pass ) {
-			$label = self::get_pass_label( $pass );
-			echo '<li class="epc-pass-list__item">';
-			echo '<a class="epc-pass-list__link button" href="' . esc_url( (string) $pass->pass_link ) . '" target="_blank" rel="noopener noreferrer">';
-			echo esc_html( $label );
-			echo '</a>';
-			echo '</li>';
-		}
-		echo '</ul>';
-	}
-
-	/**
-	 * Human label for a pass row on the frontend.
-	 *
-	 * @param object $pass Pass row.
-	 * @return string
-	 */
-	private static function get_pass_label( $pass ) {
-		$label = __( 'View wallet pass', 'epasscard' );
-
-		if ( ! empty( $pass->module ) && ! empty( $pass->entity_id ) && function_exists( 'epc_plugin' ) ) {
-			$mod = epc_plugin()->get_module( (string) $pass->module );
-			if ( $mod ) {
-				$label = sprintf(
-					/* translators: %s: membership or product name */
-					__( 'View pass: %s', 'epasscard' ),
-					$mod->get_entity_label( (int) $pass->entity_id )
-				);
+			$item = self::get_pass_item( $pass );
+			if ( ! empty( $item['url'] ) ) {
+				$pass_items[] = $item;
 			}
 		}
 
+		include EPC_PLUGIN_DIR . 'assets/frontend/wallet-passes.php';
+	}
+
+	/**
+	 * Drop duplicate pass rows that share a pass UID or link.
+	 *
+	 * @param array<int, mixed> $passes Pass rows.
+	 * @return array<int, object>
+	 */
+	private static function unique_passes( array $passes ) {
+		$seen = array();
+		$out  = array();
+
+		foreach ( $passes as $pass ) {
+			if ( ! is_object( $pass ) ) {
+				continue;
+			}
+
+			$uid  = isset( $pass->pass_uid ) ? (string) $pass->pass_uid : '';
+			$link = isset( $pass->pass_link ) ? (string) $pass->pass_link : '';
+			$key  = '';
+			if ( '' !== $uid ) {
+				$key = 'uid:' . $uid;
+			} elseif ( '' !== $link ) {
+				$key = 'link:' . $link;
+			} elseif ( ! empty( $pass->id ) ) {
+				$key = 'id:' . (int) $pass->id;
+			}
+
+			if ( '' === $key || isset( $seen[ $key ] ) ) {
+				continue;
+			}
+
+			$seen[ $key ] = true;
+			$out[]        = $pass;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Display data for one pass card.
+	 *
+	 * @param object $pass Pass row.
+	 * @return array{title: string, type: string, button: string, url: string, module: string}
+	 */
+	private static function get_pass_item( $pass ) {
+		$module_slug = ! empty( $pass->module ) ? (string) $pass->module : '';
+		$module      = self::resolve_pass_module( $module_slug );
+		$type        = self::get_pass_type_label( $module_slug, $module );
+		$title       = '';
+
+		if ( $module && ! empty( $pass->entity_id ) ) {
+			$title = trim( (string) $module->get_entity_label( (int) $pass->entity_id ) );
+			if ( '' === $title || 1 === preg_match( '/^#\d+$/', $title ) ) {
+				$title = '';
+			}
+		}
+
+		if ( '' === $title ) {
+			$title = $type;
+		}
+
 		/**
-		 * Filter frontend pass link label.
+		 * Filter frontend pass title (previously used as the button label).
 		 *
-		 * @param string $label Label.
+		 * @param string $title Title.
 		 * @param object $pass  Pass row.
 		 */
-		return (string) apply_filters( 'epc_frontend_pass_label', $label, $pass );
+		$title = (string) apply_filters( 'epc_frontend_pass_label', $title, $pass );
+
+		return array(
+			'title'  => '' !== $title ? $title : __( 'Wallet pass', 'epasscard' ),
+			'type'   => $type,
+			'button' => __( 'Add to wallet', 'epasscard' ),
+			'url'    => (string) $pass->pass_link,
+			'module' => $module_slug,
+		);
+	}
+
+	/**
+	 * Module instance even when the integration is currently disabled.
+	 *
+	 * @param string $slug Module slug.
+	 * @return EPC_Module|null
+	 */
+	private static function resolve_pass_module( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( '' === $slug || ! function_exists( 'epc_plugin' ) ) {
+			return null;
+		}
+
+		$plugin = epc_plugin();
+		$mod    = $plugin->get_module( $slug );
+		if ( $mod ) {
+			return $mod;
+		}
+
+		$all = $plugin->get_all_modules();
+		return isset( $all[ $slug ] ) && $all[ $slug ] instanceof EPC_Module ? $all[ $slug ] : null;
+	}
+
+	/**
+	 * Customer-facing pass type for a module slug.
+	 *
+	 * @param string          $slug   Module slug.
+	 * @param EPC_Module|null $module Module instance.
+	 * @return string
+	 */
+	private static function get_pass_type_label( $slug, $module ) {
+		$map = array(
+			'woocommerce-loyalty'       => __( 'Loyalty card', 'epasscard' ),
+			'woocommerce-subscriptions' => __( 'Subscription', 'epasscard' ),
+			'paid-memberships-pro'      => __( 'Membership', 'epasscard' ),
+			'memberpress'               => __( 'Membership', 'epasscard' ),
+			'ultimate-membership-pro'   => __( 'Membership', 'epasscard' ),
+			'simple-membership'         => __( 'Membership', 'epasscard' ),
+			'the-events-calendar'       => __( 'Event ticket', 'epasscard' ),
+			'events-manager'            => __( 'Event ticket', 'epasscard' ),
+			'pw-gift-cards'             => __( 'Gift card', 'epasscard' ),
+			'yith-gift-cards'           => __( 'Gift card', 'epasscard' ),
+		);
+
+		if ( isset( $map[ $slug ] ) ) {
+			return $map[ $slug ];
+		}
+
+		if ( $module ) {
+			return (string) $module->get_label();
+		}
+
+		return __( 'Wallet pass', 'epasscard' );
 	}
 }

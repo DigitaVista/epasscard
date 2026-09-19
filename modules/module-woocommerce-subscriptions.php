@@ -38,6 +38,22 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'woocommerce-subscriptions',
+				'label'       => __( 'WooCommerce Subscriptions', 'epasscard' ),
+				'mode'        => 'external',
+				'slug'        => '',
+				'plugin_file' => '',
+				'url'         => 'https://woocommerce.com/products/woocommerce-subscriptions/',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_woocommerce_subscriptions_active();
 	}

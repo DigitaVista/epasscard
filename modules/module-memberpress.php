@@ -106,6 +106,22 @@ class EPC_Module_MemberPress extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'memberpress',
+				'label'       => __( 'MemberPress', 'epasscard' ),
+				'mode'        => 'external',
+				'slug'        => '',
+				'plugin_file' => '',
+				'url'         => 'https://memberpress.com/',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function get_unavailable_message() {
 		return __(
 			'MemberPress is not installed or activated. Install MemberPress, activate it, then return here to map pass templates.',

@@ -50,6 +50,22 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'woocommerce',
+				'label'       => __( 'WooCommerce', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'woocommerce',
+				'plugin_file' => 'woocommerce/woocommerce.php',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function get_unavailable_message() {
 		return __( 'WooCommerce is not installed or activated. Activate WooCommerce to earn and manage loyalty points.', 'epasscard' );
 	}
@@ -112,16 +128,10 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	public function get_extra_admin_nav_items() {
 		return array(
 			array(
-				'id'      => 'loyalty-customers',
-				'label'   => __( 'Customers', 'epasscard' ),
-				'section' => 'loyalty-customers',
-				'icon'    => 'group',
-			),
-			array(
-				'id'      => 'loyalty-pass-design',
-				'label'   => __( 'Pass Design', 'epasscard' ),
+				'id'    => 'loyalty-pass-design',
+				'label' => __( 'Pass Design', 'epasscard' ),
 				'section' => 'loyalty-pass-design',
-				'icon'    => 'palette',
+				'icon'  => 'palette',
 			),
 			array(
 				'id'      => 'loyalty-program',
@@ -129,7 +139,45 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 				'section' => 'loyalty-program',
 				'icon'    => 'rule',
 			),
+			array(
+				'id'    => 'loyalty-customers',
+				'label' => __( 'Customers', 'epasscard' ),
+				'url'   => $this->get_customers_admin_url(),
+				'icon'  => 'group',
+			),
 		);
+	}
+
+	/**
+	 * Dedicated customers screen slug.
+	 *
+	 * @return string
+	 */
+	public function get_customers_page_slug() {
+		return 'epc-woocommerce-loyalty-customers';
+	}
+
+	/**
+	 * Admin URL for the loyalty customers list.
+	 *
+	 * @return string
+	 */
+	public function get_customers_admin_url() {
+		return admin_url( 'admin.php?page=' . $this->get_customers_page_slug() );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_issued_passes_page_slug() {
+		return 'epc-woocommerce-loyalty-passes';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function get_issued_passes_description() {
+		return __( 'Wallet passes issued to loyalty members.', 'epasscard' );
 	}
 
 	/**
@@ -229,7 +277,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		unset( $entry );
 
 		$user_id = isset( $account->user_id ) ? absint( $account->user_id ) : 0;
-		if ( $user_id <= 0 || ! EPC_Api_Client::is_configured() ) {
+		if ( $user_id <= 0 || ! EPC_Api_Client::is_configured() || EPC_Loyalty_Order_Sync_Service::should_skip_pass_sync() ) {
 			return;
 		}
 
@@ -303,13 +351,8 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		$order_statuses     = $this->get_order_status_choices();
 		$product_categories = $this->get_product_category_choices();
 		$role_choices       = $this->get_role_choices();
+		$order_sync         = EPC_Loyalty_Order_Sync_Service::get_job();
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only customer search filter.
-		$customer_search = isset( $_GET['epc_customer_s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['epc_customer_s'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-		$module = $this;
-		$search = $customer_search;
-		include EPC_PLUGIN_DIR . 'admin/views/loyalty/customers.php';
 		include EPC_PLUGIN_DIR . 'admin/views/loyalty/program-settings.php';
 	}
 
@@ -333,6 +376,8 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 
 		$result = EPC_Loyalty_Pass_Design_Service::save_and_sync(
 			array(
+				'design_source'     => isset( $_POST['design_source'] ) ? sanitize_key( wp_unslash( (string) $_POST['design_source'] ) ) : 'form',
+				'template_uid'      => isset( $_POST['template_uid'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['template_uid'] ) ) : '',
 				'template_name'     => isset( $_POST['template_name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['template_name'] ) ) : '',
 				'organization_name' => isset( $_POST['organization_name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['organization_name'] ) ) : '',
 				'logo_id'           => isset( $_POST['logo_id'] ) ? absint( wp_unslash( $_POST['logo_id'] ) ) : 0,
@@ -391,6 +436,41 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public function should_enqueue_pass_action_assets( $hook ) {
+		return $this->is_loyalty_admin_screen( $hook );
+	}
+
+	/**
+	 * Whether the current request is a loyalty dashboard or list screen.
+	 *
+	 * @param string $hook Current admin hook.
+	 * @return bool
+	 */
+	private function is_loyalty_admin_screen( $hook = '' ) {
+		$pages = array(
+			'epc-' . $this->get_slug(),
+			$this->get_customers_page_slug(),
+			$this->get_issued_passes_page_slug(),
+		);
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+		if ( in_array( $page, $pages, true ) ) {
+			return true;
+		}
+
+		$hooks = array();
+		foreach ( $pages as $slug ) {
+			$hooks[] = 'epasscard_page_' . $slug;
+			$hooks[] = 'admin_page_' . $slug;
+		}
+
+		return in_array( (string) $hook, $hooks, true );
+	}
+
+	/**
 	 * Enqueue loyalty designer assets on the module screen.
 	 *
 	 * @param string $hook Current admin hook.
@@ -399,17 +479,20 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	public function enqueue_admin_assets( $hook ) {
 		parent::enqueue_admin_assets( $hook );
 
-		$page = 'epasscard_page_epc-' . $this->get_slug();
-		if ( $hook !== $page || ! $this->is_available() || ! $this->current_user_can_manage_passes() ) {
+		if ( ! $this->is_loyalty_admin_screen( $hook ) || ! $this->is_available() || ! $this->current_user_can_manage_passes() ) {
 			return;
 		}
 
-		wp_enqueue_media();
+		$is_dashboard = ( 'epasscard_page_epc-' . $this->get_slug() ) === $hook
+			|| ( isset( $_GET['page'] ) && 'epc-' . $this->get_slug() === sanitize_key( wp_unslash( (string) $_GET['page'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
+		$style_deps   = array( 'epc-admin', 'dashicons' );
+		$script_deps  = array( 'jquery', 'epc-admin' );
 
-		$style_deps  = array( 'epc-admin' );
-		$script_deps = array( 'jquery', 'epc-admin' );
+		if ( $is_dashboard ) {
+			wp_enqueue_media();
+		}
 
-		if ( function_exists( 'WC' ) && WC() ) {
+		if ( $is_dashboard && function_exists( 'WC' ) && WC() ) {
 			wp_enqueue_style(
 				'select2',
 				WC()->plugin_url() . '/assets/css/select2.css',
@@ -421,17 +504,20 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 			$script_deps[] = 'wc-enhanced-select';
 		}
 
+		$style_path  = EPC_PLUGIN_DIR . 'admin/css/loyalty-admin.css';
+		$script_path = EPC_PLUGIN_DIR . 'admin/js/loyalty-admin.js';
+
 		wp_enqueue_style(
 			'epc-loyalty-admin',
 			EPC_PLUGIN_URL . 'admin/css/loyalty-admin.css',
 			$style_deps,
-			EPC_VERSION
+			file_exists( $style_path ) ? (string) filemtime( $style_path ) : EPC_VERSION
 		);
 		wp_enqueue_script(
 			'epc-loyalty-admin',
 			EPC_PLUGIN_URL . 'admin/js/loyalty-admin.js',
 			$script_deps,
-			EPC_VERSION,
+			file_exists( $script_path ) ? (string) filemtime( $script_path ) : EPC_VERSION,
 			true
 		);
 		wp_localize_script(
@@ -440,7 +526,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 			array(
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'epc_admin' ),
-				'preview' => EPC_Loyalty_Pass_Design_Service::preview_sample_values(),
+				'preview' => $is_dashboard ? EPC_Loyalty_Pass_Design_Service::preview_sample_values() : array(),
 				'i18n'    => array(
 					'saving'         => __( 'Saving pass design…', 'epasscard' ),
 					'saved'          => __( 'Loyalty pass design saved.', 'epasscard' ),
@@ -449,11 +535,32 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 					'testOk'         => __( 'Test pass ready.', 'epasscard' ),
 					'mediaTitle'     => __( 'Select loyalty pass image', 'epasscard' ),
 					'mediaButton'    => __( 'Use image', 'epasscard' ),
+					'selectTemplate'=> __( '— Select a template —', 'epasscard' ),
+					'loading'        => __( 'Loading…', 'epasscard' ),
+					'templatesRefreshed' => __( 'Template list refreshed.', 'epasscard' ),
 					'programSaving'  => __( 'Saving loyalty program…', 'epasscard' ),
 					'programSaved'   => __( 'Loyalty program saved.', 'epasscard' ),
 					'programError'   => __( 'Unable to save the loyalty program.', 'epasscard' ),
 					'pointsPerOrder' => __( 'Points per order', 'epasscard' ),
 					'pointsPerUnit'  => __( 'Points per currency unit', 'epasscard' ),
+					'rewardBonusPoints' => __( 'Bonus points', 'epasscard' ),
+					'rewardCouponAmount' => __( 'Coupon amount', 'epasscard' ),
+					'rewardDiscountPercent' => __( 'Discount percent', 'epasscard' ),
+					'historyLoading' => __( 'Loading points history…', 'epasscard' ),
+					'historyError'   => __( 'Unable to load points history.', 'epasscard' ),
+					'historyEmpty'   => __( 'No loyalty activity yet.', 'epasscard' ),
+					'historyPage'    => __( 'Page %1$s of %2$s (%3$s entries)', 'epasscard' ),
+					'syncConfirm'    => __( 'Credit matching past orders with the current earning rules? This cannot un-award points later. Notifications will not be sent.', 'epasscard' ),
+					'removeRuleConfirm' => __( 'Remove this earning rule? You still need to save for the change to take effect.', 'epasscard' ),
+					'removeItemConfirm' => __( 'Remove this item? You still need to save for the change to take effect.', 'epasscard' ),
+					'rulePreviewFixed' => __( 'Fixed %1$s pts · Priority %2$s', 'epasscard' ),
+					'rulePreviewPerUnit' => __( '%1$s pts per unit · Priority %2$s', 'epasscard' ),
+					'tierPreview'    => __( '%s lifetime pts', 'epasscard' ),
+					'syncCounting'   => __( 'Counting matching orders…', 'epasscard' ),
+					'syncStarting'   => __( 'Starting past-order sync…', 'epasscard' ),
+					'syncStopping'   => __( 'Stopping…', 'epasscard' ),
+					'syncProgress'   => __( 'Status: %1$s. Scanned %2$s of %3$s. Credited %4$s, skipped %5$s, errors %6$s.', 'epasscard' ),
+					'syncError'      => __( 'Unable to run the past-order sync.', 'epasscard' ),
 				),
 			)
 		);
@@ -562,6 +669,152 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 			'epc-' . $this->get_slug(),
 			array( $this, 'render_admin_page' )
 		);
+
+		add_submenu_page(
+			'epasscard',
+			__( 'Loyalty Customers', 'epasscard' ),
+			__( 'Loyalty Customers', 'epasscard' ),
+			'manage_woocommerce',
+			$this->get_customers_page_slug(),
+			array( $this, 'render_customers_page' )
+		);
+
+		add_submenu_page(
+			'epasscard',
+			__( 'Issued Loyalty Passes', 'epasscard' ),
+			__( 'Issued Loyalty Passes', 'epasscard' ),
+			'manage_woocommerce',
+			$this->get_issued_passes_page_slug(),
+			array( $this, 'render_issued_passes_page' )
+		);
+
+		add_filter( 'submenu_file', array( $this, 'filter_submenu_file' ) );
+		add_action( 'admin_head', array( $this, 'hide_extra_wp_submenu_css' ) );
+	}
+
+	/**
+	 * Keep the WooCommerce Loyalty WP submenu selected on dedicated list screens.
+	 *
+	 * @param string $submenu_file Current submenu file.
+	 * @return string
+	 */
+	public function filter_submenu_file( $submenu_file ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+		if ( $page === $this->get_customers_page_slug() || $page === $this->get_issued_passes_page_slug() ) {
+			return 'epc-' . $this->get_slug();
+		}
+
+		return $submenu_file;
+	}
+
+	/**
+	 * Hide dedicated list screens from the core WP submenu.
+	 *
+	 * They must remain registered under EpassCard so WordPress grants access.
+	 *
+	 * @return void
+	 */
+	public function hide_extra_wp_submenu_css() {
+		$customers = esc_attr( $this->get_customers_page_slug() );
+		$passes    = esc_attr( $this->get_issued_passes_page_slug() );
+		echo '<style id="epc-loyalty-hidden-submenus">#adminmenu .wp-submenu li:has(> a[href*="page=' . $customers . '"]),#adminmenu .wp-submenu li:has(> a[href*="page=' . $passes . '"]){display:none}</style>';
+	}
+
+	/**
+	 * Dedicated loyalty customers admin screen.
+	 *
+	 * @return void
+	 */
+	public function render_customers_page() {
+		if ( ! $this->current_user_can_manage_passes() ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'epasscard' ) );
+		}
+
+		if ( ! $this->is_available() ) {
+			$this->render_unavailable_screen( __( 'Loyalty Customers', 'epasscard' ) );
+			return;
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only customer search filter.
+		$search = isset( $_GET['epc_customer_s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['epc_customer_s'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		$module = $this;
+
+		EPC_Admin_Shell::render_open(
+			array(
+				'context'        => 'module',
+				'title'          => __( 'Loyalty Customers', 'epasscard' ),
+				'module'         => $this,
+				'active_section' => 'loyalty-customers',
+			)
+		);
+		include EPC_PLUGIN_DIR . 'admin/views/loyalty/customers.php';
+		EPC_Admin_Shell::render_close();
+	}
+
+	/**
+	 * Dedicated issued-passes admin screen.
+	 *
+	 * @return void
+	 */
+	public function render_issued_passes_page() {
+		if ( ! $this->current_user_can_manage_passes() ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'epasscard' ) );
+		}
+
+		if ( ! $this->is_available() ) {
+			$this->render_unavailable_screen( __( 'Issued Loyalty Passes', 'epasscard' ) );
+			return;
+		}
+
+		EPC_Admin_Shell::render_open(
+			array(
+				'context'        => 'module',
+				'title'          => __( 'Issued Loyalty Passes', 'epasscard' ),
+				'module'         => $this,
+				'active_section' => 'passes',
+			)
+		);
+		$this->render_pass_action_notice();
+		$this->render_issued_passes_section();
+		EPC_Admin_Shell::render_close();
+	}
+
+	/**
+	 * Unavailable-module placeholder for dedicated screens.
+	 *
+	 * @param string $title Page title.
+	 * @return void
+	 */
+	private function render_unavailable_screen( $title ) {
+		EPC_Admin_Shell::render_open(
+			array(
+				'context' => 'module',
+				'title'   => $title,
+				'module'  => $this,
+			)
+		);
+		?>
+		<div class="notice notice-error inline">
+			<p><?php echo esc_html( $this->get_unavailable_message() ); ?></p>
+		</div>
+		<?php
+		EPC_Admin_Shell::render_close();
+	}
+
+	/**
+	 * Include the loyalty customer summary after a pass create/update.
+	 *
+	 * @param string      $source_id Source record id.
+	 * @param object|null $existing  Pass row.
+	 * @return array<string, mixed>
+	 */
+	protected function get_pass_action_extra_success_data( $source_id, $existing ) {
+		unset( $existing );
+
+		$summary = EPC_Loyalty_Customer_Service::get_customer_summary( absint( $source_id ) );
+		return $summary ? array( 'customer' => $summary ) : array();
 	}
 
 	/**
@@ -569,9 +822,11 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	 */
 	protected function register_event_hooks() {
 		EPC_Loyalty_Order_Service::init();
+		EPC_Loyalty_Order_Sync_Service::init();
 		EPC_Loyalty_Redemption_Service::init();
 		EPC_Loyalty_Reward_Service::init();
 		EPC_Loyalty_Reward_Service::schedule_cron();
+		EPC_Loyalty_Starter::maybe_install();
 		EPC_Loyalty_Notification_Service::init();
 		EPC_Loyalty_Customer_Service::init();
 		add_action( 'epc_loyalty_balance_changed', array( $this, 'on_balance_changed' ), 10, 2 );

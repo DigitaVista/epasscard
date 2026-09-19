@@ -38,6 +38,22 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'ultimate-membership-pro',
+				'label'       => __( 'Ultimate Membership Pro', 'epasscard' ),
+				'mode'        => 'external',
+				'slug'        => '',
+				'plugin_file' => '',
+				'url'         => 'https://www.wpindeed.com/ultimate-membership-pro/',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_ultimate_membership_pro_active();
 	}

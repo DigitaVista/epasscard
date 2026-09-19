@@ -38,6 +38,22 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'simple-membership',
+				'label'       => __( 'Simple Membership', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'simple-membership',
+				'plugin_file' => 'simple-membership/simple-wp-membership.php',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_simple_membership_active();
 	}

@@ -54,23 +54,29 @@
 		$( '#epc-loyalty-preview-secondary-label' ).text( $( '#epc-loyalty-secondary-label' ).val() || '' );
 		$( '#epc-loyalty-preview-secondary-value' ).text( secondarySample() );
 
-		var logo = $( '#epc-loyalty-logo-url' ).val() || '';
 		var $logo = $( '#epc-loyalty-preview-logo' );
 		var $logoFallback = $( '#epc-loyalty-preview-logo-fallback' );
+		var $logoThumb = $( '#epc-loyalty-logo-thumb' );
+		var logo = $( '#epc-loyalty-logo-url' ).val() || $logo.attr( 'data-inline-src' ) || '';
 		if ( logo ) {
 			$logo.attr( 'src', logo ).prop( 'hidden', false );
 			$logoFallback.prop( 'hidden', true );
+			$logoThumb.attr( 'src', logo ).prop( 'hidden', false );
 		} else {
 			$logo.attr( 'src', '' ).prop( 'hidden', true );
 			$logoFallback.prop( 'hidden', false );
+			$logoThumb.attr( 'src', '' ).prop( 'hidden', true );
 		}
 
-		var stripUrl = $( '#epc-loyalty-strip-url' ).val() || '';
+		var stripUrl = $( '#epc-loyalty-strip-url' ).val() || $( '#epc-loyalty-preview-strip-img' ).attr( 'data-inline-src' ) || '';
 		var $stripImg = $( '#epc-loyalty-preview-strip-img' );
+		var $stripThumb = $( '#epc-loyalty-strip-thumb' );
 		if ( stripUrl ) {
 			$stripImg.attr( 'src', stripUrl ).prop( 'hidden', false );
+			$stripThumb.attr( 'src', stripUrl ).prop( 'hidden', false );
 		} else {
 			$stripImg.attr( 'src', '' ).prop( 'hidden', true );
+			$stripThumb.attr( 'src', '' ).prop( 'hidden', true );
 		}
 
 		updateBarcodePreview();
@@ -127,8 +133,21 @@
 	}
 
 	function collectDesign( $form ) {
+		var source = $form.find( '[name="design_source"]:checked' ).val() || 'form';
+		var templateUid =
+			source === 'builder'
+				? $form.find( '#epc-loyalty-template-select' ).val()
+				: $form.find( '#epc-loyalty-template-uid-current' ).val();
+		var templateName =
+			source === 'builder'
+				? $form.find( '#epc-loyalty-template-select option:selected' ).attr( 'data-name' ) ||
+				  $form.find( '#epc-loyalty-template-select option:selected' ).text()
+				: $form.find( '[name="template_name"]' ).val();
+
 		var data = {
-			template_name: $form.find( '[name="template_name"]' ).val(),
+			design_source: source,
+			template_uid: templateUid || '',
+			template_name: templateName,
 			organization_name: $form.find( '[name="organization_name"]' ).val(),
 			logo_id: $form.find( '[name="logo_id"]' ).val(),
 			logo_url: $form.find( '[name="logo_url"]' ).val(),
@@ -149,6 +168,98 @@
 		return data;
 	}
 
+	function designSource() {
+		return $( '#epc-loyalty-pass-design-form [name="design_source"]:checked' ).val() || 'form';
+	}
+
+	function toggleDesignPanels() {
+		var source = designSource();
+		$( '#epc-loyalty-pass-design-form [data-epc-design-panel]' ).each( function () {
+			var $row = $( this );
+			var show = $row.data( 'epc-design-panel' ) === source;
+			$row.toggle( show );
+			$row.find( 'input, select, textarea' ).prop( 'disabled', ! show );
+		} );
+		$( '#epc-loyalty-template-name, #epc-loyalty-org-name' ).prop( 'required', source === 'form' );
+	}
+
+	function loadLoyaltyTemplates() {
+		var $select = $( '#epc-loyalty-template-select' );
+		var $refresh = $( '#epc-loyalty-refresh-templates' );
+		if ( ! $select.length ) {
+			return;
+		}
+
+		var config = cfg();
+		var current = String( $select.val() || $( '#epc-loyalty-template-uid-current' ).val() || '' );
+		$select.prop( 'disabled', true );
+		$refresh.prop( 'disabled', true ).addClass( 'is-loading' );
+		$select.html( '<option value="">' + ( ( config.i18n && config.i18n.loading ) || 'Loading…' ) + '</option>' );
+
+		$.ajax( {
+			url: config.ajaxUrl,
+			method: 'GET',
+			dataType: 'json',
+			data: {
+				action: 'epc_get_templates',
+				nonce: config.nonce,
+				page_num: 1,
+			},
+		} )
+			.done( function ( resp ) {
+				var templates = ( resp && resp.success && resp.data && resp.data.templates ) || [];
+				var html =
+					'<option value="">' +
+					( ( config.i18n && config.i18n.selectTemplate ) || '— Select a template —' ) +
+					'</option>';
+				var matched = '';
+
+				templates.forEach( function ( tpl ) {
+					var uid = tpl.uid || tpl.templateUid || '';
+					var name = tpl.name || tpl.templateName || uid;
+					if ( ! uid ) {
+						return;
+					}
+					if ( uid === current ) {
+						matched = uid;
+					}
+					html +=
+						'<option value="' +
+						uid +
+						'" data-name="' +
+						$( '<div>' ).text( name ).html() +
+						'"' +
+						( uid === current ? ' selected' : '' ) +
+						'>' +
+						$( '<div>' ).text( name ).html() +
+						'</option>';
+				} );
+
+				if ( current && ! matched ) {
+					html +=
+						'<option value="' +
+						current +
+						'" selected>' +
+						$( '<div>' ).text( current ).html() +
+						'</option>';
+				}
+
+				$select.html( html );
+			} )
+			.fail( function () {
+				$select.html(
+					'<option value="">' +
+						( ( config.i18n && config.i18n.error ) || 'Unable to load templates.' ) +
+						'</option>'
+				);
+			} )
+			.always( function () {
+				$select.prop( 'disabled', false );
+				$refresh.prop( 'disabled', false ).removeClass( 'is-loading' );
+				toggleDesignPanels();
+			} );
+	}
+
 	$( function () {
 		var $form = $( '#epc-loyalty-pass-design-form' );
 		if ( ! $form.length ) {
@@ -167,6 +278,23 @@
 			$( '#epc-loyalty-' + target + '-url' ).val( '' );
 			updatePreview();
 		} );
+
+		$( document ).on( 'input', '#epc-loyalty-logo-url, #epc-loyalty-strip-url', function () {
+			var target = this.id.indexOf( 'logo' ) !== -1 ? 'logo' : 'strip';
+			$( '#epc-loyalty-' + target + '-id' ).val( '0' );
+		} );
+
+		$form.on( 'change', '[name="design_source"]', function () {
+			toggleDesignPanels();
+		} );
+
+		$( document ).on( 'click', '#epc-loyalty-refresh-templates', function ( event ) {
+			event.preventDefault();
+			loadLoyaltyTemplates();
+		} );
+
+		toggleDesignPanels();
+		loadLoyaltyTemplates();
 
 		$form.on(
 			'input change',
@@ -323,13 +451,108 @@
 		}
 
 		html +=
-			'<p><button type="button" class="button button-small epc-loyalty-adjust-open" data-user-id="' +
+			'<p><button type="button" class="button button-small epc-loyalty-history-open" data-user-id="' +
+			customer.user_id +
+			'" data-name="' +
+			$( '<div>' ).text( customer.display_name || '' ).html() +
+			'">History</button> <button type="button" class="button button-small epc-loyalty-adjust-open" data-user-id="' +
 			customer.user_id +
 			'" data-name="' +
 			$( '<div>' ).text( customer.display_name || '' ).html() +
 			'">Adjust points</button></p>';
 
-		$result.html( html ).prop( 'hidden', false );
+		$result
+			.attr( 'data-user-id', customer.user_id || '' )
+			.html( html )
+			.prop( 'hidden', false );
+	}
+
+	function escapeHtml( value ) {
+		return $( '<div>' ).text( value == null ? '' : String( value ) ).html();
+	}
+
+	function formatInt( value ) {
+		var n = parseInt( value, 10 ) || 0;
+		try {
+			return n.toLocaleString();
+		} catch ( e ) {
+			return String( n );
+		}
+	}
+
+	function flashRow( $row ) {
+		if ( ! $row || ! $row.length ) {
+			return;
+		}
+		$row.addClass( 'epc-row-updated' );
+		window.setTimeout( function () {
+			$row.removeClass( 'epc-row-updated' );
+		}, 1200 );
+	}
+
+	function customerPassHtml( customer ) {
+		var status = String( customer.pass_status || 'none' );
+		var label = status === 'none' ? 'None' : status.charAt( 0 ).toUpperCase() + status.slice( 1 );
+		if ( customer.pass_link ) {
+			return (
+				'<a href="' +
+				escapeHtml( customer.pass_link ).replace( /"/g, '&quot;' ) +
+				'" target="_blank" rel="noopener noreferrer">' +
+				escapeHtml( label ) +
+				'</a>'
+			);
+		}
+		return escapeHtml( label );
+	}
+
+	function customerNextRewardHtml( customer ) {
+		var label = String( customer.next_reward || '' );
+		if ( ! label ) {
+			return '&mdash;';
+		}
+		var progress = String( customer.milestone_progress || '' );
+		return escapeHtml( label ) + ( progress ? '<br /><small>' + escapeHtml( progress ) + '</small>' : '' );
+	}
+
+	function updateCustomerRow( customer ) {
+		if ( ! customer || ! customer.user_id ) {
+			return;
+		}
+
+		var $row = $( 'tr[data-epc-user-id="' + String( customer.user_id ) + '"]' );
+		if ( ! $row.length ) {
+			return;
+		}
+
+		$row.find( 'td.column-points_balance' ).text( formatInt( customer.points_balance ) );
+		$row.find( 'td.column-lifetime_points' ).text( formatInt( customer.lifetime_points ) );
+		$row.find( 'td.column-tier' ).html( customer.tier ? escapeHtml( customer.tier ) : '&mdash;' );
+		$row.find( 'td.column-next_reward' ).html( customerNextRewardHtml( customer ) );
+		$row.find( 'td.column-unclaimed_rewards' ).text( formatInt( customer.unclaimed_rewards ) );
+		$row.find( 'td.column-pass' ).html( customerPassHtml( customer ) );
+		$row.find( 'td.column-last_activity' ).text( customer.last_activity || '' );
+
+		var $actions = $row.find( '.epc-loyalty-customer-actions' );
+		if ( $actions.length && customer.pass_link && ! $actions.find( '.epc-loyalty-email-pass' ).length ) {
+			$actions.append(
+				' <button type="button" class="button button-small epc-loyalty-email-pass" data-user-id="' +
+					escapeHtml( String( customer.user_id ) ) +
+					'">Email</button>'
+			);
+		}
+
+		flashRow( $row );
+	}
+
+	function updateLookupIfMatching( customer ) {
+		var $result = $( '.epc-loyalty-lookup__result' );
+		if ( ! $result.length || $result.prop( 'hidden' ) || ! customer ) {
+			return;
+		}
+		if ( String( $result.attr( 'data-user-id' ) || '' ) !== String( customer.user_id || '' ) ) {
+			return;
+		}
+		renderLookupResult( customer );
 	}
 
 	function setLookupStatus( message, type ) {
@@ -354,13 +577,144 @@
 		$( '#epc-loyalty-adjust-modal' ).prop( 'hidden', true );
 	}
 
+	var historyState = {
+		userId: 0,
+		page: 1,
+		totalPages: 1,
+	};
+
+	function openHistoryModal( userId, name ) {
+		$( '#epc-loyalty-history-user-id' ).val( userId || '' );
+		$( '.epc-loyalty-history-customer' ).text( name || '' );
+		$( '.epc-loyalty-history-status' ).removeClass( 'is-success is-error' ).text( '' );
+		$( '#epc-loyalty-history-modal' ).prop( 'hidden', false );
+		loadHistory( 1 );
+	}
+
+	function closeHistoryModal() {
+		$( '#epc-loyalty-history-modal' ).prop( 'hidden', true );
+	}
+
+	function loadHistory( page ) {
+		var config = cfg();
+		var i18n = config.i18n || {};
+		var userId = $( '#epc-loyalty-history-user-id' ).val();
+		var $status = $( '.epc-loyalty-history-status' );
+		var $tbody = $( '.epc-loyalty-history-table tbody' );
+
+		historyState.userId = parseInt( userId, 10 ) || 0;
+		historyState.page = page || 1;
+		$status.removeClass( 'is-success is-error' ).text( i18n.historyLoading || 'Loading…' );
+		$tbody.empty();
+		$( '#epc-loyalty-history-prev, #epc-loyalty-history-next' ).prop( 'disabled', true );
+
+		$.ajax( {
+			url: config.ajaxUrl,
+			method: 'POST',
+			dataType: 'json',
+			data: {
+				action: 'epc_loyalty_customer_history',
+				nonce: config.nonce,
+				user_id: userId,
+				paged: historyState.page,
+			},
+		} )
+			.done( function ( response ) {
+				if ( response && response.success && response.data ) {
+					$status.text( '' );
+					renderHistory( response.data );
+					return;
+				}
+				$status
+					.addClass( 'is-error' )
+					.text( ( response && response.data && response.data.message ) || i18n.historyError || 'Unable to load history.' );
+			} )
+			.fail( function ( xhr ) {
+				$status
+					.addClass( 'is-error' )
+					.text(
+						( xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ) ||
+							i18n.historyError ||
+							'Unable to load history.'
+					);
+			} );
+	}
+
+	function renderHistory( data ) {
+		var i18n = ( cfg().i18n || {} );
+		var $tbody = $( '.epc-loyalty-history-table tbody' );
+		var entries = data.entries || [];
+		var page = parseInt( data.page, 10 ) || 1;
+		var totalPages = parseInt( data.total_pages, 10 ) || 1;
+		var total = parseInt( data.total, 10 ) || 0;
+
+		historyState.page = page;
+		historyState.totalPages = totalPages;
+
+		if ( ! entries.length ) {
+			$tbody.append(
+				'<tr><td colspan="5">' +
+					escapeHtml( i18n.historyEmpty || 'No loyalty activity yet.' ) +
+					'</td></tr>'
+			);
+		} else {
+			entries.forEach( function ( entry ) {
+				var pointsClass = entry.points_delta > 0 ? 'is-positive' : entry.points_delta < 0 ? 'is-negative' : '';
+				var details = escapeHtml( entry.description || '' );
+				if ( entry.order_url && entry.order_label ) {
+					details =
+						'<a href="' +
+						escapeHtml( entry.order_url ).replace( /"/g, '&quot;' ) +
+						'">' +
+						escapeHtml( entry.order_label ) +
+						'</a>' +
+						( entry.description && entry.description !== entry.order_label
+							? ' — ' + escapeHtml( entry.description )
+							: '' );
+				}
+				$tbody.append(
+					'<tr>' +
+						'<td>' +
+						escapeHtml( entry.created_at || '' ) +
+						'</td>' +
+						'<td>' +
+						escapeHtml( entry.type_label || entry.type || '' ) +
+						'</td>' +
+						'<td class="' +
+						pointsClass +
+						'">' +
+						escapeHtml( entry.points_display || '0' ) +
+						'</td>' +
+						'<td>' +
+						escapeHtml( entry.lifetime_display || '—' ) +
+						'</td>' +
+						'<td>' +
+						details +
+						'</td>' +
+						'</tr>'
+				);
+			} );
+		}
+
+		$( '.epc-loyalty-history-page' ).text(
+			total
+				? ( i18n.historyPage || 'Page %1$s of %2$s (%3$s)' )
+						.replace( '%1$s', String( page ) )
+						.replace( '%2$s', String( totalPages ) )
+						.replace( '%3$s', String( total ) )
+				: i18n.historyEmpty || 'No loyalty activity yet.'
+		);
+		$( '#epc-loyalty-history-prev' ).prop( 'disabled', page <= 1 );
+		$( '#epc-loyalty-history-next' ).prop( 'disabled', page >= totalPages || ! total );
+	}
+
 	$( function () {
 		$( document ).on( 'click', '#epc-loyalty-lookup-submit', function ( event ) {
 			event.preventDefault();
 			var config = cfg();
 			var query = $( '#epc-loyalty-lookup-query' ).val() || '';
 			setLookupStatus( 'Looking up…', '' );
-			$( '.epc-loyalty-lookup__result' ).prop( 'hidden', true ).empty();
+			$( '.epc-loyalty-lookup__result' ).prop( 'hidden', true ).empty().removeAttr( 'data-user-id' );
 
 			$.ajax( {
 				url: config.ajaxUrl,
@@ -403,6 +757,30 @@
 			openAdjustModal( $( this ).data( 'user-id' ), $( this ).data( 'name' ) );
 		} );
 
+		$( document ).on( 'click', '.epc-loyalty-history-open', function ( event ) {
+			event.preventDefault();
+			openHistoryModal( $( this ).data( 'user-id' ), $( this ).data( 'name' ) );
+		} );
+
+		$( document ).on( 'click', '#epc-loyalty-history-modal [data-epc-close], #epc-loyalty-history-modal .epc-modal__backdrop', function ( event ) {
+			event.preventDefault();
+			closeHistoryModal();
+		} );
+
+		$( document ).on( 'click', '#epc-loyalty-history-prev', function ( event ) {
+			event.preventDefault();
+			if ( historyState.page > 1 ) {
+				loadHistory( historyState.page - 1 );
+			}
+		} );
+
+		$( document ).on( 'click', '#epc-loyalty-history-next', function ( event ) {
+			event.preventDefault();
+			if ( historyState.page < historyState.totalPages ) {
+				loadHistory( historyState.page + 1 );
+			}
+		} );
+
 		$( document ).on( 'click', '#epc-loyalty-adjust-modal [data-epc-close], #epc-loyalty-adjust-modal .epc-modal__backdrop', function ( event ) {
 			event.preventDefault();
 			closeAdjustModal();
@@ -412,7 +790,9 @@
 			event.preventDefault();
 			var config = cfg();
 			var $status = $( '.epc-loyalty-adjust-status' );
+			var $button = $( this );
 			$status.removeClass( 'is-success is-error' ).text( 'Saving…' );
+			$button.prop( 'disabled', true );
 
 			$.ajax( {
 				url: config.ajaxUrl,
@@ -429,14 +809,27 @@
 			} )
 				.done( function ( response ) {
 					if ( response && response.success ) {
+						var customer = response.data && response.data.customer ? response.data.customer : null;
 						$status.addClass( 'is-success' ).text( ( response.data && response.data.message ) || 'Saved.' );
+						if ( customer ) {
+							updateCustomerRow( customer );
+							updateLookupIfMatching( customer );
+							if (
+								! $( '#epc-loyalty-history-modal' ).prop( 'hidden' ) &&
+								String( historyState.userId ) === String( customer.user_id )
+							) {
+								loadHistory( 1 );
+							}
+						}
 						window.setTimeout( function () {
-							window.location.reload();
+							closeAdjustModal();
+							$button.prop( 'disabled', false );
 						}, 600 );
 					} else {
 						$status
 							.addClass( 'is-error' )
 							.text( ( response && response.data && response.data.message ) || 'Adjustment failed.' );
+						$button.prop( 'disabled', false );
 					}
 				} )
 				.fail( function ( xhr ) {
@@ -444,7 +837,15 @@
 						( xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ) ||
 						'Adjustment failed.';
 					$status.addClass( 'is-error' ).text( message );
+					$button.prop( 'disabled', false );
 				} );
+		} );
+
+		$( document ).on( 'epc:pass-action-success', function ( event, data ) {
+			if ( data && data.customer ) {
+				updateCustomerRow( data.customer );
+				updateLookupIfMatching( data.customer );
+			}
 		} );
 
 		$( document ).on( 'click', '.epc-loyalty-email-pass', function ( event ) {
@@ -591,6 +992,44 @@
 		return items;
 	}
 
+	function formatRulePreview( points, priority, awardType ) {
+		var i18n = cfg().i18n || {};
+		var tpl =
+			awardType === 'fixed'
+				? i18n.rulePreviewFixed || 'Fixed %1$s pts · Priority %2$s'
+				: i18n.rulePreviewPerUnit || '%1$s pts per unit · Priority %2$s';
+		return String( tpl ).replace( '%1$s', String( points ) ).replace( '%2$s', String( priority ) );
+	}
+
+	function updateRulePreview( $item ) {
+		if ( ! $item || ! $item.length ) {
+			return;
+		}
+		var points = $item.find( '[data-field="points"]' ).val() || '0';
+		var priority = $item.find( '[data-field="priority"]' ).val() || '0';
+		var awardType = $item.find( '[data-field="award_type"]' ).val() || 'per_currency';
+		$item.find( '.epc-loyalty-item__preview' ).text( formatRulePreview( points, priority, awardType ) );
+	}
+
+	function updateTierPreview( $item ) {
+		if ( ! $item || ! $item.length ) {
+			return;
+		}
+		var pts = $item.find( '[data-field="threshold"]' ).val() || '0';
+		var i18n = cfg().i18n || {};
+		var tpl = i18n.tierPreview || '%s lifetime pts';
+		$item.find( '.epc-loyalty-item__preview' ).text( String( tpl ).replace( '%s', String( pts ) ) );
+	}
+
+	function updateRewardPreview( $item ) {
+		if ( ! $item || ! $item.length ) {
+			return;
+		}
+		var pts = $item.find( '[data-field="threshold"]' ).val() || '0';
+		var typeLabel = $.trim( $item.find( '.epc-loyalty-reward-type option:selected' ).text() );
+		$item.find( '.epc-loyalty-item__preview' ).text( pts + ' pts · ' + typeLabel );
+	}
+
 	function collectNotifications() {
 		var out = {};
 		$( '[data-epc-notifications] [data-notify-type]' ).each( function () {
@@ -640,13 +1079,45 @@
 				return;
 			}
 			var node = tpl.content.cloneNode( true );
-			$repeater.find( '[data-epc-repeater-list]' ).append( node );
+			var $list = $repeater.find( '[data-epc-repeater-list]' );
+			$list.append( node );
 			reinitEnhancedSelect( $repeater );
+			if ( type === 'milestones' || type === 'rules' || type === 'tiers' ) {
+				var $added = $list.children( '[data-epc-repeater-item]' ).last();
+				$added.addClass( 'is-open' );
+				$added.find( '.epc-loyalty-item__body' ).prop( 'hidden', false );
+				$added.find( '.epc-loyalty-item__toggle' ).attr( 'aria-expanded', 'true' );
+				if ( type === 'rules' ) {
+					updateRulePreview( $added );
+				} else if ( type === 'tiers' ) {
+					updateTierPreview( $added );
+				} else if ( type === 'milestones' ) {
+					updateRewardPreview( $added );
+				}
+			}
+		} );
+
+		$( document ).on( 'click', '.epc-loyalty-item__toggle', function () {
+			var $item = $( this ).closest( '.epc-loyalty-item--accordion' );
+			var open = ! $item.hasClass( 'is-open' );
+			$item.toggleClass( 'is-open', open );
+			$item.find( '.epc-loyalty-item__body' ).first().prop( 'hidden', ! open );
+			$( this ).attr( 'aria-expanded', open ? 'true' : 'false' );
 		} );
 
 		$( document ).on( 'click', '[data-epc-repeater-remove]', function ( event ) {
 			event.preventDefault();
-			$( this ).closest( '[data-epc-repeater-item]' ).remove();
+			var $btn = $( this );
+			if ( $btn.is( '[data-epc-confirm-remove]' ) ) {
+				var msg =
+					cfg().i18n && cfg().i18n.removeItemConfirm
+						? cfg().i18n.removeItemConfirm
+						: 'Remove this item? You still need to save for the change to take effect.';
+				if ( ! window.confirm( msg ) ) {
+					return;
+				}
+			}
+			$btn.closest( '[data-epc-repeater-item]' ).remove();
 		} );
 
 		$( document ).on( 'input', '.epc-loyalty-item__name', function () {
@@ -656,6 +1127,30 @@
 			if ( $id.length && ! $id.prop( 'readonly' ) && ! String( $id.data( 'locked' ) || '' ) ) {
 				$id.val( slugify( $( this ).val() ) );
 			}
+			if ( $item.hasClass( 'epc-loyalty-item--rule' ) ) {
+				updateRulePreview( $item );
+			} else if ( $item.hasClass( 'epc-loyalty-item--tier' ) ) {
+				updateTierPreview( $item );
+			} else if ( $item.hasClass( 'epc-loyalty-item--reward' ) ) {
+				updateRewardPreview( $item );
+			}
+		} );
+
+		$( document ).on( 'input change', '.epc-loyalty-item--accordion [data-field="name"], .epc-loyalty-item--accordion [data-field="threshold"], .epc-loyalty-reward-type', function () {
+			var $item = $( this ).closest( '.epc-loyalty-item--accordion' );
+			if ( $item.hasClass( 'epc-loyalty-item--rule' ) ) {
+				updateRulePreview( $item );
+				return;
+			}
+			if ( $item.hasClass( 'epc-loyalty-item--tier' ) ) {
+				updateTierPreview( $item );
+				return;
+			}
+			updateRewardPreview( $item );
+		} );
+
+		$( document ).on( 'input change', '.epc-loyalty-item--rule [data-field="points"], .epc-loyalty-item--rule [data-field="priority"], .epc-loyalty-item--rule .epc-loyalty-award-type', function () {
+			updateRulePreview( $( this ).closest( '.epc-loyalty-item--rule' ) );
 		} );
 
 		$( document ).on( 'change', '.epc-loyalty-award-type', function () {
@@ -671,10 +1166,18 @@
 		} );
 
 		$( document ).on( 'change', '.epc-loyalty-reward-type', function () {
-			var isProduct = $( this ).val() === 'free_product';
+			var type = $( this ).val();
 			var $item = $( this ).closest( '.epc-loyalty-item' );
-			$item.find( '.epc-loyalty-reward-product' ).prop( 'hidden', ! isProduct );
-			$item.find( '.epc-loyalty-reward-amount' ).prop( 'hidden', $( this ).val() === 'free_shipping' );
+			var i18n = cfg().i18n || {};
+			var amountLabel = i18n.rewardBonusPoints || 'Bonus points';
+			if ( type === 'fixed_coupon' ) {
+				amountLabel = i18n.rewardCouponAmount || 'Coupon amount';
+			} else if ( type === 'percentage_coupon' ) {
+				amountLabel = i18n.rewardDiscountPercent || 'Discount percent';
+			}
+			$item.find( '.epc-loyalty-reward-product' ).prop( 'hidden', type !== 'free_product' );
+			$item.find( '.epc-loyalty-reward-amount' ).prop( 'hidden', type === 'free_shipping' || type === 'free_product' );
+			$item.find( '.epc-loyalty-reward-amount-label' ).text( amountLabel );
 		} );
 
 		$form.on( 'submit', function ( event ) {
@@ -744,5 +1247,149 @@
 					$button.prop( 'disabled', false );
 				} );
 		} );
+
+		var config = cfg();
+		var syncTimer = null;
+
+		function syncWrap() {
+			return $( '[data-epc-order-sync]' );
+		}
+
+		function syncPayload() {
+			var $wrap = syncWrap();
+			return {
+				nonce: config.nonce,
+				from: $wrap.find( '[data-sync-field="from"]' ).val() || '',
+				to: $wrap.find( '[data-sync-field="to"]' ).val() || '',
+				grant_rewards: $wrap.find( '[data-sync-field="grant_rewards"]' ).is( ':checked' ) ? 1 : 0,
+				sync_passes: $wrap.find( '[data-sync-field="sync_passes"]' ).is( ':checked' ) ? 1 : 0,
+			};
+		}
+
+		function syncMessage( text, type ) {
+			var $msg = syncWrap().find( '.epc-loyalty-history-sync__message' );
+			$msg.toggleClass( 'is-error', type === 'error' ).text( text || '' );
+		}
+
+		function renderSyncJob( job ) {
+			if ( ! job ) {
+				return;
+			}
+			var $wrap = syncWrap();
+			var running = job.status === 'running';
+			$wrap.attr( 'data-status', job.status || 'idle' );
+			$wrap.find( '[data-epc-order-sync-cancel]' ).prop( 'hidden', ! running );
+			$wrap.find( '[data-epc-order-sync-start]' ).prop( 'disabled', running );
+			var found = parseInt( job.found, 10 ) || 0;
+			var processed = parseInt( job.processed, 10 ) || 0;
+			var percent = parseInt( job.percent, 10 );
+			if ( isNaN( percent ) ) {
+				percent = found > 0 ? Math.min( 100, Math.floor( ( processed / found ) * 100 ) ) : ( job.status === 'completed' ? 100 : 0 );
+			}
+			var $progress = $wrap.find( '.epc-loyalty-history-sync__progress' );
+			if ( job.status && job.status !== 'idle' ) {
+				$progress.prop( 'hidden', false );
+			}
+			$progress.find( '[role="progressbar"]' ).attr( 'aria-valuenow', percent );
+			$progress.find( '[role="progressbar"] span' ).css( 'width', percent + '%' );
+			var template = ( config.i18n && config.i18n.syncProgress ) || 'Status: %1$s. Scanned %2$s of %3$s. Credited %4$s, skipped %5$s, errors %6$s.';
+			$wrap.find( '.epc-loyalty-history-sync__stats' ).text(
+				template
+					.replace( '%1$s', job.status || 'idle' )
+					.replace( '%2$s', processed )
+					.replace( '%3$s', found )
+					.replace( '%4$s', parseInt( job.awarded, 10 ) || 0 )
+					.replace( '%5$s', parseInt( job.skipped, 10 ) || 0 )
+					.replace( '%6$s', parseInt( job.errors, 10 ) || 0 )
+			);
+			if ( running ) {
+				startSyncPoll();
+			} else {
+				stopSyncPoll();
+			}
+		}
+
+		function startSyncPoll() {
+			if ( syncTimer ) {
+				return;
+			}
+			syncTimer = window.setInterval( function () {
+				$.ajax( {
+					url: config.ajaxUrl,
+					method: 'POST',
+					dataType: 'json',
+					data: {
+						action: 'epc_loyalty_order_sync_status',
+						nonce: config.nonce,
+					},
+				} ).done( function ( response ) {
+					if ( response && response.success && response.data && response.data.job ) {
+						renderSyncJob( response.data.job );
+					}
+				} );
+			}, 3000 );
+		}
+
+		function stopSyncPoll() {
+			if ( syncTimer ) {
+				window.clearInterval( syncTimer );
+				syncTimer = null;
+			}
+		}
+
+		function postSync( action, extra, busyText ) {
+			syncMessage( busyText || '' );
+			return $.ajax( {
+				url: config.ajaxUrl,
+				method: 'POST',
+				dataType: 'json',
+				data: $.extend( { action: action }, syncPayload(), extra || {} ),
+			} )
+				.done( function ( response ) {
+					if ( response && response.success ) {
+						if ( response.data && response.data.job ) {
+							renderSyncJob( response.data.job );
+						}
+						syncMessage( ( response.data && response.data.message ) || '' );
+					} else {
+						syncMessage(
+							( response && response.data && response.data.message ) ||
+								( config.i18n && config.i18n.syncError ) ||
+								'Sync failed.',
+							'error'
+						);
+					}
+				} )
+				.fail( function ( xhr ) {
+					syncMessage(
+						( xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ) ||
+							( config.i18n && config.i18n.syncError ) ||
+							'Sync failed.',
+						'error'
+					);
+				} );
+		}
+
+		if ( syncWrap().length ) {
+			$( document ).on( 'click', '[data-epc-order-sync-preview]', function ( event ) {
+				event.preventDefault();
+				postSync( 'epc_loyalty_order_sync_preview', {}, config.i18n && config.i18n.syncCounting );
+			} );
+			$( document ).on( 'click', '[data-epc-order-sync-start]', function ( event ) {
+				event.preventDefault();
+				var confirmMsg = ( config.i18n && config.i18n.syncConfirm ) || '';
+				if ( confirmMsg && ! window.confirm( confirmMsg ) ) {
+					return;
+				}
+				postSync( 'epc_loyalty_order_sync_start', {}, config.i18n && config.i18n.syncStarting );
+			} );
+			$( document ).on( 'click', '[data-epc-order-sync-cancel]', function ( event ) {
+				event.preventDefault();
+				postSync( 'epc_loyalty_order_sync_cancel', {}, config.i18n && config.i18n.syncStopping );
+			} );
+			if ( syncWrap().attr( 'data-status' ) === 'running' ) {
+				startSyncPoll();
+			}
+		}
 	} );
 }( jQuery ) );

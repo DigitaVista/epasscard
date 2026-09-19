@@ -158,6 +158,32 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * Packages required for this module (install / activate / external get).
+	 *
+	 * Each item:
+	 * - key (string)
+	 * - label (string)
+	 * - mode (wporg|external)
+	 * - slug (string) WP.org slug when mode=wporg
+	 * - plugin_file (string) relative plugin bootstrap when mode=wporg
+	 * - url (string) vendor URL when mode=external
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => $this->get_slug(),
+				'label'       => $this->get_dependency_label(),
+				'mode'        => 'external',
+				'slug'        => '',
+				'plugin_file' => '',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
 	 * Message shown when the dependency plugin is missing.
 	 *
 	 * @return string
@@ -605,22 +631,39 @@ abstract class EPC_Module {
 		$has_pass = $existing && ! empty( $existing->pass_uid );
 		$pass_link = ( $has_pass && ! empty( $existing->pass_link ) ) ? (string) $existing->pass_link : '';
 
-		wp_send_json_success(
-			array(
-				'message'      => 'create' === $action
-					? __( 'Pass created successfully.', 'epasscard' )
-					: __( 'Pass updated successfully.', 'epasscard' ),
-				'has_pass'     => $has_pass,
-				'action'       => $has_pass ? 'update' : $action,
-				'action_label' => $has_pass ? __( 'Update pass', 'epasscard' ) : __( 'Create pass', 'epasscard' ),
-				'pass_nonce'   => wp_create_nonce( 'epc_pass_action_' . $source_id ),
-				'pass_link'    => $pass_link,
-				'view_label'   => __( 'View pass', 'epasscard' ),
-				'email_nonce'  => $pass_link ? wp_create_nonce( 'epc_send_pass_email_' . $source_id ) : '',
-				'email_label'  => __( 'Email pass link', 'epasscard' ),
-				'module'       => $this->get_slug(),
-			)
+		$payload = array(
+			'message'      => 'create' === $action
+				? __( 'Pass created successfully.', 'epasscard' )
+				: __( 'Pass updated successfully.', 'epasscard' ),
+			'has_pass'     => $has_pass,
+			'action'       => $has_pass ? 'update' : $action,
+			'action_label' => $has_pass ? __( 'Update pass', 'epasscard' ) : __( 'Create pass', 'epasscard' ),
+			'pass_nonce'   => wp_create_nonce( 'epc_pass_action_' . $source_id ),
+			'pass_link'    => $pass_link,
+			'view_label'   => __( 'View pass', 'epasscard' ),
+			'email_nonce'  => $pass_link ? wp_create_nonce( 'epc_send_pass_email_' . $source_id ) : '',
+			'email_label'  => __( 'Email pass link', 'epasscard' ),
+			'module'       => $this->get_slug(),
+			'source_id'    => $source_id,
+			'pass_uid'     => $has_pass ? (string) $existing->pass_uid : '',
+			'status'       => $has_pass ? (string) $existing->status : '',
+			'status_label' => $has_pass ? ucfirst( (string) $existing->status ) : '',
+			'updated_at'   => $has_pass ? (string) $existing->updated_at : '',
 		);
+
+		wp_send_json_success( array_merge( $payload, $this->get_pass_action_extra_success_data( $source_id, $existing ) ) );
+	}
+
+	/**
+	 * Extra AJAX payload after a successful pass create/update.
+	 *
+	 * @param string      $source_id Source record id.
+	 * @param object|null $existing  Pass row.
+	 * @return array<string, mixed>
+	 */
+	protected function get_pass_action_extra_success_data( $source_id, $existing ) {
+		unset( $source_id, $existing );
+		return array();
 	}
 
 	/**
@@ -640,7 +683,7 @@ abstract class EPC_Module {
 			if ( sanitize_key( wp_unslash( (string) $_GET['epc_module'] ) ) !== $this->get_slug() ) {
 				return;
 			}
-		} elseif ( 'epc-' . $this->get_slug() !== $page ) {
+		} elseif ( 'epc-' . $this->get_slug() !== $page && $this->get_issued_passes_page_slug() !== $page ) {
 			return;
 		}
 
@@ -756,18 +799,20 @@ abstract class EPC_Module {
 			}
 		}
 
+		$style_path = EPC_PLUGIN_DIR . 'admin/css/admin.css';
 		wp_enqueue_style(
 			'epc-admin',
 			EPC_PLUGIN_URL . 'admin/css/admin.css',
 			$style_deps,
-			EPC_VERSION
+			file_exists( $style_path ) ? (string) filemtime( $style_path ) : EPC_VERSION
 		);
 
+		$script_path = EPC_PLUGIN_DIR . 'admin/js/admin.js';
 		wp_enqueue_script(
 			'epc-admin',
 			EPC_PLUGIN_URL . 'admin/js/admin.js',
 			array( 'jquery' ),
-			EPC_VERSION,
+			file_exists( $script_path ) ? (string) filemtime( $script_path ) : EPC_VERSION,
 			true
 		);
 
@@ -852,6 +897,51 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * Admin page slug for the issued-passes list.
+	 *
+	 * Override to host the table on a dedicated screen instead of the dashboard.
+	 *
+	 * @return string
+	 */
+	public function get_issued_passes_page_slug() {
+		return 'epc-' . $this->get_slug();
+	}
+
+	/**
+	 * Admin URL for the issued-passes list.
+	 *
+	 * @return string
+	 */
+	public function get_issued_passes_admin_url() {
+		$slug = $this->get_issued_passes_page_slug();
+		$url  = admin_url( 'admin.php?page=' . $slug );
+
+		if ( $slug === 'epc-' . $this->get_slug() ) {
+			return $url . '#epc-section-passes';
+		}
+
+		return $url;
+	}
+
+	/**
+	 * Whether the issued-passes table should render on the module dashboard.
+	 *
+	 * @return bool
+	 */
+	public function should_render_issued_passes_on_dashboard() {
+		return $this->get_issued_passes_page_slug() === 'epc-' . $this->get_slug();
+	}
+
+	/**
+	 * Description shown above the issued-passes table.
+	 *
+	 * @return string
+	 */
+	protected function get_issued_passes_description() {
+		return __( 'Passes created for active subscriptions or memberships.', 'epasscard' );
+	}
+
+	/**
 	 * Render module admin page.
 	 *
 	 * @return void
@@ -870,43 +960,16 @@ abstract class EPC_Module {
 				)
 			);
 			?>
-			<div class="wrap epc-wrap">
-				<div class="notice notice-error">
-					<p><?php echo esc_html( $this->get_unavailable_message() ); ?></p>
-				</div>
+			<div class="notice notice-error inline">
+				<p><?php echo esc_html( $this->get_unavailable_message() ); ?></p>
 			</div>
 			<?php
 			EPC_Admin_Shell::render_close();
 			return;
 		}
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filters; page requires manage_options.
-		$search  = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : '';
-		$filters = array(
-			'status'    => isset( $_GET['epc_pass_status'] ) ? sanitize_key( wp_unslash( (string) $_GET['epc_pass_status'] ) ) : '',
-			'entity_id' => isset( $_GET['epc_entity_id'] ) ? absint( wp_unslash( $_GET['epc_entity_id'] ) ) : 0,
-		);
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-
 		$entities = $this->get_filtered_mappable_entities();
 		$mappings = $this->get_mappings();
-		$status_options = $this->get_pass_status_options();
-		$filter_entity_id = $filters['entity_id'];
-		$filter_status    = $filters['status'];
-		$redirect_url     = add_query_arg(
-			array_filter(
-				array(
-					'page'            => 'epc-' . $this->get_slug(),
-					'epc_pass_status' => $filter_status,
-					'epc_entity_id'   => $filter_entity_id > 0 ? $filter_entity_id : null,
-					's'               => '' !== $search ? $search : null,
-				)
-			),
-			admin_url( 'admin.php' )
-		);
-
-		$table = new EPC_Module_List_Table( $this, $search, $filters, $redirect_url );
-		$table->prepare_items();
 
 		$pass_totals = EPC_DB::query_passes(
 			array(
@@ -937,7 +1000,6 @@ abstract class EPC_Module {
 		);
 		?>
 		<script>window.epcSavedMappings = <?php echo wp_json_encode( $mappings ); ?>;</script>
-		<div class="wrap epc-wrap">
 			<div id="epc-section-overview" class="epc-section epc-section--overview">
 				<div class="epc-page-header">
 					<h1 class="epc-page-title"><?php echo esc_html( $this->get_label() ); ?></h1>
@@ -1048,35 +1110,11 @@ abstract class EPC_Module {
 				<?php endif; ?>
 			</div>
 
-			<div id="epc-section-passes" class="epc-section epc-section--passes">
-				<h2><?php esc_html_e( 'Issued passes', 'epasscard' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Passes created for active subscriptions or memberships.', 'epasscard' ); ?></p>
-
-			<form method="get" class="epc-pass-filters">
-				<input type="hidden" name="page" value="<?php echo esc_attr( 'epc-' . $this->get_slug() ); ?>" />
-				<div class="epc-pass-filters__row">
-					<label for="epc-pass-status-filter" class="screen-reader-text"><?php esc_html_e( 'Filter by status', 'epasscard' ); ?></label>
-					<select name="epc_pass_status" id="epc-pass-status-filter">
-						<?php foreach ( $status_options as $value => $label ) : ?>
-							<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $filter_status, $value ); ?>><?php echo esc_html( $label ); ?></option>
-						<?php endforeach; ?>
-					</select>
-					<label for="epc-entity-filter" class="screen-reader-text"><?php echo esc_html( $this->get_entity_column_label() ); ?></label>
-					<select name="epc_entity_id" id="epc-entity-filter">
-						<option value="0"><?php esc_html_e( 'All plans / products', 'epasscard' ); ?></option>
-						<?php foreach ( $entities as $entity ) : ?>
-							<option value="<?php echo esc_attr( (string) $entity['id'] ); ?>" <?php selected( $filter_entity_id, (int) $entity['id'] ); ?>>
-								<?php echo esc_html( (string) $entity['label'] ); ?>
-							</option>
-						<?php endforeach; ?>
-					</select>
-					<?php $table->search_box( __( 'Search passes', 'epasscard' ), 'epc-search' ); ?>
-					<?php submit_button( __( 'Filter', 'epasscard' ), 'secondary', 'filter_action', false ); ?>
-				</div>
-			</form>
-
-			<?php $table->display(); ?>
-			</div>
+			<?php
+			if ( $this->should_render_issued_passes_on_dashboard() ) {
+				$this->render_issued_passes_section();
+			}
+			?>
 
 			<div id="epc-mapping-modal" class="epc-modal" hidden>
 				<div class="epc-modal__backdrop" data-epc-close></div>
@@ -1117,9 +1155,74 @@ abstract class EPC_Module {
 					</footer>
 				</div>
 			</div>
-		</div>
 		<?php
 		EPC_Admin_Shell::render_close();
+	}
+
+	/**
+	 * Render the issued-passes table, filters, and search.
+	 *
+	 * @return void
+	 */
+	protected function render_issued_passes_section() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filters; page requires manage capability.
+		$search  = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : '';
+		$filters = array(
+			'status'    => isset( $_GET['epc_pass_status'] ) ? sanitize_key( wp_unslash( (string) $_GET['epc_pass_status'] ) ) : '',
+			'entity_id' => isset( $_GET['epc_entity_id'] ) ? absint( wp_unslash( $_GET['epc_entity_id'] ) ) : 0,
+		);
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		$page_slug        = $this->get_issued_passes_page_slug();
+		$entities         = $this->get_filtered_mappable_entities();
+		$status_options   = $this->get_pass_status_options();
+		$filter_entity_id = $filters['entity_id'];
+		$filter_status    = $filters['status'];
+		$redirect_url     = add_query_arg(
+			array_filter(
+				array(
+					'page'            => $page_slug,
+					'epc_pass_status' => $filter_status,
+					'epc_entity_id'   => $filter_entity_id > 0 ? $filter_entity_id : null,
+					's'               => '' !== $search ? $search : null,
+				)
+			),
+			admin_url( 'admin.php' )
+		);
+
+		$table = new EPC_Module_List_Table( $this, $search, $filters, $redirect_url );
+		$table->prepare_items();
+		?>
+		<div id="epc-section-passes" class="epc-section epc-section--passes">
+			<h2><?php esc_html_e( 'Issued passes', 'epasscard' ); ?></h2>
+			<p class="description"><?php echo esc_html( $this->get_issued_passes_description() ); ?></p>
+
+			<form method="get" class="epc-pass-filters">
+				<input type="hidden" name="page" value="<?php echo esc_attr( $page_slug ); ?>" />
+				<div class="epc-pass-filters__row">
+					<label for="epc-pass-status-filter" class="screen-reader-text"><?php esc_html_e( 'Filter by status', 'epasscard' ); ?></label>
+					<select name="epc_pass_status" id="epc-pass-status-filter">
+						<?php foreach ( $status_options as $value => $label ) : ?>
+							<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $filter_status, $value ); ?>><?php echo esc_html( $label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<label for="epc-entity-filter" class="screen-reader-text"><?php echo esc_html( $this->get_entity_column_label() ); ?></label>
+					<select name="epc_entity_id" id="epc-entity-filter">
+						<option value="0"><?php esc_html_e( 'All plans / products', 'epasscard' ); ?></option>
+						<?php foreach ( $entities as $entity ) : ?>
+							<option value="<?php echo esc_attr( (string) $entity['id'] ); ?>" <?php selected( $filter_entity_id, (int) $entity['id'] ); ?>>
+								<?php echo esc_html( (string) $entity['label'] ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+					<?php $table->search_box( __( 'Search passes', 'epasscard' ), 'epc-search' ); ?>
+					<?php submit_button( __( 'Filter', 'epasscard' ), 'secondary', 'filter_action', false ); ?>
+				</div>
+			</form>
+
+			<?php $table->display(); ?>
+		</div>
+		<?php
 	}
 
 	/**
@@ -1144,7 +1247,9 @@ abstract class EPC_Module {
 		?>
 		<div class="epc-metrics">
 			<div class="epc-metric-card">
-				<p class="epc-metric-card__label"><?php esc_html_e( 'Issued passes', 'epasscard' ); ?></p>
+				<p class="epc-metric-card__label">
+					<a href="<?php echo esc_url( $this->get_issued_passes_admin_url() ); ?>"><?php esc_html_e( 'Issued passes', 'epasscard' ); ?></a>
+				</p>
 				<p class="epc-metric-card__value"><?php echo esc_html( number_format_i18n( $total_passes ) ); ?></p>
 				<p class="epc-metric-card__hint">
 					<?php
@@ -1923,6 +2028,18 @@ class EPC_Module_List_Table extends WP_List_Table {
 			array(),
 			array(),
 		);
+	}
+
+	/**
+	 * Output a table row with a stable source id for AJAX updates.
+	 *
+	 * @param object $item Pass row.
+	 * @return void
+	 */
+	public function single_row( $item ) {
+		echo '<tr data-epc-source-id="' . esc_attr( (string) $item->source_id ) . '">';
+		$this->single_row_columns( $item );
+		echo '</tr>';
 	}
 
 	/**

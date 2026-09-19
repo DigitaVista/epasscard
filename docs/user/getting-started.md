@@ -15,7 +15,7 @@
 
 1. Upload the `epasscard` folder to `wp-content/plugins/` or install from your distribution package.
 2. Activate **EpassCard** in **Plugins**.
-3. Go to **EpassCard → Connection**.
+3. Open **EpassCard → Setup Wizard** (recommended) or **EpassCard → Connection**.
 
 ## Basic setup (5 steps)
 

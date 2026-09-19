@@ -157,6 +157,9 @@ class EPC_Admin_Shell {
 		$nav  = self::build_nav_items( $args );
 
 		?>
+		<div class="wrap epc-wrap">
+			<h1 class="screen-reader-text"><?php echo esc_html( (string) $args['title'] ); ?></h1>
+			<hr class="wp-header-end" />
 		<div class="epc-app-root">
 		<div class="epc-app" data-epc-context="<?php echo esc_attr( (string) $args['context'] ); ?>">
 			<aside class="epc-app__sidebar" aria-label="<?php esc_attr_e( 'EpassCard navigation', 'epasscard' ); ?>">
@@ -220,6 +223,7 @@ class EPC_Admin_Shell {
 		?>
 				</div>
 			</div>
+		</div>
 		</div>
 		</div>
 		<?php
@@ -298,7 +302,7 @@ class EPC_Admin_Shell {
 			$primary[] = array(
 				'id'    => 'passes',
 				'label' => __( 'Issued Passes', 'epasscard' ),
-				'url'   => $page_url . '#epc-section-passes',
+				'url'   => $module->get_issued_passes_admin_url(),
 				'icon'  => 'confirmation_number',
 			);
 
@@ -374,6 +378,13 @@ class EPC_Admin_Shell {
 	 */
 	private static function secondary_nav_items( $on_api_log = false ) {
 		$items = array();
+
+		$items[] = array(
+			'id'    => 'setup-wizard',
+			'label' => __( 'Setup Wizard', 'epasscard' ),
+			'url'   => admin_url( 'admin.php?page=epc-setup-wizard' ),
+			'icon'  => 'rocket_launch',
+		);
 
 		if ( ! $on_api_log ) {
 			$items[] = array(

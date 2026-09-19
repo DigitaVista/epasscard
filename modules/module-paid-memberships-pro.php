@@ -38,6 +38,22 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_dependency_install_info() {
+		return array(
+			array(
+				'key'         => 'paid-memberships-pro',
+				'label'       => __( 'Paid Memberships Pro', 'epasscard' ),
+				'mode'        => 'wporg',
+				'slug'        => 'paid-memberships-pro',
+				'plugin_file' => 'paid-memberships-pro/paid-memberships-pro.php',
+				'url'         => '',
+			),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function is_available() {
 		return epc_is_paid_memberships_pro_active();
 	}
