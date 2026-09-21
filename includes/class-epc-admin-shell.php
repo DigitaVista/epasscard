@@ -295,7 +295,7 @@ class EPC_Admin_Shell {
 
 			$primary[] = array(
 				'id'    => 'mapping',
-				'label' => __( 'Template Mapping', 'epasscard' ),
+				'label' => __( 'Pass Template mapping', 'epasscard' ),
 				'url'   => $page_url . '#epc-section-mapping',
 				'icon'  => 'map',
 			);

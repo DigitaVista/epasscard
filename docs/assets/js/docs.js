@@ -8,7 +8,7 @@
 				{ id: 'getting-started', title: 'Getting started', href: 'getting-started.html' },
 				{ id: 'connection', title: 'Connection', href: 'connection.html' },
 				{ id: 'integrations', title: 'Integrations', href: 'integrations.html' },
-				{ id: 'mapping', title: 'Template mapping', href: 'mapping.html' },
+				{ id: 'mapping', title: 'Pass Template mapping', href: 'mapping.html' },
 				{ id: 'passes-and-email', title: 'Passes & email', href: 'passes-and-email.html' },
 				{ id: 'notifications', title: 'Push notifications', href: 'notifications.html' },
 				{ id: 'api-log', title: 'API log', href: 'api-log.html' },

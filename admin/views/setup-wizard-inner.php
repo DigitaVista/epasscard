@@ -523,7 +523,7 @@ $builder    = isset( $builder ) && is_array( $builder ) ? $builder : EPC_Setup_W
 				<button type="button" class="button button-primary epc-wizard__btn" data-epc-wizard-issue><?php echo $pass_link ? esc_html__( 'Refresh test pass', 'epasscard' ) : esc_html__( 'Create my test pass', 'epasscard' ); ?></button>
 			</p>
 		<?php else : ?>
-			<p class="epc-wizard__lead"><?php esc_html_e( 'Template mapping is in place. For memberships, tickets, and gift cards, create a real record then click Create pass on that integration.', 'epasscard' ); ?></p>
+			<p class="epc-wizard__lead"><?php esc_html_e( 'Pass Template mapping is in place. For memberships, tickets, and gift cards, create a real record then click Create pass on that integration.', 'epasscard' ); ?></p>
 			<?php if ( $module_slug ) : ?>
 				<p><a class="button epc-wizard__btn" href="<?php echo esc_url( admin_url( 'admin.php?page=epc-' . $module_slug ) ); ?>"><?php esc_html_e( 'Open this integration', 'epasscard' ); ?></a></p>
 			<?php endif; ?>

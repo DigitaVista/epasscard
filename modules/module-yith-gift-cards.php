@@ -481,7 +481,7 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		}
 
 		$links = $this->render_pass_action_links( absint( $post_id ) );
-		echo '' !== $links ? self::kses_pass_action_html( $links ) : '&mdash;';
+		echo '' !== $links ? wp_kses( (string) $links, self::get_pass_action_allowed_html() ) : '&mdash;';
 	}
 
 	/**

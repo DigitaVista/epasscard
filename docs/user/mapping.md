@@ -1,11 +1,11 @@
-# Template mapping
+# Pass Template mapping
 
 Mapping connects a membership plan or subscription product to an EpassCard **pass template** and defines how WordPress data fills each pass field.
 
 ## Open the mapping UI
 
 1. Go to the integration page (e.g. **EpassCard → MemberPress**).
-2. In **Template mapping**, click **Set up mapping** or **Edit mapping** for a plan/product.
+2. In **Pass Template mapping**, click **Set up mapping** or **Edit mapping** for a plan/product.
 
 ## Steps in the modal
 

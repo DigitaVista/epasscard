@@ -143,7 +143,7 @@ A customer is onboarded when all of these are true:
 - [Getting started](getting-started.md)
 - [Connection](connection.md)
 - [Integrations](integrations.md)
-- [Template mapping](mapping.md)
+- [Pass Template mapping](mapping.md)
 - [Passes & email](passes-and-email.md)
 - [My Account & shortcode](my-account.md)
 - [Push notifications](notifications.md)

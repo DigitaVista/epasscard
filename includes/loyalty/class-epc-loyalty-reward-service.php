@@ -540,12 +540,12 @@ class EPC_Loyalty_Reward_Service {
 
 		$owner_id = absint( $coupon->get_meta( '_epc_loyalty_user_id', true ) );
 		if ( $owner_id <= 0 || $owner_id !== get_current_user_id() ) {
-			throw new Exception( __( 'This loyalty reward belongs to another customer.', 'epasscard' ) );
+			throw new Exception( esc_html_e( 'This loyalty reward belongs to another customer.', 'epasscard' ) );
 		}
 
 		$claim = self::get_claim( $claim_id );
 		if ( ! $claim || (int) $claim->user_id !== $owner_id || 'issued' !== (string) $claim->status ) {
-			throw new Exception( __( 'This loyalty reward is no longer available.', 'epasscard' ) );
+			throw new Exception( esc_html_e( 'This loyalty reward is no longer available.', 'epasscard' ) );
 		}
 
 		return true;

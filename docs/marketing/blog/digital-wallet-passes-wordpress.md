@@ -155,7 +155,7 @@ A wallet pass lives inside Apple Wallet or Google Wallet — apps already on the
 
 ### Can I issue both Apple Wallet and Google Wallet passes from WordPress?
 
-Yes. EpassCard creates passes for both platforms from one template mapping. Members choose the button that matches their device.
+Yes. EpassCard creates passes for both platforms from one Pass Template mapping. Members choose the button that matches their device.
 
 ### Do wallet passes work without internet at check-in?
 

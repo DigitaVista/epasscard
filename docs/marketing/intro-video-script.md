@@ -212,7 +212,7 @@ Chapters in the description / timeline above.
 - [Getting started](../user/getting-started.md)
 - [Connection](../user/connection.md)
 - [Integrations](../user/integrations.md)
-- [Template mapping](../user/mapping.md)
+- [Pass Template mapping](../user/mapping.md)
 - [Passes & email](../user/passes-and-email.md)
 - [Push notifications](../user/notifications.md)
 - [My Account & shortcode](../user/my-account.md)

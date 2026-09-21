@@ -36,5 +36,5 @@
 
 - [Connection & email settings](connection.md)
 - [Integrations](integrations.md)
-- [Template mapping](mapping.md)
+- [Pass Template mapping](mapping.md)
 - [Passes & email delivery](passes-and-email.md)

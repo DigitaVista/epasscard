@@ -93,7 +93,7 @@ Integrations are toggled on the **Connection** page. Disabled modules do not loa
 
 Each integration page may include:
 
-- **Template mapping** — Required before passes can be issued.
+- **Pass Template mapping** — Required before passes can be issued.
 - **Issued passes** — Searchable list with manual actions.
 - **Push notification rules** — Custom title/message per reminder type.
 - **Test notification** — Send a test push to a specific pass.

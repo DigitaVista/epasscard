@@ -1,4 +1,4 @@
-=== EpassCard (Google Wallet, Apple Wallet, and more) ===
+=== EpassCard (Google Wallet, Apple Wallet, and more) WooCommerce Loyalty, Membership, Event pass and Gift voucher pass generator  ===
 Contributors: wooxperto, hasan350
 Tags: Apple Wallet, Google Wallet, PKPass, Wallet Pass, WooCommerce, Membership, Loyalty, Event Tickets, Digital Wallet
 Requires at least: 6.5
@@ -68,7 +68,7 @@ EpassCard is a **wallet pass platform** connector — not a middleware automatio
 * **PKPass support** — standard Apple Wallet `.pkpass` format
 * **Automatic wallet pass issuance** — on signup, renewal, and mapped data changes
 * **Pass updates** — keep wallet passes in sync when membership data changes
-* **Template mapping** — map membership fields to pass template fields (including QR and barcode fields)
+* **Pass Template mapping** — map membership fields to pass template fields (including QR and barcode fields)
 * **Push notifications** — wallet pass reminders aligned with membership timing
 * **Modular integrations** — MemberPress, Paid Memberships Pro, Simple Membership, Ultimate Membership Pro, WooCommerce Subscriptions, The Events Calendar, Events Manager, PW Gift Cards, YITH Gift Cards
 * **Admin pass list** — searchable table of issued passes and delivery links
@@ -132,7 +132,7 @@ MemberPress, Paid Memberships Pro, Simple Membership, Ultimate Membership Pro, W
 
 = How do I add a Google Wallet pass to my WordPress site? =
 
-The workflow is the same as Apple Wallet. EpassCard creates passes for both platforms from one template mapping. Members choose **Add to Apple Wallet** or **Add to Google Wallet** from their pass link.
+The workflow is the same as Apple Wallet. EpassCard creates passes for both platforms from one Pass Template mapping. Members choose **Add to Apple Wallet** or **Add to Google Wallet** from their pass link.
 
 = Is there a WordPress plugin for Apple Wallet membership cards? =
 
@@ -177,7 +177,7 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 == Screenshots ==
 
 1. Connection settings — connect your EpassCard account and enable integrations.
-2. Template mapping — map membership fields to Apple Wallet and Google Wallet pass fields.
+2. Pass Template mapping — map membership fields to Apple Wallet and Google Wallet pass fields.
 3. Issued passes — searchable list of wallet passes and delivery links.
 
 == Changelog ==

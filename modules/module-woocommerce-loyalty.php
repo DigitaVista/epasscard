@@ -549,17 +549,28 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 					'historyLoading' => __( 'Loading points history…', 'epasscard' ),
 					'historyError'   => __( 'Unable to load points history.', 'epasscard' ),
 					'historyEmpty'   => __( 'No loyalty activity yet.', 'epasscard' ),
-					'historyPage'    => __( 'Page %1$s of %2$s (%3$s entries)', 'epasscard' ),
+					'historyPage'    => 
+						/* translators: 1: Current page number, 2: Total number of pages, 3: Total number of entries. */
+						__( 'Page %1$s of %2$s (%3$s entries)', 'epasscard' ),
+
 					'syncConfirm'    => __( 'Credit matching past orders with the current earning rules? This cannot un-award points later. Notifications will not be sent.', 'epasscard' ),
 					'removeRuleConfirm' => __( 'Remove this earning rule? You still need to save for the change to take effect.', 'epasscard' ),
 					'removeItemConfirm' => __( 'Remove this item? You still need to save for the change to take effect.', 'epasscard' ),
-					'rulePreviewFixed' => __( 'Fixed %1$s pts · Priority %2$s', 'epasscard' ),
-					'rulePreviewPerUnit' => __( '%1$s pts per unit · Priority %2$s', 'epasscard' ),
-					'tierPreview'    => __( '%s lifetime pts', 'epasscard' ),
+					'rulePreviewFixed' => 
+					/* translators: 1: Points value, 2: Priority value. */
+					__( 'Fixed %1$s pts · Priority %2$s', 'epasscard' ),
+					'rulePreviewPerUnit' => 
+					/* translators: 1: Points value, 2: Priority value. */
+					__( '%1$s pts per unit · Priority %2$s', 'epasscard' ),
+					'tierPreview'    => 
+					/* translators: 1: Points value. */
+					__( '%s lifetime pts', 'epasscard' ),
 					'syncCounting'   => __( 'Counting matching orders…', 'epasscard' ),
 					'syncStarting'   => __( 'Starting past-order sync…', 'epasscard' ),
 					'syncStopping'   => __( 'Stopping…', 'epasscard' ),
-					'syncProgress'   => __( 'Status: %1$s. Scanned %2$s of %3$s. Credited %4$s, skipped %5$s, errors %6$s.', 'epasscard' ),
+					'syncProgress'   => 
+					/* translators: 1: Status value, 2: Scanned number, 3: Total number, 4: Credited number, 5: Skipped number, 6: Errors number. */
+					__( 'Status: %1$s. Scanned %2$s of %3$s. Credited %4$s, skipped %5$s, errors %6$s.', 'epasscard' ),
 					'syncError'      => __( 'Unable to run the past-order sync.', 'epasscard' ),
 				),
 			)
@@ -716,9 +727,9 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	 * @return void
 	 */
 	public function hide_extra_wp_submenu_css() {
-		$customers = esc_attr( $this->get_customers_page_slug() );
-		$passes    = esc_attr( $this->get_issued_passes_page_slug() );
-		echo '<style id="epc-loyalty-hidden-submenus">#adminmenu .wp-submenu li:has(> a[href*="page=' . $customers . '"]),#adminmenu .wp-submenu li:has(> a[href*="page=' . $passes . '"]){display:none}</style>';
+		$customers = $this->get_customers_page_slug();
+		$passes    = $this->get_issued_passes_page_slug();
+		echo '<style id="epc-loyalty-hidden-submenus">#adminmenu .wp-submenu li:has(> a[href*="page=' . esc_attr( $customers ) . '"]),#adminmenu .wp-submenu li:has(> a[href*="page=' . esc_attr( $passes ) . '"]){display:none}</style>';
 	}
 
 	/**

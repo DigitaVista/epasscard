@@ -375,31 +375,35 @@ class EPC_Loyalty_Customer_Service {
 
 		$accounts = EPC_DB::loyalty_accounts_table_name();
 		$users    = $wpdb->users;
-		$where    = '1=1';
-		$params   = array();
 
+		// Search and limit fragments are prepared; table names and ORDER BY use allowlisted values only.
+		$search_sql = '';
 		if ( '' !== $search ) {
-			$like    = '%' . $wpdb->esc_like( $search ) . '%';
-			$where  .= ' AND (a.member_id LIKE %s OR u.user_email LIKE %s OR u.display_name LIKE %s OR u.user_login LIKE %s OR CAST(a.user_id AS CHAR) LIKE %s)';
-			$params  = array_merge( $params, array( $like, $like, $like, $like, $like ) );
+			$like       = '%' . $wpdb->esc_like( $search ) . '%';
+			$search_sql = $wpdb->prepare(
+				' AND (a.member_id LIKE %s OR u.user_email LIKE %s OR u.display_name LIKE %s OR u.user_login LIKE %s OR CAST(a.user_id AS CHAR) LIKE %s)',
+				$like,
+				$like,
+				$like,
+				$like,
+				$like
+			);
 		}
 
-		$count_sql = "SELECT COUNT(*) FROM {$accounts} a INNER JOIN {$users} u ON u.ID = a.user_id WHERE {$where}";
+		$limit_sql = $wpdb->prepare( ' LIMIT %d OFFSET %d', $per_page, $offset );
+
+		$count_sql = "SELECT COUNT(*) FROM {$accounts} a INNER JOIN {$users} u ON u.ID = a.user_id WHERE 1=1{$search_sql}";
 		$list_sql  = "SELECT a.*, u.user_email, u.display_name, u.user_login
 			FROM {$accounts} a
 			INNER JOIN {$users} u ON u.ID = a.user_id
-			WHERE {$where}
+			WHERE 1=1{$search_sql}
 			ORDER BY {$order_sql}
-			LIMIT %d OFFSET %d";
+			{$limit_sql}";
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Prepared below with dynamic but sanitized clauses.
-		if ( ! empty( $params ) ) {
-			$total = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
-			$items = $wpdb->get_results( $wpdb->prepare( $list_sql, array_merge( $params, array( $per_page, $offset ) ) ) );
-		} else {
-			$total = (int) $wpdb->get_var( $count_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- No user params.
-			$items = $wpdb->get_results( $wpdb->prepare( $list_sql, $per_page, $offset ) );
-		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table/ORDER BY allowlisted; search+limit prepared above.
+		$total = (int) $wpdb->get_var( $count_sql );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table/ORDER BY allowlisted; search+limit prepared above.
+		$items = $wpdb->get_results( $list_sql );
 
 		return array(
 			'items' => is_array( $items ) ? $items : array(),

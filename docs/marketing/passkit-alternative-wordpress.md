@@ -126,7 +126,7 @@ Core features
 - Automatic pass creation on signup and renewal  
 - Pass updates when mapped member data changes  
 - **Apple Wallet** (iPhone, iPad, Apple Watch) and **Google Wallet** (Android)  
-- Template mapping per plan, product, or level  
+- Pass Template mapping per plan, product, or level  
 - Issued passes admin table with create, update, email actions  
 - Optional automatic email when a pass is created  
 - Push reminder rules (expire, renewal, trial — per integration)  
@@ -163,7 +163,7 @@ How to set up EpassCard on WordPress (PassKit alternative)
 3. Install [EpassCard from WordPress.org](https://wordpress.org/plugins/epasscard/).  
 4. Go to **EpassCard → Connection** — paste API key or sign in.  
 5. Enable **MemberPress**, **WooCommerce Subscriptions**, or **UMP** on the Connection page.  
-6. Open the integration menu → **Template mapping** → map fields for each plan.  
+6. Open the integration menu → **Pass Template mapping** → map fields for each plan.  
 7. Subscribe as a test member → confirm pass link in admin and member account.  
 
 **No Zapier. No PassKit API keys in WordPress. No webhook debugging.**
@@ -225,7 +225,7 @@ For WordPress membership workflows, yes. For enterprise API programs, custom app
 Technically yes, but most sites choose one platform to avoid duplicate passes and billing.
 
 **Does EpassCard support Google Wallet as well as Apple Wallet?**  
-Yes. One template mapping issues passes for both platforms.
+Yes. One Pass Template mapping issues passes for both platforms.
 
 **Do I need a developer to switch from PassKit?**  
 No. If you were using PassKit + Zapier, EpassCard removes the automation layer entirely.

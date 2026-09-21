@@ -202,7 +202,7 @@ class EPC_Loyalty_Redemption_Service {
 		$points = isset( $data['points'] ) ? absint( $data['points'] ) : 0;
 		$result = self::set_requested_points( $points );
 		if ( is_wp_error( $result ) ) {
-			throw new Exception( $result->get_error_message() );
+			throw new Exception( esc_html( $result->get_error_message() ) );
 		}
 	}
 
@@ -575,17 +575,21 @@ class EPC_Loyalty_Redemption_Service {
 
 		$user_id = self::user_id_from_coupon_code( $code );
 		if ( $user_id <= 0 || $user_id !== get_current_user_id() ) {
-			throw new Exception( __( 'This loyalty coupon belongs to another customer.', 'epasscard' ) );
+			throw new Exception( esc_html__( 'This loyalty coupon belongs to another customer.', 'epasscard' ) );
 		}
 
 		$settings = self::get_settings();
 		if ( empty( $settings['enabled'] ) ) {
-			throw new Exception( __( 'Points redemption is disabled.', 'epasscard' ) );
+			throw new Exception( esc_html__( 'Points redemption is disabled.', 'epasscard' ) );
 		}
 
 		$quote = self::build_quote( $user_id, self::get_session_points() );
 		if ( is_wp_error( $quote ) || (int) $quote['applied_points'] <= 0 ) {
-			throw new Exception( $quote instanceof WP_Error ? $quote->get_error_message() : __( 'No loyalty points are available to redeem.', 'epasscard' ) );
+			throw new Exception(
+				$quote instanceof WP_Error
+					? esc_html( $quote->get_error_message() )
+					: esc_html__( 'No loyalty points are available to redeem.', 'epasscard' )
+			);
 		}
 
 		return true;
@@ -755,7 +759,7 @@ class EPC_Loyalty_Redemption_Service {
 		$result = self::reserve_points( $order );
 		if ( is_wp_error( $result ) ) {
 			$order->update_status( 'failed', $result->get_error_message() );
-			throw new Exception( $result->get_error_message() );
+			throw new Exception( esc_html( $result->get_error_message() ) );
 		}
 	}
 
@@ -777,7 +781,7 @@ class EPC_Loyalty_Redemption_Service {
 
 		$result = self::reserve_points( $order );
 		if ( is_wp_error( $result ) ) {
-			throw new Exception( $result->get_error_message() );
+			throw new Exception( esc_html( $result->get_error_message() ) );
 		}
 	}
 

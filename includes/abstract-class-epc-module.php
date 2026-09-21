@@ -90,7 +90,7 @@ abstract class EPC_Module {
 	 */
 	public function get_filtered_mappable_entities() {
 		/**
-		 * Filter items shown in the template mapping table.
+		 * Filter items shown in the Pass Template mapping table.
 		 *
 		 * @param array<int,array{id:int,label:string}> $entities Entity list.
 		 * @param string                                $slug     Module slug.
@@ -233,7 +233,7 @@ abstract class EPC_Module {
 	}
 
 	/**
-	 * Optional module settings above template mapping (override in module).
+	 * Optional module settings above Pass Template mapping (override in module).
 	 *
 	 * @return void
 	 */
@@ -1027,7 +1027,7 @@ abstract class EPC_Module {
 			<?php $this->render_module_settings(); ?>
 
 			<div id="epc-section-mapping" class="epc-section epc-section--mapping">
-				<h2><?php esc_html_e( 'Template mapping', 'epasscard' ); ?></h2>
+				<h2><?php esc_html_e( 'Pass Template mapping', 'epasscard' ); ?></h2>
 				<p class="description">
 					<?php esc_html_e( 'Select a plan or product, choose an EpassCard pass template, then map each pass field to subscription or membership data.', 'epasscard' ); ?>
 				</p>
@@ -1120,7 +1120,7 @@ abstract class EPC_Module {
 				<div class="epc-modal__backdrop" data-epc-close></div>
 				<div class="epc-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="epc-modal-title">
 					<header class="epc-modal__header">
-						<h2 id="epc-modal-title"><?php esc_html_e( 'Template mapping', 'epasscard' ); ?></h2>
+						<h2 id="epc-modal-title"><?php esc_html_e( 'Pass Template mapping', 'epasscard' ); ?></h2>
 						<button type="button" class="epc-modal__close" data-epc-close aria-label="<?php esc_attr_e( 'Close', 'epasscard' ); ?>">&times;</button>
 					</header>
 					<div class="epc-modal__body">

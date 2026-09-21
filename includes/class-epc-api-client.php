@@ -1206,6 +1206,7 @@ class EPC_Api_Client {
 
 		$force_ipv4 = static function ( $handle ) {
 			if ( defined( 'CURL_IPRESOLVE_V4' ) ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt -- Official http_api_curl hook; forces IPv4 when Cloudflare stalls on AAAA.
 				curl_setopt( $handle, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
 			}
 		};

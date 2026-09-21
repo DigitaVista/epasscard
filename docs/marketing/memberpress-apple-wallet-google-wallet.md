@@ -260,6 +260,6 @@ Start issuing MemberPress wallet passes today
 ## Suggested images
 
 1. Hero: iPhone showing membership pass in Apple Wallet (mockup)
-2. Screenshot: EpassCard → MemberPress template mapping modal
+2. Screenshot: EpassCard → MemberPress Pass Template mapping modal
 3. Screenshot: MemberPress account **Wallet Passes** tab
 4. Diagram: MemberPress signup → EpassCard API → wallet link → member phone

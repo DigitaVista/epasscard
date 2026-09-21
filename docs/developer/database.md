@@ -52,7 +52,7 @@ API request log (see user [api-log.md](../user/api-log.md)).
 | `epc_connection_settings` | Encrypted API key, expiry, email |
 | `epc_enabled_modules` | Array of enabled module slugs |
 | `epc_pass_email_settings` | Email templates and flags |
-| `epc_mappings_{slug}` | Per-module template mappings |
+| `epc_mappings_{slug}` | Per-module Pass Template mappings |
 | `epc_{slug}_notification_rules` | Per-module push notification rules |
 | `epc_db_version` | Installed schema version |
 

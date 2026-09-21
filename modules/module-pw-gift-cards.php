@@ -458,7 +458,7 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 		}
 
 		echo '<div class="epc-pwgc-pass-actions" style="margin-top:8px;">';
-		echo self::kses_pass_action_html( $links );
+		echo wp_kses( (string) $links, self::get_pass_action_allowed_html() );
 		echo '</div>';
 	}
 
