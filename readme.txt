@@ -14,6 +14,8 @@ Create Apple & Google Wallet passes from WordPress for memberships, subscription
 
 **EpassCard** is a **WordPress digital wallet pass plugin** that connects your site to [EpassCard](https://epasscard.com/) and automatically issues **Apple Wallet** and **Google Wallet** passes for membership, event tickets, loyalty points, subscriptions, etc.
 
+[youtube https://youtu.be/-arN8Db3fjA]
+
 **One Platform. Endless Possibilities for Digital Passes.**
 Loyalty/reward cards. Stamp Cards. Membership Cards. Event Passes. Employee /staff Cards. Gift Cards. Warranty Cards. Digital business Cards (vCard). Reservation Passes. Boarding Passes. And More
 
