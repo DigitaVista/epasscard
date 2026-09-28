@@ -1100,7 +1100,7 @@ class EPC_Api_Client {
 	/**
 	 * Expire a wallet pass, or set a new expiration date.
 	 *
-	 * POST /api/public/v1/pass-expire/{passUid}
+	 * POST /api/public/v2/pass-expire/{passUid}
 	 * Past dates remove the pass from Apple Wallet, Google Wallet, and the ePass app.
 	 * Future dates are stored and synced as the new expiration.
 	 *
@@ -1134,7 +1134,7 @@ class EPC_Api_Client {
 		 */
 		$url = (string) apply_filters(
 			'epc_pass_expire_url',
-			self::api_base() . '/pass-expire/' . rawurlencode( $san ),
+			self::api_base_v2() . '/pass-expire/' . rawurlencode( $san ),
 			$san
 		);
 
