@@ -436,6 +436,47 @@ function epc_format_pass_expiry_datetime( $datetime ) {
 }
 
 /**
+ * MySQL datetime for POST /pass-expire when restoring a pass.
+ *
+ * A missing or already-passed time becomes +99 years so the pass is in the future
+ * and update-pass is allowed again.
+ *
+ * @param int $timestamp Expiry unix timestamp.
+ * @return string Y-m-d H:i:s in the site timezone.
+ */
+function epc_pass_expire_mysql_timestamp( $timestamp ) {
+	$ts = is_numeric( $timestamp ) ? (int) $timestamp : 0;
+
+	if ( $ts <= time() || $ts >= PHP_INT_MAX ) {
+		$ts = epc_lifetime_expiry_timestamp();
+	}
+
+	return wp_date( 'Y-m-d H:i:s', $ts );
+}
+
+/**
+ * MySQL datetime for POST /pass-expire from a source expiry string.
+ *
+ * @param string $datetime MySQL/datetime string or empty.
+ * @return string Y-m-d H:i:s
+ */
+function epc_pass_expire_mysql_datetime( $datetime ) {
+	$datetime = trim( (string) $datetime );
+
+	if ( '' === $datetime || '0000-00-00' === $datetime || '0000-00-00 00:00:00' === $datetime ) {
+		return epc_pass_expire_mysql_timestamp( 0 );
+	}
+
+	if ( class_exists( 'MeprUtils' ) && method_exists( 'MeprUtils', 'db_lifetime' ) && $datetime === MeprUtils::db_lifetime() ) {
+		return epc_pass_expire_mysql_timestamp( 0 );
+	}
+
+	$ts = strtotime( $datetime );
+
+	return epc_pass_expire_mysql_timestamp( $ts ? (int) $ts : 0 );
+}
+
+/**
  * WordPress option name for EpassCard connection settings.
  *
  * @return string

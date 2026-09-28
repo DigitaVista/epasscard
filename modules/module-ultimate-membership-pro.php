@@ -761,6 +761,7 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 			'membership_status' => $status,
 			'start_date'        => $this->format_db_date( isset( $row->start_time ) ? (string) $row->start_time : '' ),
 			'expire_date'       => epc_format_pass_expiry_datetime( isset( $row->expire_time ) ? (string) $row->expire_time : '' ),
+			'pass_expire_mysql' => epc_pass_expire_mysql_datetime( isset( $row->expire_time ) ? (string) $row->expire_time : '' ),
 			'transaction_id'    => $this->get_latest_transaction_id( $user_id, $level_id ),
 		);
 

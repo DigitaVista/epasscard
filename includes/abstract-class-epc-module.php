@@ -568,6 +568,37 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * Expire or activate control for one issued pass.
+	 *
+	 * Revoked passes show Activate pass so the expiry can be undone.
+	 *
+	 * @param int|string $source_id Source record id.
+	 * @param string     $status    Local pass status.
+	 * @return string
+	 */
+	public function render_pass_lifecycle_button( $source_id, $status = 'active' ) {
+		if ( ! $this->current_user_can_manage_passes() ) {
+			return '';
+		}
+
+		if ( 'revoked' === sanitize_key( (string) $status ) ) {
+			return $this->render_pass_action_button( $source_id, 'activate', __( 'Activate pass', 'epasscard' ) );
+		}
+
+		return $this->render_pass_action_button( $source_id, 'expire', __( 'Expire pass', 'epasscard' ) );
+	}
+
+	/**
+	 * Render the manual expire control for an issued pass.
+	 *
+	 * @param int|string $source_id Source record id.
+	 * @return string
+	 */
+	public function render_expire_pass_button( $source_id ) {
+		return $this->render_pass_lifecycle_button( $source_id, 'active' );
+	}
+
+	/**
 	 * Render a single AJAX pass action button.
 	 *
 	 * @param int|string $source_id Source record id.
@@ -617,8 +648,28 @@ abstract class EPC_Module {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'epasscard' ) ), 403 );
 		}
 
-		if ( ! in_array( $action, array( 'sync', 'create', 'update' ), true ) ) {
+		if ( ! in_array( $action, array( 'sync', 'create', 'update', 'expire', 'activate' ), true ) ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid pass action.', 'epasscard' ) ), 400 );
+		}
+
+		if ( 'expire' === $action ) {
+			$result = EPC_Pass_Service::expire_issued_pass( $this->get_slug(), $source_id );
+			if ( is_wp_error( $result ) ) {
+				wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+			}
+
+			$existing = EPC_DB::get_pass( $this->get_slug(), $source_id );
+			wp_send_json_success( $this->pass_lifecycle_success_payload( $source_id, $existing, 'activate' ) );
+		}
+
+		if ( 'activate' === $action ) {
+			$result = $this->sync_by_source_id( $source_id, 'update' );
+			if ( is_wp_error( $result ) ) {
+				wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+			}
+
+			$existing = EPC_DB::get_pass( $this->get_slug(), $source_id );
+			wp_send_json_success( $this->pass_lifecycle_success_payload( $source_id, $existing, 'expire' ) );
 		}
 
 		$result = $this->sync_by_source_id( $source_id, $action );
@@ -652,6 +703,34 @@ abstract class EPC_Module {
 		);
 
 		wp_send_json_success( array_merge( $payload, $this->get_pass_action_extra_success_data( $source_id, $existing ) ) );
+	}
+
+	/**
+	 * AJAX payload after expire or activate, including the opposite row action.
+	 *
+	 * @param string      $source_id   Source record id.
+	 * @param object|null $existing    Pass row after the action.
+	 * @param string      $next_action Action the button should offer next.
+	 * @return array<string, mixed>
+	 */
+	private function pass_lifecycle_success_payload( $source_id, $existing, $next_action ) {
+		$activate = 'activate' === $next_action;
+
+		return array(
+			'message'      => $activate
+				? __( 'Pass expired.', 'epasscard' )
+				: __( 'Pass activated.', 'epasscard' ),
+			'has_pass'     => true,
+			'action'       => $activate ? 'activate' : 'expire',
+			'action_label' => $activate ? __( 'Activate pass', 'epasscard' ) : __( 'Expire pass', 'epasscard' ),
+			'pass_nonce'   => wp_create_nonce( 'epc_pass_action_' . $source_id ),
+			'module'       => $this->get_slug(),
+			'source_id'    => $source_id,
+			'pass_uid'     => $existing ? (string) $existing->pass_uid : '',
+			'status'       => $activate ? 'revoked' : 'active',
+			'status_label' => $activate ? __( 'Revoked', 'epasscard' ) : __( 'Active', 'epasscard' ),
+			'updated_at'   => $existing ? (string) $existing->updated_at : '',
+		);
 	}
 
 	/**
@@ -823,8 +902,13 @@ abstract class EPC_Module {
 			'saved'          => __( 'Settings saved.', 'epasscard' ),
 			'passCreating'   => __( 'Creating pass…', 'epasscard' ),
 			'passUpdating'   => __( 'Updating pass…', 'epasscard' ),
+			'passExpiring'   => __( 'Expiring pass…', 'epasscard' ),
+			'passActivating' => __( 'Activating pass…', 'epasscard' ),
+			'passExpireConfirm' => __( 'Expire this pass in Apple Wallet, Google Wallet, and the ePass app?', 'epasscard' ),
+			'passActivateConfirm' => __( 'Activate this pass again in Apple Wallet, Google Wallet, and the ePass app?', 'epasscard' ),
 			'passCreated'    => __( 'Pass created successfully.', 'epasscard' ),
 			'passUpdated'    => __( 'Pass updated successfully.', 'epasscard' ),
+			'passExpired'    => __( 'Pass expired.', 'epasscard' ),
 			'passEmailSending' => __( 'Sending email…', 'epasscard' ),
 			'passEmailSent'    => __( 'Pass link email sent.', 'epasscard' ),
 		);
@@ -2074,7 +2158,11 @@ class EPC_Module_List_Table extends WP_List_Table {
 			case 'updated_at':
 				return esc_html( (string) $item->updated_at );
 			case 'actions':
-				return $this->module->render_pass_action_links( (string) $item->source_id, $this->redirect_url );
+				$html = $this->module->render_pass_action_links( (string) $item->source_id, $this->redirect_url );
+				if ( ! empty( $item->pass_uid ) ) {
+					$html .= ' ' . $this->module->render_pass_lifecycle_button( (string) $item->source_id, (string) $item->status );
+				}
+				return $html;
 			default:
 				return '';
 		}

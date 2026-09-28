@@ -262,11 +262,16 @@
 		if (loading) {
 			$btn.data('epc-original-label', $btn.text());
 			$btn.prop('disabled', true).addClass('is-loading');
-			$btn.text(
-				$btn.data('pass-action') === 'create'
-					? epcAdmin.i18n.passCreating
-					: epcAdmin.i18n.passUpdating
-			);
+			var action = String($btn.data('pass-action') || '');
+			var loadingLabel = epcAdmin.i18n.passUpdating;
+			if (action === 'create') {
+				loadingLabel = epcAdmin.i18n.passCreating;
+			} else if (action === 'expire') {
+				loadingLabel = epcAdmin.i18n.passExpiring || 'Expiring pass…';
+			} else if (action === 'activate') {
+				loadingLabel = epcAdmin.i18n.passActivating || 'Activating pass…';
+			}
+			$btn.text(loadingLabel);
 			return;
 		}
 
@@ -326,6 +331,15 @@
 
 		if (!sourceId || !passAction || !passNonce || !moduleSlug) {
 			return;
+		}
+
+		if (passAction === 'expire' || passAction === 'activate') {
+			var confirmMessage = passAction === 'activate'
+				? (epcAdmin.i18n.passActivateConfirm || 'Activate this pass again in Apple Wallet, Google Wallet, and the ePass app?')
+				: (epcAdmin.i18n.passExpireConfirm || 'Expire this pass in Apple Wallet, Google Wallet, and the ePass app?');
+			if (!window.confirm(confirmMessage)) {
+				return;
+			}
 		}
 
 		setPassActionLoading($btn, true);

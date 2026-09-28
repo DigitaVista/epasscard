@@ -877,6 +877,7 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 			'start_date'          => $start ? mysql2date( get_option( 'date_format' ), $start ) : '',
 			'next_payment_date'   => $next ? mysql2date( get_option( 'date_format' ), $next ) : '',
 			'end_date'            => epc_format_pass_expiry_datetime( $end ? (string) $end : '' ),
+			'pass_expire_mysql'   => epc_pass_expire_mysql_datetime( $end ? (string) $end : '' ),
 			'order_id'            => (string) $subscription->get_parent_id(),
 		);
 

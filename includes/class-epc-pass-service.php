@@ -236,6 +236,13 @@ class EPC_Pass_Service {
 				return new WP_Error( 'epc_no_fields', __( 'No mapped fields to update.', 'epasscard' ) );
 			}
 
+			if ( 'revoked' === (string) ( $existing->status ?? '' ) ) {
+				$restored = self::restore_expired_pass( $existing, $source_values, $module_slug );
+				if ( is_wp_error( $restored ) ) {
+					return $restored;
+				}
+			}
+
 			if ( class_exists( 'EPC_Api_Log' ) ) {
 				EPC_Api_Log::set_request_context( $module_slug . ':update_pass' );
 			}
@@ -349,34 +356,102 @@ class EPC_Pass_Service {
 	}
 
 	/**
+	 * Move an expired pass back into the future so update-pass is accepted.
+	 *
+	 * POST /pass-expire/{passUid} with a future date. Update-pass rejects an expired pass.
+	 *
+	 * @param object                $existing      Pass row.
+	 * @param array<string, string> $source_values Source field values, including pass_expire_mysql.
+	 * @param string                $module_slug   Module slug.
+	 * @return true|\WP_Error
+	 */
+	private static function restore_expired_pass( $existing, array $source_values, $module_slug ) {
+		$expire_date = isset( $source_values['pass_expire_mysql'] ) ? trim( (string) $source_values['pass_expire_mysql'] ) : '';
+		if ( '' === $expire_date && function_exists( 'epc_pass_expire_mysql_timestamp' ) ) {
+			$expire_date = epc_pass_expire_mysql_timestamp( 0 );
+		}
+
+		if ( class_exists( 'EPC_Api_Log' ) ) {
+			EPC_Api_Log::set_request_context( sanitize_key( (string) $module_slug ) . ':restore_pass' );
+		}
+
+		$result = EPC_Api_Client::expire_pass( (string) $existing->pass_uid, $expire_date );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Expire the wallet pass and mark the local row revoked.
 	 *
 	 * Local status alone does not remove the pass from Apple Wallet or Google Wallet.
-	 * POST /pass-expire/{passUid} with a past date does.
+	 * POST /pass-expire/{passUid} with a past date does. When the API call fails, the
+	 * local row is still marked revoked so cancellation is recorded.
 	 *
 	 * @param string     $module    Module slug.
 	 * @param int|string $source_id Source id.
 	 * @return void
 	 */
 	public static function revoke_pass( $module, $source_id ) {
+		$result = self::expire_issued_pass( $module, $source_id );
+		if ( ! is_wp_error( $result ) ) {
+			return;
+		}
+
 		$existing = EPC_DB::get_pass( $module, $source_id );
 		if ( ! $existing ) {
 			return;
 		}
 
-		$pass_uid = isset( $existing->pass_uid ) ? (string) $existing->pass_uid : '';
-		if ( '' !== $pass_uid && EPC_Api_Client::is_configured() ) {
-			if ( class_exists( 'EPC_Api_Log' ) ) {
-				EPC_Api_Log::set_request_context( sanitize_key( (string) $module ) . ':expire_pass' );
-			}
+		self::store_revoked_status( $existing );
+	}
 
-			EPC_Api_Client::expire_pass( $pass_uid );
+	/**
+	 * Expire one issued pass in every wallet, then mark it revoked.
+	 *
+	 * The local row stays unchanged when the API call fails so the action can be retried.
+	 *
+	 * @param string     $module    Module slug.
+	 * @param int|string $source_id Source id.
+	 * @return true|\WP_Error
+	 */
+	public static function expire_issued_pass( $module, $source_id ) {
+		$existing = EPC_DB::get_pass( $module, $source_id );
+		if ( ! $existing || empty( $existing->pass_uid ) ) {
+			return new WP_Error( 'epc_pass_missing', __( 'No pass exists yet for this record.', 'epasscard' ) );
 		}
 
+		if ( ! EPC_Api_Client::is_configured() ) {
+			return new WP_Error( 'epc_no_key', __( 'EpassCard is not connected.', 'epasscard' ) );
+		}
+
+		if ( class_exists( 'EPC_Api_Log' ) ) {
+			EPC_Api_Log::set_request_context( sanitize_key( (string) $module ) . ':expire_pass' );
+		}
+
+		$result = EPC_Api_Client::expire_pass( (string) $existing->pass_uid );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		self::store_revoked_status( $existing );
+
+		return true;
+	}
+
+	/**
+	 * Persist a revoked status for an existing pass row.
+	 *
+	 * @param object $existing Pass row.
+	 * @return void
+	 */
+	private static function store_revoked_status( $existing ) {
 		EPC_DB::upsert_pass(
 			array(
-				'module'       => $module,
-				'source_id'    => $source_id,
+				'module'       => (string) $existing->module,
+				'source_id'    => $existing->source_id,
 				'entity_id'    => (int) $existing->entity_id,
 				'user_id'      => (int) $existing->user_id,
 				'pass_uid'     => (string) $existing->pass_uid,

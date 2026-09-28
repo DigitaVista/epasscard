@@ -996,6 +996,7 @@ class EPC_Module_MemberPress extends EPC_Module {
 			'membership_status' => (string) $txn->status,
 			'membership_start'  => mysql2date( get_option( 'date_format' ), $txn->created_at ),
 			'membership_expires'=> $expires,
+			'pass_expire_mysql' => epc_pass_expire_mysql_datetime( ! empty( $txn->expires_at ) ? (string) $txn->expires_at : '' ),
 			'transaction_id'    => (string) $txn->id,
 		);
 

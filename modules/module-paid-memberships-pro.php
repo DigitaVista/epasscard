@@ -632,6 +632,7 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 			'membership_status' => $this->normalize_status( isset( $row->status ) ? (string) $row->status : '' ),
 			'start_date'        => $this->format_db_date( isset( $row->startdate ) ? (string) $row->startdate : '' ),
 			'expire_date'       => epc_format_pass_expiry_datetime( isset( $row->enddate ) ? (string) $row->enddate : '' ),
+			'pass_expire_mysql' => epc_pass_expire_mysql_datetime( isset( $row->enddate ) ? (string) $row->enddate : '' ),
 			'order_id'          => $order ? (string) $order['id'] : '',
 			'order_code'        => $order ? (string) $order['code'] : '',
 		);

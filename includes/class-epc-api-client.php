@@ -1160,7 +1160,7 @@ class EPC_Api_Client {
 		if ( 200 !== (int) ( $result['status'] ?? 0 ) && 0 !== (int) ( $result['status'] ?? 0 ) ) {
 			$msg = isset( $result['message'] ) && is_string( $result['message'] )
 				? sanitize_text_field( $result['message'] )
-				: __( 'Pass could not be expired.', 'epasscard' );
+				: __( 'Pass expiration could not be updated.', 'epasscard' );
 			return new WP_Error( 'epc_expire_failed', $msg );
 		}
 
