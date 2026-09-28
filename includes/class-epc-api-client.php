@@ -1080,6 +1080,94 @@ class EPC_Api_Client {
 	}
 
 	/**
+	 * MySQL datetime that has already passed, so POST /pass-expire expires the pass now.
+	 *
+	 * One day in the past so timezone differences cannot leave the date in the future.
+	 *
+	 * @return string Y-m-d H:i:s in UTC.
+	 */
+	public static function immediate_pass_expire_date() {
+		$expire_date = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+
+		/**
+		 * Filter the datetime used to expire a pass immediately.
+		 *
+		 * @param string $expire_date MySQL datetime (Y-m-d H:i:s).
+		 */
+		return (string) apply_filters( 'epc_immediate_pass_expire_date', $expire_date );
+	}
+
+	/**
+	 * Expire a wallet pass, or set a new expiration date.
+	 *
+	 * POST /api/public/v1/pass-expire/{passUid}
+	 * Past dates remove the pass from Apple Wallet, Google Wallet, and the ePass app.
+	 * Future dates are stored and synced as the new expiration.
+	 *
+	 * @param string $pass_uid    Pass UUID.
+	 * @param string $expire_date MySQL datetime (Y-m-d H:i:s). Empty expires the pass immediately.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public static function expire_pass( $pass_uid, $expire_date = '' ) {
+		$san = self::sanitize_uid( $pass_uid );
+		if ( false === $san ) {
+			return new WP_Error( 'epc_bad_uid', __( 'Invalid pass identifier.', 'epasscard' ) );
+		}
+
+		$expire_date = trim( (string) $expire_date );
+		if ( '' === $expire_date ) {
+			$expire_date = self::immediate_pass_expire_date();
+		}
+
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expire_date ) ) {
+			return new WP_Error(
+				'epc_bad_expire_date',
+				__( 'Pass expiration must be a MySQL datetime (YYYY-MM-DD HH:mm:ss).', 'epasscard' )
+			);
+		}
+
+		/**
+		 * Filter the expire-pass endpoint URL.
+		 *
+		 * @param string $url      Full POST URL including pass id.
+		 * @param string $pass_uid Sanitized pass UUID.
+		 */
+		$url = (string) apply_filters(
+			'epc_pass_expire_url',
+			self::api_base() . '/pass-expire/' . rawurlencode( $san ),
+			$san
+		);
+
+		$body = array(
+			'expire_date' => $expire_date,
+		);
+
+		/**
+		 * Filter the expire-pass request body.
+		 *
+		 * @param array<string, string> $body        Request body.
+		 * @param string                $pass_uid    Pass UUID.
+		 * @param string                $expire_date Expiration datetime.
+		 */
+		$body = (array) apply_filters( 'epc_pass_expire_body', $body, $san, $expire_date );
+
+		$result = self::post_json( $url, $body, true );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( 200 !== (int) ( $result['status'] ?? 0 ) && 0 !== (int) ( $result['status'] ?? 0 ) ) {
+			$msg = isset( $result['message'] ) && is_string( $result['message'] )
+				? sanitize_text_field( $result['message'] )
+				: __( 'Pass could not be expired.', 'epasscard' );
+			return new WP_Error( 'epc_expire_failed', $msg );
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Push notification URL for a pass.
 	 *
 	 * @param string $pass_uid Pass UUID.

@@ -349,16 +349,28 @@ class EPC_Pass_Service {
 	}
 
 	/**
-	 * Mark pass revoked locally (API revoke can be added when endpoint is available).
+	 * Expire the wallet pass and mark the local row revoked.
 	 *
-	 * @param string $module    Module slug.
-	 * @param int    $source_id Source id.
+	 * Local status alone does not remove the pass from Apple Wallet or Google Wallet.
+	 * POST /pass-expire/{passUid} with a past date does.
+	 *
+	 * @param string     $module    Module slug.
+	 * @param int|string $source_id Source id.
 	 * @return void
 	 */
 	public static function revoke_pass( $module, $source_id ) {
 		$existing = EPC_DB::get_pass( $module, $source_id );
 		if ( ! $existing ) {
 			return;
+		}
+
+		$pass_uid = isset( $existing->pass_uid ) ? (string) $existing->pass_uid : '';
+		if ( '' !== $pass_uid && EPC_Api_Client::is_configured() ) {
+			if ( class_exists( 'EPC_Api_Log' ) ) {
+				EPC_Api_Log::set_request_context( sanitize_key( (string) $module ) . ':expire_pass' );
+			}
+
+			EPC_Api_Client::expire_pass( $pass_uid );
 		}
 
 		EPC_DB::upsert_pass(
