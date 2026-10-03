@@ -1,0 +1,20 @@
+# Files excluded from the WordPress.org release package.
+.git
+.gitignore
+.gitattributes
+.distignore
+.github
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+bin
+plan
+chatpgt.txt
+composer.json
+composer.lock
+docs/marketing
+docs/README.md
+docs/.htaccess
+*.log
+*.md

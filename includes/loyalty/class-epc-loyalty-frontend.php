@@ -38,6 +38,40 @@ class EPC_Loyalty_Frontend {
 		add_action( 'woocommerce_account_' . self::WC_ENDPOINT . '_endpoint', array( __CLASS__, 'render_wallet' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'epc_enqueue_frontend_assets', array( __CLASS__, 'maybe_enqueue_shared_styles' ) );
+		add_action( 'woocommerce_thankyou', array( __CLASS__, 'render_thankyou_points' ), 5 );
+	}
+
+	/**
+	 * "You earned X points" on the order received page.
+	 *
+	 * @param int $order_id Order ID.
+	 * @return void
+	 */
+	public static function render_thankyou_points( $order_id ) {
+		if ( ! self::is_active() || ! class_exists( 'EPC_Loyalty_Order_Service' ) ) {
+			return;
+		}
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $order_id ) ) : null;
+		if ( ! $order instanceof WC_Order || (int) $order->get_user_id() <= 0 || (int) $order->get_user_id() !== get_current_user_id() ) {
+			return;
+		}
+		$points = EPC_Loyalty_Order_Service::get_points_awarded_for_order( $order->get_id() );
+		if ( $points <= 0 ) {
+			return;
+		}
+		$url = wc_get_account_endpoint_url( self::WC_ENDPOINT );
+		printf(
+			'<p class="epc-thankyou-points woocommerce-info">%1$s <a href="%2$s">%3$s</a></p>',
+			esc_html(
+				sprintf(
+					/* translators: %s: number of points. */
+					_n( 'You earned %s loyalty point with this order.', 'You earned %s loyalty points with this order.', $points, 'epasscard' ),
+					number_format_i18n( $points )
+				)
+			),
+			esc_url( $url ),
+			esc_html__( 'View your loyalty card', 'epasscard' )
+		);
 	}
 
 	/**

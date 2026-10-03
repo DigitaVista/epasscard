@@ -103,8 +103,23 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_page_intro() {
+		return __( 'Design the loyalty card, set earning rules, tiers and rewards, and manage loyalty members and their wallet passes.', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function get_entity_label( $entity_id ) {
 		unset( $entity_id );
+		// Customers know the card by its name (e.g. "GiftsRocket Rewards"), not "Loyalty Program".
+		if ( class_exists( 'EPC_Loyalty_Pass_Design_Service' ) ) {
+			$design = EPC_Loyalty_Pass_Design_Service::get_design();
+			$name   = isset( $design['template_name'] ) ? trim( (string) $design['template_name'] ) : '';
+			if ( '' !== $name && ! empty( $design['template_uid'] ) ) {
+				return $name;
+			}
+		}
 		return __( 'Loyalty Program', 'epasscard' );
 	}
 
@@ -282,6 +297,20 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		}
 
 		$args = array( $user_id );
+
+		/*
+		 * First pass for this customer: queue it to run right away instead of after the
+		 * 10-second debounce, so the card is ready on the thank-you / My Account page.
+		 * Updates keep the debounce so a burst of ledger entries sends one update.
+		 */
+		$existing = EPC_DB::get_pass( $this->get_slug(), $user_id );
+		if ( ( ! $existing || empty( $existing->pass_uid ) ) && function_exists( 'as_enqueue_async_action' ) ) {
+			if ( ! function_exists( 'as_has_scheduled_action' ) || ! as_has_scheduled_action( 'epc_loyalty_sync_pass', $args, 'epasscard-loyalty' ) ) {
+				as_enqueue_async_action( 'epc_loyalty_sync_pass', $args, 'epasscard-loyalty', true );
+			}
+			return;
+		}
+
 		if ( function_exists( 'as_schedule_single_action' ) ) {
 			if ( ! function_exists( 'as_has_scheduled_action' ) || ! as_has_scheduled_action( 'epc_loyalty_sync_pass', $args, 'epasscard-loyalty' ) ) {
 				as_schedule_single_action( time() + 10, 'epc_loyalty_sync_pass', $args, 'epasscard-loyalty', true );
@@ -633,6 +662,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 				'include_pass_on_order_emails'    => ! empty( $_POST['include_pass_on_order_emails'] ) ? 1 : 0,
 				'ensure_pass_before_order_emails' => ! empty( $_POST['ensure_pass_before_order_emails'] ) ? 1 : 0,
 				'order_email_statuses'            => empty( $email_statuses ) ? array( 'processing', 'completed' ) : $email_statuses,
+				'exclude_gift_cards'              => ! empty( $_POST['exclude_gift_cards'] ) ? 1 : 0,
 			)
 		);
 		EPC_Loyalty_Rule_Service::save_rules( $decoded['earning_rules'] );

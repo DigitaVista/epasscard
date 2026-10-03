@@ -516,7 +516,52 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 		if ( ! $gift_card instanceof PW_Gift_Card ) {
 			return;
 		}
-		$this->handle_card( $gift_card );
+
+		/*
+		 * PW fires several activity hooks while it generates a card for an order: the card
+		 * is created before its balance and order item link are saved. Handling each hook
+		 * immediately sent incomplete create calls (no recipient, $0.00 balance). Queue the
+		 * card and handle it once at the end of the request, when everything is stored.
+		 */
+		$card_id = absint( $gift_card->get_id() );
+		if ( $card_id <= 0 ) {
+			return;
+		}
+		$this->deferred_cards[ $card_id ] = true;
+		if ( ! $this->shutdown_hooked ) {
+			$this->shutdown_hooked = true;
+			add_action( 'shutdown', array( $this, 'process_deferred_cards' ), 5 );
+		}
+	}
+
+	/**
+	 * Card ids queued during this request.
+	 *
+	 * @var array<int, true>
+	 */
+	private $deferred_cards = array();
+
+	/**
+	 * Whether the shutdown handler is registered.
+	 *
+	 * @var bool
+	 */
+	private $shutdown_hooked = false;
+
+	/**
+	 * Handle queued cards once the request has stored everything.
+	 *
+	 * @return void
+	 */
+	public function process_deferred_cards() {
+		$ids                  = array_keys( $this->deferred_cards );
+		$this->deferred_cards = array();
+		foreach ( $ids as $card_id ) {
+			$card = $this->get_card( $card_id );
+			if ( $card ) {
+				$this->handle_card( $card );
+			}
+		}
 	}
 
 	/**
@@ -554,6 +599,12 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 
 		$status = $this->normalize_card_status( $card );
 		$action = $this->get_status_rule( $status );
+
+		$existing = EPC_DB::get_pass( $this->get_slug(), absint( $card->get_id() ) );
+		if ( 'sync' === $action && ( ! $existing || empty( $existing->pass_uid ) ) && (float) $card->get_balance() <= 0 ) {
+			// Never issue a brand-new pass for an empty card (PW creates cards before crediting them).
+			return;
+		}
 
 		switch ( $action ) {
 			case 'sync':
@@ -607,6 +658,20 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 				$last    = (string) get_user_meta( (int) $recipient_user->ID, 'last_name', true );
 				$display = (string) $recipient_user->display_name;
 			}
+		}
+
+		// The recipient often has no account: fall back to the purchase order for name and email.
+		$order = ( $order_id > 0 && function_exists( 'wc_get_order' ) ) ? wc_get_order( $order_id ) : null;
+		if ( $order instanceof WC_Order ) {
+			if ( '' === $from_name ) {
+				$from_name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+			}
+			if ( '' === $recipient || ! is_email( $recipient ) ) {
+				$recipient = (string) $order->get_billing_email();
+			}
+		}
+		if ( '' === $display ) {
+			$display = $from_name;
 		}
 
 		$balance = (float) $card->get_balance();

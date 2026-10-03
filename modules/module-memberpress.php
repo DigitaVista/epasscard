@@ -151,10 +151,143 @@ class EPC_Module_MemberPress extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
+	public function get_status_rules_option_key() {
+		return 'epc_memberpress_status_rules';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function has_pass_behavior_settings() {
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_pass_behavior_statuses() {
+		return array(
+			'complete' => __( 'Transaction completed (new or renewal)', 'epasscard' ),
+			'refunded' => __( 'Transaction refunded', 'epasscard' ),
+			'expired'  => __( 'Membership expired (no other active access)', 'epasscard' ),
+			'stopped'  => __( 'Subscription cancelled / stopped', 'epasscard' ),
+		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_status_action_options() {
+		return array(
+			'none'   => __( 'Do nothing', 'epasscard' ),
+			'sync'   => __( 'Create or update pass', 'epasscard' ),
+			'update' => __( 'Update pass only', 'epasscard' ),
+			'revoke' => __( 'Revoke pass', 'epasscard' ),
+		);
+	}
+
+	/**
+	 * Default behavior. Completed + stopped match 1.0.8 behavior; refunded and
+	 * expired were not handled before and now revoke the pass.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_default_status_rules() {
+		return array(
+			'complete' => 'sync',
+			'refunded' => 'revoke',
+			'expired'  => 'revoke',
+			'stopped'  => 'revoke',
+		);
+	}
+
+	/**
+	 * Saved rules merged with defaults.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_status_rules() {
+		$saved    = get_option( $this->get_status_rules_option_key(), array() );
+		$defaults = $this->get_default_status_rules();
+		$merged   = wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
+		$allowed  = array_keys( $this->get_status_action_options() );
+		foreach ( $merged as $status => $action ) {
+			if ( ! in_array( $action, $allowed, true ) ) {
+				$merged[ $status ] = $defaults[ $status ] ?? 'none';
+			}
+		}
+		return $merged;
+	}
+
+	/**
+	 * Rule for one status.
+	 *
+	 * @param string $status Status slug.
+	 * @return string
+	 */
+	public function get_status_rule( $status ) {
+		$rules = $this->get_status_rules();
+		return $rules[ sanitize_key( (string) $status ) ] ?? 'none';
+	}
+
+	/**
+	 * Pass behavior table.
+	 *
+	 * @return void
+	 */
+	private function render_status_rules_form() {
+		$statuses = $this->get_pass_behavior_statuses();
+		$actions  = $this->get_status_action_options();
+		$rules    = $this->get_status_rules();
+		?>
+		<div id="epc-section-pass-behavior" class="epc-section epc-section--status-rules">
+			<h2><?php esc_html_e( 'Pass behavior by membership status', 'epasscard' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Choose what happens to the wallet pass when a MemberPress transaction or subscription changes.', 'epasscard' ); ?>
+			</p>
+			<form class="epc-ajax-form" data-epc-action="<?php echo esc_attr( 'epc_save_status_rules_' . $this->get_slug() ); ?>" method="post" action="">
+				<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
+				<table class="widefat striped epc-status-rules-table">
+					<thead>
+						<tr>
+							<th scope="col"><?php esc_html_e( 'Membership status', 'epasscard' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Pass action', 'epasscard' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $statuses as $status => $label ) : ?>
+							<tr>
+								<td><strong><?php echo esc_html( $label ); ?></strong></td>
+								<td>
+									<select name="epc_status_rule_<?php echo esc_attr( $status ); ?>">
+										<?php foreach ( $actions as $action_key => $action_label ) : ?>
+											<option value="<?php echo esc_attr( $action_key ); ?>" <?php selected( $rules[ $status ] ?? 'none', $action_key ); ?>>
+												<?php echo esc_html( $action_label ); ?>
+											</option>
+										<?php endforeach; ?>
+									</select>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<p>
+					<?php submit_button( __( 'Save pass behavior', 'epasscard' ), 'secondary', 'submit', false ); ?>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function render_module_settings() {
 		if ( ! $this->is_available() ) {
 			return;
 		}
+
+		$this->render_status_rules_form();
 
 		$this->render_native_reminder_notice(
 			admin_url( 'edit.php?post_type=mp-reminder' ),
@@ -741,6 +874,11 @@ class EPC_Module_MemberPress extends EPC_Module {
 
 		add_action( 'mepr-event-transaction-completed', array( $this, 'on_transaction_completed' ), 10, 1 );
 		add_action( 'mepr-event-subscription-stopped', array( $this, 'on_subscription_stopped' ), 10, 1 );
+		// Refunds and expirations (gateway events + manual status changes in wp-admin).
+		add_action( 'mepr-event-transaction-refunded', array( $this, 'on_transaction_refunded_event' ), 10, 1 );
+		add_action( 'mepr-event-transaction-expired', array( $this, 'on_transaction_expired_event' ), 10, 1 );
+		add_action( 'mepr-txn-status-refunded', array( $this, 'on_transaction_refunded' ), 10, 1 );
+		add_action( 'mepr-txn-status-complete', array( $this, 'on_transaction_status_complete' ), 10, 1 );
 		add_action( 'mepr-account-subscriptions-table-row-action', array( $this, 'maybe_sync_existing' ), 10, 1 );
 
 		add_filter( 'mepr_admin_members_cols', array( $this, 'members_list_columns' ) );
@@ -874,7 +1012,133 @@ class EPC_Module_MemberPress extends EPC_Module {
 			return;
 		}
 
-		$this->sync_from_transaction( $txn, 'sync' );
+		if ( 'none' === $this->get_status_rule( 'complete' ) ) {
+			return;
+		}
+
+		$this->sync_from_transaction( $txn, 'update' === $this->get_status_rule( 'complete' ) ? 'update' : 'sync' );
+	}
+
+	/**
+	 * Gateway refund event.
+	 *
+	 * @param MeprEvent $event Event.
+	 * @return void
+	 */
+	public function on_transaction_refunded_event( $event ) {
+		if ( $event instanceof MeprEvent ) {
+			$this->on_transaction_refunded( $event->get_data() );
+		}
+	}
+
+	/**
+	 * Transaction expired event (MemberPress fires this for each expired period).
+	 *
+	 * @param MeprEvent $event Event.
+	 * @return void
+	 */
+	public function on_transaction_expired_event( $event ) {
+		if ( ! $event instanceof MeprEvent ) {
+			return;
+		}
+		$txn = $event->get_data();
+		if ( ! $txn instanceof MeprTransaction ) {
+			return;
+		}
+		// A recurring member whose next period is already paid still has access; keep the pass.
+		if ( $this->user_has_active_access( (int) $txn->user_id, (int) $txn->product_id ) ) {
+			return;
+		}
+		$this->apply_status_rule_to_transaction( $txn, 'expired' );
+	}
+
+	/**
+	 * Transaction refunded (status change in wp-admin or gateway refund).
+	 *
+	 * @param mixed $txn Transaction.
+	 * @return void
+	 */
+	public function on_transaction_refunded( $txn ) {
+		if ( ! $txn instanceof MeprTransaction ) {
+			return;
+		}
+		if ( $this->user_has_active_access( (int) $txn->user_id, (int) $txn->product_id, (int) $txn->id ) ) {
+			return;
+		}
+		$this->apply_status_rule_to_transaction( $txn, 'refunded' );
+	}
+
+	/**
+	 * Transaction set back to Complete in wp-admin.
+	 *
+	 * @param mixed $txn Transaction.
+	 * @return void
+	 */
+	public function on_transaction_status_complete( $txn ) {
+		if ( ! $txn instanceof MeprTransaction ) {
+			return;
+		}
+		$existing = EPC_DB::get_pass( $this->get_slug(), self::source_key_from_transaction( $txn ) );
+		// New purchases are handled by mepr-event-transaction-completed; this restores revoked passes.
+		if ( ! $existing || empty( $existing->pass_uid ) ) {
+			return;
+		}
+		$this->apply_status_rule_to_transaction( $txn, 'complete' );
+	}
+
+	/**
+	 * Run the configured pass action for a transaction.
+	 *
+	 * @param MeprTransaction $txn    Transaction.
+	 * @param string          $status Rule status key.
+	 * @return void
+	 */
+	private function apply_status_rule_to_transaction( $txn, $status ) {
+		$action    = $this->get_status_rule( $status );
+		$source_id = self::source_key_from_transaction( $txn );
+		if ( '' === $source_id ) {
+			return;
+		}
+
+		switch ( $action ) {
+			case 'sync':
+				$this->sync_from_transaction( $txn, 'sync' );
+				break;
+			case 'update':
+				$existing = EPC_DB::get_pass( $this->get_slug(), $source_id );
+				if ( $existing && ! empty( $existing->pass_uid ) ) {
+					$this->sync_from_transaction( $txn, 'update' );
+				}
+				break;
+			case 'revoke':
+				EPC_Pass_Service::revoke_pass( $this->get_slug(), $source_id );
+				break;
+		}
+	}
+
+	/**
+	 * Whether the member still has another active transaction for the membership.
+	 *
+	 * @param int $user_id     User id.
+	 * @param int $product_id  Membership id.
+	 * @param int $exclude_txn Transaction to ignore (the one being refunded).
+	 * @return bool
+	 */
+	private function user_has_active_access( $user_id, $product_id, $exclude_txn = 0 ) {
+		if ( $user_id <= 0 || $product_id <= 0 || ! class_exists( 'MeprUser' ) ) {
+			return false;
+		}
+		$usr  = new MeprUser( $user_id );
+		$txns = $usr->active_product_subscriptions( 'transactions', true );
+		if ( ! is_array( $txns ) ) {
+			return false;
+		}
+		foreach ( $txns as $active ) {
+			if ( $active instanceof MeprTransaction && (int) $active->product_id === $product_id && (int) $active->id !== $exclude_txn && 'refunded' !== (string) $active->status ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -890,6 +1154,10 @@ class EPC_Module_MemberPress extends EPC_Module {
 
 		$sub = $event->get_data();
 		if ( ! $sub instanceof MeprSubscription ) {
+			return;
+		}
+
+		if ( 'revoke' !== $this->get_status_rule( 'stopped' ) ) {
 			return;
 		}
 
@@ -1009,5 +1277,40 @@ class EPC_Module_MemberPress extends EPC_Module {
 			$values,
 			$mode
 		);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		$entity_id = absint( $entity_id );
+		if ( $entity_id <= 0 || ! class_exists( 'MeprTransaction' ) ) {
+			return array();
+		}
+		$table = $wpdb->prefix . 'mepr_transactions';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MemberPress table read for bulk pass creation.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM %i WHERE product_id = %d AND status IN ('complete','confirmed') AND ( expires_at IS NULL OR expires_at = '0000-00-00 00:00:00' OR expires_at > %s ) ORDER BY id ASC LIMIT %d OFFSET %d",
+				$table,
+				$entity_id,
+				current_time( 'mysql', true ),
+				absint( $limit ),
+				absint( $offset )
+			)
+		);
+		$keys = array();
+		foreach ( (array) $ids as $id ) {
+			$key = self::source_key_from_transaction( new MeprTransaction( absint( $id ) ) );
+			if ( '' !== $key ) {
+				$keys[] = $key;
+			}
+		}
+		// Keep the batch size equal to the rows read so paging stays correct; duplicates are skipped later.
+		while ( count( $keys ) < count( (array) $ids ) ) {
+			$keys[] = '';
+		}
+		return $keys;
 	}
 }

@@ -20,7 +20,57 @@
 			.removeClass( 'is-success is-error' )
 			.addClass( type === 'success' ? 'is-success' : 'is-error' )
 			.text( message || '' );
+		// The notice sits at the top of a long form; bring it into view so results are not missed.
+		if ( message && $notice[ 0 ] && $notice[ 0 ].getBoundingClientRect ) {
+			var rect = $notice[ 0 ].getBoundingClientRect();
+			if ( rect.top < 0 || rect.bottom > ( window.innerHeight || 0 ) ) {
+				$notice[ 0 ].scrollIntoView( { behavior: 'smooth', block: 'center' } );
+			}
+		}
 	}
+
+	var FLASH_KEY = 'epcLoyaltyFlash';
+
+	// Keep the success message (and the open tab) across the reload that follows a save.
+	function reloadWithFlash( message ) {
+		try {
+			var $tab = $( '.epc-tabs__tab.is-active' ).first();
+			window.sessionStorage.setItem(
+				FLASH_KEY,
+				JSON.stringify( { message: message || '', tab: $tab.attr( 'id' ) || '', scroll: window.scrollY || 0 } )
+			);
+		} catch ( e ) {} // eslint-disable-line no-empty
+		window.location.reload();
+	}
+
+	function showFlash() {
+		var data = null;
+		try {
+			data = JSON.parse( window.sessionStorage.getItem( FLASH_KEY ) || 'null' );
+			window.sessionStorage.removeItem( FLASH_KEY );
+		} catch ( e ) {
+			data = null;
+		}
+		if ( ! data ) {
+			return;
+		}
+		if ( data.tab ) {
+			$( '#' + data.tab ).trigger( 'click' );
+		}
+		if ( data.message ) {
+			var $wrap = $( '#wpbody-content .wrap' ).first();
+			var $n = $( '<div class="notice notice-success is-dismissible"><p></p></div>' );
+			$n.find( 'p' ).text( data.message );
+			( $wrap.length ? $wrap : $( '#wpbody-content' ) ).prepend( $n );
+		}
+		if ( data.scroll ) {
+			window.scrollTo( 0, data.scroll );
+		}
+	}
+
+	$( function () {
+		showFlash();
+	} );
 
 	function secondarySample() {
 		var mode = $( '#epc-loyalty-secondary-mode' ).val();
@@ -347,7 +397,7 @@
 							$( '.epc-loyalty-test-pass' ).prop( 'disabled', false );
 						}
 						if ( response.data && response.data.reload ) {
-							window.location.reload();
+							reloadWithFlash( ( response.data && response.data.message ) || '' );
 						}
 					} else {
 						notice(
@@ -1199,6 +1249,7 @@
 				order_email_statuses: $form.find( '[name="order_email_statuses"]' ).val() || [],
 				include_pass_on_order_emails: $form.find( '[name="include_pass_on_order_emails"]' ).is( ':checked' ) ? 1 : 0,
 				ensure_pass_before_order_emails: $form.find( '[name="ensure_pass_before_order_emails"]' ).is( ':checked' ) ? 1 : 0,
+				exclude_gift_cards: $form.find( '[name="exclude_gift_cards"]' ).is( ':checked' ) ? 1 : 0,
 				earning_rules: JSON.stringify( collectRepeater( 'rules' ) ),
 				tiers: JSON.stringify( collectRepeater( 'tiers' ) ),
 				milestones: JSON.stringify( collectRepeater( 'milestones' ) ),
@@ -1222,7 +1273,7 @@
 							'success'
 						);
 						if ( response.data && response.data.reload ) {
-							window.location.reload();
+							reloadWithFlash( ( response.data && response.data.message ) || '' );
 						}
 					} else {
 						notice(

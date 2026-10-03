@@ -153,16 +153,40 @@ class EPC_Pass_Notifications {
 	/**
 	 * Whether a notification was already sent for this pass and lead window.
 	 *
+	 * Since 1.0.9 the flag is stored per target date, so a renewed membership or a
+	 * new expiry date gets its own reminder. Flags written by older versions (no date)
+	 * still count when they were set inside the current reminder window.
+	 *
 	 * @param object $pass_row Pass row.
 	 * @param string $type     Notification type slug.
 	 * @param int    $days     Lead days.
+	 * @param int    $event_ts Optional target event timestamp.
 	 * @return bool
 	 */
-	public static function was_sent( $pass_row, $type, $days ) {
+	public static function was_sent( $pass_row, $type, $days, $event_ts = 0 ) {
 		$meta = EPC_DB::get_pass_meta( $pass_row );
-		$key  = self::sent_meta_key( $type, $days );
+		$sent = isset( $meta['notifications_sent'] ) && is_array( $meta['notifications_sent'] ) ? $meta['notifications_sent'] : array();
 
-		return ! empty( $meta['notifications_sent'][ $key ] );
+		$event_ts = (int) $event_ts;
+		if ( $event_ts <= 0 ) {
+			return ! empty( $sent[ self::sent_meta_key( $type, $days ) ] );
+		}
+
+		if ( ! empty( $sent[ self::sent_meta_key( $type, $days, $event_ts ) ] ) ) {
+			return true;
+		}
+
+		// Legacy (pre-1.0.9) flag without a date: only honour it for the current window.
+		$legacy = $sent[ self::sent_meta_key( $type, $days ) ] ?? '';
+		if ( is_string( $legacy ) && '' !== $legacy ) {
+			$legacy_ts    = strtotime( $legacy . ' UTC' );
+			$window_start = $event_ts - ( max( 1, absint( $days ) ) * DAY_IN_SECONDS );
+			if ( false !== $legacy_ts && $legacy_ts >= $window_start ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -193,7 +217,7 @@ class EPC_Pass_Notifications {
 			return false;
 		}
 
-		if ( self::was_sent( $pass_row, $type, $days ) ) {
+		if ( self::was_sent( $pass_row, $type, $days, $event_ts ) ) {
 			return false;
 		}
 
@@ -209,7 +233,7 @@ class EPC_Pass_Notifications {
 			return false;
 		}
 
-		self::mark_sent( $pass_row, $type, $days );
+		self::mark_sent( $pass_row, $type, $days, $event_ts );
 		return true;
 	}
 
@@ -219,15 +243,16 @@ class EPC_Pass_Notifications {
 	 * @param object $pass_row Pass row.
 	 * @param string $type     Notification type.
 	 * @param int    $days     Lead days.
+	 * @param int    $event_ts Optional target event timestamp.
 	 * @return void
 	 */
-	public static function mark_sent( $pass_row, $type, $days ) {
+	public static function mark_sent( $pass_row, $type, $days, $event_ts = 0 ) {
 		$meta = EPC_DB::get_pass_meta( $pass_row );
 		if ( ! isset( $meta['notifications_sent'] ) || ! is_array( $meta['notifications_sent'] ) ) {
 			$meta['notifications_sent'] = array();
 		}
 
-		$meta['notifications_sent'][ self::sent_meta_key( $type, $days ) ] = gmdate( 'Y-m-d H:i:s' );
+		$meta['notifications_sent'][ self::sent_meta_key( $type, $days, (int) $event_ts ) ] = gmdate( 'Y-m-d H:i:s' );
 		EPC_DB::update_pass_meta( $pass_row, $meta );
 	}
 
@@ -236,9 +261,14 @@ class EPC_Pass_Notifications {
 	 *
 	 * @param string $type Notification type.
 	 * @param int    $days Lead days.
+	 * @param int    $event_ts Optional target event timestamp (adds the UTC date).
 	 * @return string
 	 */
-	private static function sent_meta_key( $type, $days ) {
-		return sanitize_key( (string) $type ) . '_' . absint( $days );
+	private static function sent_meta_key( $type, $days, $event_ts = 0 ) {
+		$key = sanitize_key( (string) $type ) . '_' . absint( $days );
+		if ( (int) $event_ts > 0 ) {
+			$key .= '_' . gmdate( 'Ymd', (int) $event_ts );
+		}
+		return $key;
 	}
 }

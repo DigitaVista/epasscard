@@ -913,4 +913,27 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 		$ts = strtotime( $enddate );
 		return $ts ? (int) $ts : 0;
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		$entity_id = absint( $entity_id );
+		if ( $entity_id <= 0 ) {
+			return array();
+		}
+		$table = $this->get_memberships_users_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- PMPro table read for bulk pass creation.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM %i WHERE membership_id = %d AND status = 'active' ORDER BY id ASC LIMIT %d OFFSET %d",
+				$table,
+				$entity_id,
+				absint( $limit ),
+				absint( $offset )
+			)
+		);
+		return array_map( 'absint', (array) $ids );
+	}
 }

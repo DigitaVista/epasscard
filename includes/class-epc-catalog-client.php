@@ -63,8 +63,108 @@ class EPC_Catalog_Client {
 			);
 		}
 
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Remote catalog HTML from trusted WebCartisan API.
-		echo $payload['html'] ?? '';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Remote HTML is passed through wp_kses() in sanitize_html().
+		echo self::sanitize_html( (string) ( $payload['html'] ?? '' ) );
+	}
+
+	/**
+	 * Sanitize remote catalog HTML.
+	 *
+	 * Scripts, inline event handlers and other unsafe markup are removed; layout,
+	 * links, images and inline SVG icons are kept.
+	 *
+	 * @since 1.0.9
+	 *
+	 * @param string $html Raw HTML.
+	 * @return string
+	 */
+	public static function sanitize_html( $html ) {
+		return wp_kses( (string) $html, self::get_allowed_html() );
+	}
+
+	/**
+	 * Allowed tags for the remote catalog.
+	 *
+	 * @since 1.0.9
+	 *
+	 * @return array<string, array<string, bool>>
+	 */
+	private static function get_allowed_html() {
+		$allowed = wp_kses_allowed_html( 'post' );
+
+		$common = array(
+			'class'        => true,
+			'id'           => true,
+			'style'        => true,
+			'aria-hidden'  => true,
+			'aria-label'   => true,
+			'role'         => true,
+			'focusable'    => true,
+			'fill'         => true,
+			'stroke'       => true,
+			'stroke-width' => true,
+			'opacity'      => true,
+			'transform'    => true,
+		);
+
+		$svg_tags = array(
+			'svg'      => array(
+				'xmlns'               => true,
+				'viewbox'             => true,
+				'width'               => true,
+				'height'              => true,
+				'preserveaspectratio' => true,
+			),
+			'g'        => array(),
+			'path'     => array(
+				'd'               => true,
+				'fill-rule'       => true,
+				'clip-rule'       => true,
+				'stroke-linecap'  => true,
+				'stroke-linejoin' => true,
+			),
+			'circle'   => array(
+				'cx' => true,
+				'cy' => true,
+				'r'  => true,
+			),
+			'rect'     => array(
+				'x'      => true,
+				'y'      => true,
+				'width'  => true,
+				'height' => true,
+				'rx'     => true,
+				'ry'     => true,
+			),
+			'line'     => array(
+				'x1' => true,
+				'y1' => true,
+				'x2' => true,
+				'y2' => true,
+			),
+			'polyline' => array( 'points' => true ),
+			'polygon'  => array( 'points' => true ),
+			'title'    => array(),
+		);
+
+		foreach ( $svg_tags as $tag => $attrs ) {
+			$allowed[ $tag ] = array_merge( $common, $attrs );
+		}
+
+		foreach ( array( 'a', 'div', 'span', 'img', 'button', 'section', 'article', 'ul', 'li', 'p', 'h2', 'h3', 'h4' ) as $tag ) {
+			if ( isset( $allowed[ $tag ] ) && is_array( $allowed[ $tag ] ) ) {
+				$allowed[ $tag ] = array_merge( $allowed[ $tag ], $common, array( 'target' => true, 'rel' => true, 'loading' => true, 'srcset' => true, 'sizes' => true, 'type' => true ) );
+			}
+		}
+
+		/**
+		 * Filter allowed HTML for the remote plugin catalog.
+		 *
+		 * @since 1.0.9
+		 *
+		 * @param array $allowed wp_kses allowed HTML.
+		 */
+		return (array) apply_filters( 'epc_catalog_allowed_html', $allowed );
 	}
 
 	/**
@@ -91,10 +191,41 @@ class EPC_Catalog_Client {
 			$api_url = add_query_arg( 'host', $host_slug, $api_url );
 		}
 
-		$response = wp_remote_get(
+		// Cache the remote catalog so the admin page does not block on every load.
+		$cache_key = 'epc_catalog_' . md5( $api_url );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) ) {
+			if ( isset( $cached['__error'] ) ) {
+				return new WP_Error( 'epc_catalog_unavailable', (string) $cached['__error'] );
+			}
+			return $cached;
+		}
+
+		$result = self::request_catalog( $api_url );
+		if ( is_wp_error( $result ) ) {
+			// Short negative cache to avoid a slow request on every page view while offline.
+			set_transient( $cache_key, array( '__error' => $result->get_error_message() ), 30 * MINUTE_IN_SECONDS );
+			return $result;
+		}
+
+		set_transient( $cache_key, $result, 12 * HOUR_IN_SECONDS );
+
+		return $result;
+	}
+
+	/**
+	 * Perform the remote catalog request.
+	 *
+	 * @since 1.0.9
+	 *
+	 * @param string $api_url Catalog URL.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private static function request_catalog( $api_url ) {
+		$response = wp_safe_remote_get(
 			$api_url,
 			array(
-				'timeout' => 15,
+				'timeout' => 8,
 				'headers' => array(
 					'Accept'        => 'application/json',
 					'Cache-Control' => 'no-cache',
@@ -137,7 +268,8 @@ class EPC_Catalog_Client {
 	private static function sanitize_css( $css ) {
 		$css = wp_strip_all_tags( (string) $css );
 		$css = preg_replace( '/expression\s*\(/i', '', $css );
-		$css = preg_replace( '/javascript\s*:/i', '', $css );
+		$css = preg_replace( '/(javascript|vbscript)\s*:/i', '', (string) $css );
+		$css = preg_replace( '/(-moz-binding|behavior)\s*:/i', '', (string) $css );
 		return $css ?? '';
 	}
 

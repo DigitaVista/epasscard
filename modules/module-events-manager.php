@@ -179,8 +179,14 @@ class EPC_Module_Events_Manager extends EPC_Module {
 	public function get_status_rules() {
 		$saved    = get_option( $this->get_status_rules_option_key(), array() );
 		$defaults = $this->get_default_status_rules();
-		$merged   = wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 		$allowed  = array_keys( $this->get_status_action_options() );
+
+		// Booking statuses are numeric strings ('0'-'8'). wp_parse_args()/array_merge() renumbers
+		// numeric keys, which made saved rules lose to the defaults. Overlay key by key instead.
+		$merged = $defaults;
+		foreach ( is_array( $saved ) ? $saved : array() as $status => $action ) {
+			$merged[ (string) $status ] = is_string( $action ) ? $action : '';
+		}
 
 		foreach ( $merged as $status => $action ) {
 			if ( ! in_array( $action, $allowed, true ) ) {

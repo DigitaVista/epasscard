@@ -281,10 +281,24 @@ $card_style = sprintf(
 									<?php echo esc_html( $type_label ); ?>
 								</td>
 								<td data-title="<?php esc_attr_e( 'Points', 'epasscard' ); ?>" class="<?php echo $delta >= 0 ? 'is-positive' : 'is-negative'; ?>">
-									<?php echo esc_html( ( $delta > 0 ? '+' : '' ) . number_format_i18n( $delta ) ); ?>
+									<?php echo esc_html( 0 === $delta ? '—' : ( ( $delta > 0 ? '+' : '' ) . number_format_i18n( $delta ) ) ); ?>
 								</td>
 								<td data-title="<?php esc_attr_e( 'Details', 'epasscard' ); ?>">
 									<?php echo esc_html( (string) ( $entry->description ?? '' ) ); ?>
+									<?php
+									// Itemise the earning rules behind an order award (e.g. "Welcome bonus +100").
+									$epc_entry_meta = ! empty( $entry->meta ) ? json_decode( (string) $entry->meta, true ) : array();
+									$epc_rules      = is_array( $epc_entry_meta ) && ! empty( $epc_entry_meta['earning_rules'] ) && is_array( $epc_entry_meta['earning_rules'] ) ? $epc_entry_meta['earning_rules'] : array();
+									if ( count( $epc_rules ) > 1 ) :
+										$epc_parts = array();
+										foreach ( $epc_rules as $epc_rule ) {
+											if ( is_array( $epc_rule ) && isset( $epc_rule['points'] ) ) {
+												$epc_parts[] = sanitize_text_field( (string) ( $epc_rule['name'] ?? '' ) ) . ' +' . number_format_i18n( (int) $epc_rule['points'] );
+											}
+										}
+										?>
+										<br /><small><?php echo esc_html( implode( ' · ', $epc_parts ) ); ?></small>
+									<?php endif; ?>
 								</td>
 							</tr>
 						<?php endforeach; ?>

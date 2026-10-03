@@ -1100,7 +1100,7 @@ class EPC_Api_Client {
 	/**
 	 * Expire a wallet pass, or set a new expiration date.
 	 *
-	 * POST /api/public/v2/pass-expire/{passUid}
+	 * POST /api/public/v1/pass-expire/{passUid} (v2 path tried as a fallback).
 	 * Past dates remove the pass from Apple Wallet, Google Wallet, and the ePass app.
 	 * Future dates are stored and synced as the new expiration.
 	 *
@@ -1134,7 +1134,7 @@ class EPC_Api_Client {
 		 */
 		$url = (string) apply_filters(
 			'epc_pass_expire_url',
-			self::api_base_v2() . '/pass-expire/' . rawurlencode( $san ),
+			self::api_base() . '/pass-expire/' . rawurlencode( $san ),
 			$san
 		);
 
@@ -1153,6 +1153,23 @@ class EPC_Api_Client {
 
 		$result = self::post_json( $url, $body, true );
 
+		/*
+		 * The documented endpoint is /api/public/v1/pass-expire/{passUid}. Release 1.0.8
+		 * called the v2 path, which some API deployments answer with a route-level 404
+		 * ("Not found"). When the first call hits a route 404 (not "Pass not found in this
+		 * organization"), retry once on the other API version so both deployments work.
+		 */
+		if ( self::is_route_not_found( $result ) ) {
+			$fallback = (string) apply_filters(
+				'epc_pass_expire_fallback_url',
+				self::api_base_v2() . '/pass-expire/' . rawurlencode( $san ),
+				$san
+			);
+			if ( '' !== $fallback && $fallback !== $url ) {
+				$result = self::post_json( $fallback, $body, true );
+			}
+		}
+
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -1161,10 +1178,49 @@ class EPC_Api_Client {
 			$msg = isset( $result['message'] ) && is_string( $result['message'] )
 				? sanitize_text_field( $result['message'] )
 				: __( 'Pass expiration could not be updated.', 'epasscard' );
-			return new WP_Error( 'epc_expire_failed', $msg );
+			return new WP_Error( 'epc_expire_failed', $msg, array( 'status' => (int) ( $result['status'] ?? 0 ) ) );
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Whether an API error is a route-level 404 (endpoint missing) rather than a missing resource.
+	 *
+	 * @param mixed $result Parsed response or error.
+	 * @return bool
+	 */
+	public static function is_route_not_found( $result ) {
+		if ( ! is_wp_error( $result ) ) {
+			return false;
+		}
+		$data = $result->get_error_data();
+		if ( ! is_array( $data ) || 404 !== (int) ( $data['status'] ?? 0 ) ) {
+			return false;
+		}
+		return ! self::is_ownership_error( $result );
+	}
+
+	/**
+	 * Whether an API error says the pass belongs to another organization or no longer exists there.
+	 *
+	 * The API answers 403 "Resource does not belong to this API key organization" and
+	 * 404 "Pass not found in this organization" for passes issued under another account.
+	 *
+	 * @param mixed $result Parsed response or error.
+	 * @return bool
+	 */
+	public static function is_ownership_error( $result ) {
+		if ( ! is_wp_error( $result ) ) {
+			return false;
+		}
+		$data   = $result->get_error_data();
+		$status = is_array( $data ) ? (int) ( $data['status'] ?? 0 ) : 0;
+		if ( 403 !== $status && 404 !== $status ) {
+			return false;
+		}
+		$message = strtolower( (string) $result->get_error_message() );
+		return false !== strpos( $message, 'organization' ) || false !== strpos( $message, 'organisation' ) || false !== strpos( $message, 'does not belong' );
 	}
 
 	/**

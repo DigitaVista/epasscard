@@ -186,6 +186,55 @@
 			});
 	}
 
+	function isTruthy(v) {
+		return v === true || v === 1 || v === '1' || v === 'true';
+	}
+
+	// Sources that always hold a number.
+	var NUMERIC_SOURCE = /(^|_)(id|ids|balance|amount|points|spaces|price|cost|count|stamps|level_id|lifetime_points|points_balance)$/;
+
+	function isNumericSource(slug) {
+		slug = String(slug || '');
+		if (/_formatted$|_name$|_title$|_email$|_date$|_url$/.test(slug)) {
+			return false;
+		}
+		return NUMERIC_SOURCE.test(slug);
+	}
+
+	var mismatchWarned = '';
+
+	function validateMapping(fieldMapping) {
+		var missing = [];
+		var mismatch = [];
+		$('#epc-mapping-rows .epc-mapping-row').each(function () {
+			var $row = $(this);
+			var uid = $row.data('field-uid');
+			var label = String($row.attr('data-field-label') || uid);
+			var entry = fieldMapping[uid];
+			if ($row.attr('data-field-required') === '1' && !entry) {
+				missing.push(label);
+			}
+			if ($row.attr('data-field-type') === 'number' && entry) {
+				if (entry.type === SOURCE_MODE && !isNumericSource(entry.source)) {
+					mismatch.push(label);
+				} else if (entry.type === CUSTOM_MODE && isNaN(Number(entry.value))) {
+					mismatch.push(label);
+				}
+			}
+		});
+		if (missing.length) {
+			return (epcAdmin.i18n.requiredMissing || 'Map these required fields:') + ' ' + missing.join(', ');
+		}
+		// Number fields mapped to text: warn once; saving again keeps the mapping
+		// (some templates accept text, and existing mappings must keep working).
+		var key = mismatch.join('|');
+		if (mismatch.length && mismatchWarned !== key) {
+			mismatchWarned = key;
+			return (epcAdmin.i18n.numberMismatch || 'Number fields mapped to text:') + ' ' + mismatch.join(', ') + ' ' + (epcAdmin.i18n.saveAgain || 'Click Save mapping again to keep it anyway.');
+		}
+		return '';
+	}
+
 	function renderMappingRows() {
 		var $wrap = $('#epc-mapping-rows');
 		$wrap.empty();
@@ -207,7 +256,31 @@
 			var saved = parseSavedEntry(savedMap[uid]);
 
 			var row = $('<div class="epc-mapping-row"></div>').attr('data-field-uid', uid);
-			row.append($('<label></label>').text(label));
+			var $label = $('<label></label>').text(label);
+			var fieldType = String(field.field_type || field.type || '').toLowerCase();
+			row.attr('data-field-type', fieldType)
+				.attr('data-field-required', isTruthy(field.required) ? '1' : '0')
+				.attr('data-field-unique', isTruthy(field.is_unique) ? '1' : '0')
+				.attr('data-field-label', label);
+			var badges = [];
+			if (isTruthy(field.required)) {
+				badges.push(epcAdmin.i18n.fieldRequired || 'Required');
+			}
+			if (isTruthy(field.is_unique)) {
+				badges.push(epcAdmin.i18n.fieldUnique || 'Unique');
+			}
+			if (fieldType === 'number') {
+				badges.push(epcAdmin.i18n.fieldNumber || 'Number');
+			} else if (fieldType === 'date' || fieldType === 'datetime') {
+				badges.push(epcAdmin.i18n.fieldDate || 'Date');
+			}
+			badges.forEach(function (b) {
+				$label.append(' ', $('<span class="epc-field-badge"></span>').text(b));
+			});
+			if (isTruthy(field.is_unique) && epcAdmin.i18n.uniqueHint) {
+				$label.append($('<span class="description epc-field-hint"></span>').text(epcAdmin.i18n.uniqueHint));
+			}
+			row.append($label);
 
 			var controls = $('<div class="epc-mapping-row__controls"></div>');
 			var modeSelect = $('<select class="epc-mapping-mode"></select>');
@@ -358,6 +431,17 @@
 
 				var data = resp.data || {};
 				showPassActionNotice(data.message || epcAdmin.i18n.passUpdated, 'success');
+
+				// A successful retry from the "needs attention" panel resolves that row.
+				var $issueRow = $btn.closest('.epc-pass-issues tr');
+				if ($issueRow.length) {
+					var $panel = $issueRow.closest('.epc-pass-issues');
+					$issueRow.remove();
+					if (!$panel.find('tbody tr').length) {
+						$panel.remove();
+					}
+					return;
+				}
 
 				if (data.action) {
 					$btn.attr('data-pass-action', data.action);
@@ -539,6 +623,49 @@
 			});
 	});
 
+	function fmt(tpl, a, b, c) {
+		return String(tpl).replace('%1$d', a).replace('%2$d', b).replace('%3$d', c);
+	}
+
+	$(document).on('click', '.epc-backfill-trigger', function (e) {
+		e.preventDefault();
+		var $btn = $(this);
+		var $status = $btn.nextAll('.epc-backfill-status').first();
+		var module = String($btn.data('module') || epcAdmin.module || '');
+		var entityId = $btn.data('entity-id');
+		if (epcAdmin.i18n.backfillConfirm && !window.confirm(epcAdmin.i18n.backfillConfirm)) {
+			return;
+		}
+		var totals = { created: 0, skipped: 0, failed: 0 };
+		$btn.prop('disabled', true);
+
+		function step(offset) {
+			$status.text(fmt(epcAdmin.i18n.backfillRunning || '%1$d / %2$d / %3$d', totals.created, totals.skipped, totals.failed));
+			ajaxPost('epc_backfill_' + module, { entity_id: entityId, offset: offset })
+				.done(function (resp) {
+					if (!resp || !resp.success) {
+						$btn.prop('disabled', false);
+						$status.text((resp && resp.data && resp.data.message) || epcAdmin.i18n.error);
+						return;
+					}
+					totals.created += resp.data.created || 0;
+					totals.skipped += resp.data.skipped || 0;
+					totals.failed += resp.data.failed || 0;
+					if (resp.data.done) {
+						$btn.prop('disabled', false);
+						$status.text(fmt(epcAdmin.i18n.backfillDone || 'Done: %1$d / %2$d / %3$d', totals.created, totals.skipped, totals.failed));
+						return;
+					}
+					step(resp.data.next_offset || 0);
+				})
+				.fail(function () {
+					$btn.prop('disabled', false);
+					$status.text(epcAdmin.i18n.error);
+				});
+		}
+		step(0);
+	});
+
 	if ($('#epc-mapping-modal').length) {
 		$(document).on('click', '.epc-map-trigger', function () {
 			openModal(parseInt($(this).data('entity-id'), 10), String($(this).data('entity-label') || ''));
@@ -602,6 +729,12 @@
 				var modeValue = $.trim(String($(this).find('.epc-mode-value').val() || ''));
 				fieldMapping[uid] = { type: mode, value: modeValue };
 			});
+
+			var problem = validateMapping(fieldMapping);
+			if (problem) {
+				setModalStatus(problem, 'error');
+				return;
+			}
 
 			setSaveMappingLoading(true);
 

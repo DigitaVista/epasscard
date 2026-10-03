@@ -119,6 +119,18 @@
 			return;
 		}
 
+		// Nothing to redeem: don't show an empty box to members with 0 points.
+		var applied = parseInt(quote.applied_points || 0, 10) || 0;
+		if (!quote.is_guest && (parseInt(quote.balance || 0, 10) || 0) <= 0 && applied <= 0) {
+			targets.forEach(function (target) {
+				var stale = target.querySelector('.epc-loyalty-redemption--blocks');
+				if (stale) {
+					stale.parentNode.removeChild(stale);
+				}
+			});
+			return;
+		}
+
 		targets.forEach(function (target) {
 			var existing = target.querySelector('.epc-loyalty-redemption--blocks');
 			if (existing) {
@@ -130,7 +142,7 @@
 
 			var title = document.createElement('h3');
 			title.className = 'epc-loyalty-redemption__title';
-			title.textContent = 'Redeem loyalty points';
+			title.textContent = config.i18n.title || 'Redeem loyalty points';
 			wrap.appendChild(title);
 
 			if (quote.is_guest) {
@@ -141,14 +153,18 @@
 					guest.appendChild(document.createTextNode(' '));
 					var link = document.createElement('a');
 					link.href = quote.login_url;
-					link.textContent = 'Sign in';
+					link.textContent = config.i18n.signIn || 'Sign in';
 					guest.appendChild(link);
 				}
 				wrap.appendChild(guest);
 			} else {
 				var balance = document.createElement('p');
 				balance.className = 'epc-loyalty-redemption__balance';
-				balance.textContent = (config.i18n.balance || 'Available points') + ': ' + (quote.balance || 0);
+				var total = parseInt(quote.balance || 0, 10) || 0;
+				balance.textContent = (config.i18n.balance || 'Available points') + ': ' + Math.max(0, total - applied);
+				if (applied > 0) {
+					balance.textContent += ' ' + String(config.i18n.applied || '(%d applied to this order)').replace('%d', applied);
+				}
 				wrap.appendChild(balance);
 
 				var controls = document.createElement('p');
@@ -203,6 +219,26 @@
 			target.appendChild(wrap);
 		});
 	}
+
+	// Show "Loyalty points" instead of the internal coupon code (epc-loyalty-<id>) in block cart/checkout.
+	(function registerCouponLabel() {
+		var bc = window.wc && window.wc.blocksCheckout;
+		if (!bc || typeof bc.registerCheckoutFilters !== 'function') {
+			return;
+		}
+		try {
+			bc.registerCheckoutFilters('epasscard-loyalty', {
+				coupons: function (coupons) {
+					return (coupons || []).map(function (coupon) {
+						if (coupon && typeof coupon.code === 'string' && coupon.code.indexOf('epc-loyalty-') === 0) {
+							return $.extend({}, coupon, { label: config.i18n.couponLabel || 'Loyalty points' });
+						}
+						return coupon;
+					});
+				}
+			});
+		} catch (e) {} // eslint-disable-line no-empty
+	})();
 
 	$(function () {
 		bindClassic();

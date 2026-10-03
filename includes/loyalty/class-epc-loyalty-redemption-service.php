@@ -227,7 +227,11 @@ class EPC_Loyalty_Redemption_Service {
 		wp_register_style( $handle, EPC_PLUGIN_URL . 'assets/frontend/loyalty-checkout.css', array(), EPC_VERSION );
 		wp_enqueue_style( $handle );
 
-		wp_register_script( $handle, EPC_PLUGIN_URL . 'assets/frontend/loyalty-checkout.js', array( 'jquery' ), EPC_VERSION, true );
+		$deps = array( 'jquery' );
+		if ( wp_script_is( 'wc-blocks-checkout', 'registered' ) ) {
+			$deps[] = 'wc-blocks-checkout';
+		}
+		wp_register_script( $handle, EPC_PLUGIN_URL . 'assets/frontend/loyalty-checkout.js', $deps, EPC_VERSION, true );
 		wp_localize_script(
 			$handle,
 			'epcLoyaltyCheckout',
@@ -243,6 +247,11 @@ class EPC_Loyalty_Redemption_Service {
 					'balance' => __( 'Available points', 'epasscard' ),
 					'guest'   => __( 'Sign in to redeem loyalty points.', 'epasscard' ),
 					'error'   => __( 'Unable to update loyalty points.', 'epasscard' ),
+					'title'   => __( 'Redeem loyalty points', 'epasscard' ),
+					'signIn'  => __( 'Sign in', 'epasscard' ),
+					/* translators: %d: points applied to the order. */
+					'applied' => __( '(%d applied to this order)', 'epasscard' ),
+					'couponLabel' => __( 'Loyalty points', 'epasscard' ),
 				),
 				'quote'     => self::get_quote_payload(),
 			)

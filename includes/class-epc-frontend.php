@@ -69,6 +69,13 @@ class EPC_Frontend {
 				if ( $post instanceof WP_Post && has_shortcode( (string) $post->post_content, 'epc_my_passes' ) ) {
 					$should_load = true;
 				}
+				// MemberPress Account page ("Wallet Passes" tab) uses the same pass list styles.
+				if ( $post instanceof WP_Post && class_exists( 'MeprOptions' ) ) {
+					$mepr = MeprOptions::fetch();
+					if ( is_object( $mepr ) && ! empty( $mepr->account_page_id ) && (int) $mepr->account_page_id === (int) $post->ID ) {
+						$should_load = true;
+					}
+				}
 			}
 		}
 

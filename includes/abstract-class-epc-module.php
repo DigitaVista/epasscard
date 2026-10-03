@@ -141,6 +141,7 @@ abstract class EPC_Module {
 		add_action( 'wp_ajax_epc_send_test_push_' . $this->get_slug(), array( $this, 'ajax_send_test_push' ) );
 		add_action( 'wp_ajax_epc_save_notification_rules_' . $this->get_slug(), array( $this, 'ajax_save_notification_rules' ) );
 		add_action( 'wp_ajax_epc_save_status_rules_' . $this->get_slug(), array( $this, 'ajax_save_status_rules' ) );
+		add_action( 'wp_ajax_epc_backfill_' . $this->get_slug(), array( $this, 'ajax_backfill' ) );
 		add_action( 'admin_notices', array( $this, 'render_pass_action_notice' ) );
 
 		if ( $this->is_available() ) {
@@ -239,6 +240,96 @@ abstract class EPC_Module {
 	 */
 	public function render_module_settings() {
 		// Modules may override.
+	}
+
+	/**
+	 * Intro sentence under the module page title.
+	 *
+	 * @return string
+	 */
+	public function get_page_intro() {
+		return __( 'Map membership data to pass templates, manage issued passes, and configure push notification copy for this integration.', 'epasscard' );
+	}
+
+	/**
+	 * Active source ids for an entity, for "Create passes for existing members".
+	 *
+	 * Modules that support backfill return a list (possibly empty); null = unsupported.
+	 *
+	 * @param int $entity_id Entity (plan/level/product) id.
+	 * @param int $limit     Batch size.
+	 * @param int $offset    Offset.
+	 * @return array<int, string|int>|null
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		unset( $entity_id, $limit, $offset );
+		return null;
+	}
+
+	/**
+	 * Whether the module supports backfilling passes for existing members.
+	 *
+	 * @return bool
+	 */
+	public function supports_backfill() {
+		return null !== $this->get_backfill_source_ids( 0, 1, 0 );
+	}
+
+	/**
+	 * AJAX: create passes for one batch of existing active records of an entity.
+	 *
+	 * @return void
+	 */
+	public function ajax_backfill() {
+		check_ajax_referer( 'epc_admin', 'nonce' );
+
+		if ( ! $this->is_available() || ! $this->current_user_can_manage_passes() ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
+		}
+
+		$entity_id = isset( $_POST['entity_id'] ) ? absint( wp_unslash( $_POST['entity_id'] ) ) : 0;
+		$offset    = isset( $_POST['offset'] ) ? absint( wp_unslash( $_POST['offset'] ) ) : 0;
+		$limit     = 10;
+
+		if ( $entity_id <= 0 || empty( $this->get_mapping( $entity_id )['template_uid'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'Map a pass template first.', 'epasscard' ) ), 400 );
+		}
+
+		$ids = $this->get_backfill_source_ids( $entity_id, $limit, $offset );
+		if ( null === $ids ) {
+			wp_send_json_error( array( 'message' => __( 'This integration does not support bulk creation.', 'epasscard' ) ), 400 );
+		}
+
+		$created = 0;
+		$skipped = 0;
+		$failed  = 0;
+		foreach ( $ids as $source_id ) {
+			$source_id = EPC_DB::sanitize_source_id( $source_id );
+			if ( '' === $source_id ) {
+				continue;
+			}
+			$existing  = EPC_DB::get_pass( $this->get_slug(), $source_id );
+			if ( $existing && ! empty( $existing->pass_uid ) ) {
+				++$skipped;
+				continue;
+			}
+			$result = $this->sync_by_source_id( $source_id, 'sync' );
+			if ( is_wp_error( $result ) ) {
+				++$failed;
+			} else {
+				++$created;
+			}
+		}
+
+		wp_send_json_success(
+			array(
+				'created'     => $created,
+				'skipped'     => $skipped,
+				'failed'      => $failed,
+				'next_offset' => $offset + count( $ids ),
+				'done'        => count( $ids ) < $limit,
+			)
+		);
 	}
 
 	/**
@@ -911,6 +1002,17 @@ abstract class EPC_Module {
 			'passExpired'    => __( 'Pass expired.', 'epasscard' ),
 			'passEmailSending' => __( 'Sending email…', 'epasscard' ),
 			'passEmailSent'    => __( 'Pass link email sent.', 'epasscard' ),
+			'fieldRequired'    => __( 'Required', 'epasscard' ),
+			'fieldUnique'      => __( 'Unique', 'epasscard' ),
+			'fieldNumber'      => __( 'Number', 'epasscard' ),
+			'fieldDate'        => __( 'Date', 'epasscard' ),
+			'uniqueHint'       => __( 'Every pass needs a different value here. Map an ID or code, not a value another pass of this template may already use.', 'epasscard' ),
+			'requiredMissing'  => __( 'Map these required fields before saving:', 'epasscard' ),
+			'backfillRunning'  => __( 'Creating passes… %1$d created, %2$d already had one, %3$d failed', 'epasscard' ),
+			'backfillDone'     => __( 'Done: %1$d created, %2$d already had one, %3$d failed.', 'epasscard' ),
+			'backfillConfirm'  => __( 'Create wallet passes for every active member of this plan who does not have one yet? Each pass counts toward your EpassCard plan limit.', 'epasscard' ),
+			'saveAgain'        => __( 'Click Save mapping again to keep it anyway.', 'epasscard' ),
+			'numberMismatch'   => __( 'These number fields are mapped to text, which EpassCard may reject. Choose a numeric source (an ID, points, spaces, balance) or a numeric custom value:', 'epasscard' ),
 		);
 
 		if ( $include_mapping ) {
@@ -1088,7 +1190,7 @@ abstract class EPC_Module {
 				<div class="epc-page-header">
 					<h1 class="epc-page-title"><?php echo esc_html( $this->get_label() ); ?></h1>
 					<p class="description">
-						<?php esc_html_e( 'Map membership data to pass templates, manage issued passes, and configure push notification copy for this integration.', 'epasscard' ); ?>
+						<?php echo esc_html( $this->get_page_intro() ); ?>
 					</p>
 				</div>
 				<?php $this->render_module_overview( $entities, $mappings, (int) $pass_totals['total'], (int) $active_totals['total'] ); ?>
@@ -1186,6 +1288,17 @@ abstract class EPC_Module {
 										>
 											<?php echo $mapped ? esc_html__( 'Edit mapping', 'epasscard' ) : esc_html__( 'Set up mapping', 'epasscard' ); ?>
 										</button>
+										<?php if ( $mapped && $this->supports_backfill() ) : ?>
+											<button
+												type="button"
+												class="button epc-backfill-trigger"
+												data-module="<?php echo esc_attr( $this->get_slug() ); ?>"
+												data-entity-id="<?php echo esc_attr( (string) $eid ); ?>"
+											>
+												<?php esc_html_e( 'Create passes for existing members', 'epasscard' ); ?>
+											</button>
+											<span class="epc-backfill-status" aria-live="polite"></span>
+										<?php endif; ?>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -1280,6 +1393,11 @@ abstract class EPC_Module {
 		<div id="epc-section-passes" class="epc-section epc-section--passes">
 			<h2><?php esc_html_e( 'Issued passes', 'epasscard' ); ?></h2>
 			<p class="description"><?php echo esc_html( $this->get_issued_passes_description() ); ?></p>
+			<?php
+			if ( class_exists( 'EPC_Pass_Issues' ) ) {
+				EPC_Pass_Issues::render_module_panel( $this );
+			}
+			?>
 
 			<form method="get" class="epc-pass-filters">
 				<input type="hidden" name="page" value="<?php echo esc_attr( $page_slug ); ?>" />
@@ -1352,7 +1470,7 @@ abstract class EPC_Module {
 					<?php
 					printf(
 						/* translators: 1: mapped count, 2: total entities */
-						esc_html__( '%1$s of %2$s plans mapped', 'epasscard' ),
+						esc_html__( '%1$s of %2$s mapped', 'epasscard' ),
 						esc_html( number_format_i18n( $mapped_count ) ),
 						esc_html( number_format_i18n( $entity_total ) )
 					);

@@ -281,6 +281,9 @@ class EPC_Loyalty_Rule_Service {
 	private static function eligible_amount( array $rule, $order ) {
 		$total = 0.0;
 		foreach ( $order->get_items( 'line_item' ) as $item ) {
+			if ( self::skip_gift_card_item( $item ) ) {
+				continue;
+			}
 			$product_id   = absint( $item->get_product_id() );
 			$variation_id = absint( $item->get_variation_id() );
 			$match_id     = $variation_id > 0 ? $variation_id : $product_id;
@@ -320,9 +323,48 @@ class EPC_Loyalty_Rule_Service {
 	private static function order_merchandise_amount( $order ) {
 		$total = 0.0;
 		foreach ( $order->get_items( 'line_item' ) as $item ) {
+			if ( self::skip_gift_card_item( $item ) ) {
+				continue;
+			}
 			$total += max( 0, (float) $item->get_total() );
 		}
 		return (float) self::format_decimal( $total );
+	}
+
+	/**
+	 * Whether a line item is a gift card that should not earn points.
+	 *
+	 * Buying a gift card is a cash transfer, not a purchase of goods; points are earned
+	 * when the card is spent. Controlled by the "Exclude gift card products" setting.
+	 *
+	 * @param \WC_Order_Item $item Line item.
+	 * @return bool
+	 */
+	private static function skip_gift_card_item( $item ) {
+		if ( ! class_exists( 'EPC_Loyalty_Order_Service' ) || empty( EPC_Loyalty_Order_Service::get_settings()['exclude_gift_cards'] ) ) {
+			return false;
+		}
+		$product = method_exists( $item, 'get_product' ) ? $item->get_product() : null;
+		if ( ! $product ) {
+			return false;
+		}
+		$type   = (string) $product->get_type();
+		$parent = $product->get_parent_id() ? wc_get_product( $product->get_parent_id() ) : null;
+		$types  = array( $type, $parent ? (string) $parent->get_type() : '' );
+		/**
+		 * Filter the product types treated as gift cards for loyalty earning.
+		 *
+		 * @param array<int, string> $gift_types Product types.
+		 */
+		$gift_types = (array) apply_filters( 'epc_loyalty_gift_card_product_types', array( 'pw-gift-card', 'gift-card', 'ywgc_gift_card' ) );
+		$is_gift    = (bool) array_intersect( $types, $gift_types );
+		/**
+		 * Filter whether a line item counts as a gift card for loyalty earning.
+		 *
+		 * @param bool            $is_gift Whether it is a gift card.
+		 * @param \WC_Order_Item $item    Line item.
+		 */
+		return (bool) apply_filters( 'epc_loyalty_is_gift_card_item', $is_gift, $item );
 	}
 
 	/**
