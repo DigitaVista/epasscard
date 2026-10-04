@@ -1,4 +1,4 @@
-=== EpassCard – Apple Wallet & Google Wallet Passes for WooCommerce, Memberships & Events ===
+=== EpassCard – Apple & Google Wallet Passes for Loyalty, Memberships, Events & Gift Cards ===
 Contributors: wooxperto, hasan350
 Tags: apple wallet, google wallet, wallet pass, loyalty card, membership card
 Requires at least: 6.5

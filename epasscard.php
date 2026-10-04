@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       EpassCard – Apple Wallet & Google Wallet Passes for WooCommerce, Memberships & Events
+ * Plugin Name:       EpassCard – Apple & Google Wallet Passes for Loyalty, Memberships, Events & Gift Cards
  * Plugin URI:        https://webcartisan.com/plugins/epasscard
  * Description:       Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty cards, membership cards, event tickets & gift cards.
  * Version:           1.0.9
