@@ -135,7 +135,7 @@ class EPC_Admin_Shell {
 	 * @return string
 	 */
 	public static function docs_url() {
-		return 'https://epasscard.com/wp-plugin/docs/index.html';
+		return 'https://www.epasscard.com/documentation/';
 	}
 
 	/**
