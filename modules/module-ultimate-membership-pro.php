@@ -433,6 +433,12 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		add_action( 'ihc_action_after_user_approve', array( $this, 'on_user_approved' ), 10, 1 );
 		add_action( 'ihc_action_after_user_level_assign', array( $this, 'on_membership_hook' ), 10, 2 );
 		add_action( 'ihc_action_after_user_level_delete', array( $this, 'on_level_deleted' ), 10, 2 );
+		// UMP 10.x fires these when a level is assigned (admin, signup or checkout); the status rule decides what happens.
+		add_action( 'ihc_new_subscription_action', array( $this, 'on_membership_hook' ), 10, 2 );
+		add_action( 'ihc_action_after_subscription_first_time_activated', array( $this, 'on_membership_hook' ), 10, 2 );
+		// UMP 10.x: the level row is still present here, so the pass can be found and expired.
+		add_action( 'ihc_action_before_delete_user_subscription', array( $this, 'on_level_deleted' ), 10, 2 );
+		add_action( 'ihc_action_after_cancel_subscription', array( $this, 'on_subscription_cancelled' ), 10, 2 );
 
 		add_action( 'ump_action_admin_list_user_column_name_after_total_spend', array( $this, 'ump_users_list_column' ) );
 		add_action( 'ump_action_admin_list_user_row_after_total_spend', array( $this, 'ump_users_list_cell' ) );
@@ -613,6 +619,27 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		foreach ( $this->get_user_level_ids( $user_id ) as $level_id ) {
 			$this->handle_membership_event( $user_id, $level_id );
 		}
+	}
+
+	/**
+	 * Apply the "Cancelled" pass rule when a member cancels a level.
+	 *
+	 * @param int $user_id User id.
+	 * @param int $level_id Level id.
+	 * @return void
+	 */
+	public function on_subscription_cancelled( $user_id, $level_id ) {
+		if ( ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+
+		$user_id  = absint( $user_id );
+		$level_id = absint( $level_id );
+		if ( $user_id <= 0 || $level_id <= 0 ) {
+			return;
+		}
+
+		$this->apply_status_rule( $user_id, $level_id, 'cancelled' );
 	}
 
 	/**
@@ -1053,5 +1080,33 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		}
 
 		return mysql2date( get_option( 'date_format' ), $value );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		$entity_id = absint( $entity_id );
+		if ( $entity_id <= 0 ) {
+			return array();
+		}
+		$table = $wpdb->prefix . 'ihc_user_levels';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Existence check.
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+			return array();
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- UMP table read for bulk pass creation.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM %i WHERE level_id = %d AND ( expire_time IS NULL OR expire_time = '0000-00-00 00:00:00' OR expire_time > %s ) ORDER BY id ASC LIMIT %d OFFSET %d",
+				$table,
+				$entity_id,
+				current_time( 'mysql' ),
+				absint( $limit ),
+				absint( $offset )
+			)
+		);
+		return array_map( 'absint', (array) $ids );
 	}
 }

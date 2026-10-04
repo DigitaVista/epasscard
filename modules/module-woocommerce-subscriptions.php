@@ -929,4 +929,25 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 	private function get_user_full_name( $first_name, $last_name, $fallback = '' ) {
 		return epc_format_user_full_name( $first_name, $last_name, $fallback );
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		$entity_id = absint( $entity_id );
+		if ( $entity_id <= 0 || ! function_exists( 'wcs_get_subscriptions' ) ) {
+			return array();
+		}
+		$subs = wcs_get_subscriptions(
+			array(
+				'subscription_status'    => array( 'active' ),
+				'product_id'             => $entity_id,
+				'subscriptions_per_page' => absint( $limit ),
+				'offset'                 => absint( $offset ),
+				'orderby'                => 'ID',
+				'order'                  => 'ASC',
+			)
+		);
+		return array_map( 'absint', array_keys( (array) $subs ) );
+	}
 }

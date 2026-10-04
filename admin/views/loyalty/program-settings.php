@@ -474,6 +474,15 @@ $epc_loyalty_render_rule = static function ( array $rule, $lock_id, $open = fals
 								</td>
 							</tr>
 							<tr>
+								<th scope="row"><?php esc_html_e( 'Gift cards', 'epasscard' ); ?></th>
+								<td>
+									<label class="epc-loyalty-check">
+										<input type="checkbox" name="exclude_gift_cards" value="1" <?php checked( ! empty( $program['exclude_gift_cards'] ) ); ?> />
+										<?php esc_html_e( 'Don’t award points for buying gift cards (points are earned when the card is spent)', 'epasscard' ); ?>
+									</label>
+								</td>
+							</tr>
+							<tr>
 								<th scope="row"><?php esc_html_e( 'Order emails', 'epasscard' ); ?></th>
 								<td>
 									<label class="epc-loyalty-check">
@@ -499,7 +508,7 @@ $epc_loyalty_render_rule = static function ( array $rule, $lock_id, $open = fals
 				</div>
 
 				<div class="epc-tabs__panel" role="tabpanel" id="epc-panel-loyalty-earning" aria-labelledby="epc-tab-loyalty-earning" hidden>
-					<p class="description"><?php esc_html_e( 'Starter rules are included and left inactive. Review the values, turn on the ones you want, then save. Lower priority numbers run first. If a rule does not allow stacking, later rules are skipped for that order.', 'epasscard' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Starter rules are included; only the ones marked Active earn points. Review the values, turn on the ones you want, then save. Lower priority numbers run first. If a rule does not allow stacking, later rules are skipped for that order.', 'epasscard' ); ?></p>
 					<div class="epc-loyalty-repeater" data-epc-repeater="rules" data-next-index="<?php echo esc_attr( (string) count( $rules ) ); ?>">
 						<div class="epc-loyalty-repeater__list" data-epc-repeater-list>
 							<?php foreach ( $rules as $rule ) : ?>
@@ -513,7 +522,7 @@ $epc_loyalty_render_rule = static function ( array $rule, $lock_id, $open = fals
 				</div>
 
 				<div class="epc-tabs__panel" role="tabpanel" id="epc-panel-loyalty-tiers" aria-labelledby="epc-tab-loyalty-tiers" hidden>
-					<p class="description"><?php esc_html_e( 'Starter tiers are included and left inactive. They use lifetime points earned, not the spendable balance. Review the thresholds, turn on the ones you want, then save.', 'epasscard' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Starter tiers are included; only the ones marked Active apply. They use lifetime points earned, not the spendable balance. Review the thresholds, turn on the ones you want, then save.', 'epasscard' ); ?></p>
 					<div class="epc-loyalty-repeater" data-epc-repeater="tiers" data-next-index="<?php echo esc_attr( (string) count( $tiers ) ); ?>">
 						<div class="epc-loyalty-repeater__list" data-epc-repeater-list>
 							<?php foreach ( $tiers as $tier ) : ?>
@@ -527,7 +536,7 @@ $epc_loyalty_render_rule = static function ( array $rule, $lock_id, $open = fals
 				</div>
 
 				<div class="epc-tabs__panel" role="tabpanel" id="epc-panel-loyalty-rewards" aria-labelledby="epc-tab-loyalty-rewards" hidden>
-					<p class="description"><?php esc_html_e( 'Starter rewards cover every reward type and are left inactive. Adjust the points, amounts, or free product ID, then turn on the ones you want. Keep reward IDs stable after customers start unlocking them.', 'epasscard' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Starter rewards cover every reward type; only the ones marked Active can be unlocked. Adjust the points, amounts, or free product ID, then turn on the ones you want. Keep reward IDs stable after customers start unlocking them.', 'epasscard' ); ?></p>
 					<div class="epc-loyalty-repeater" data-epc-repeater="milestones" data-next-index="<?php echo esc_attr( (string) count( $milestones ) ); ?>">
 						<div class="epc-loyalty-repeater__list" data-epc-repeater-list>
 							<?php foreach ( $milestones as $milestone ) : ?>

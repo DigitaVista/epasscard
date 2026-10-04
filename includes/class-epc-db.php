@@ -378,6 +378,12 @@ class EPC_DB {
 		$formats = array( '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s' );
 
 		if ( $existing ) {
+			// Keep stored meta (e.g. sent reminder flags) unless the caller explicitly provides new meta.
+			if ( ! array_key_exists( 'meta', $data ) ) {
+				unset( $row['meta'] );
+				array_pop( $formats );
+			}
+
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write.
 			$wpdb->update(
 				$table,

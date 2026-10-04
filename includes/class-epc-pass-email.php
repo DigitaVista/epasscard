@@ -36,7 +36,7 @@ class EPC_Pass_Email {
 		return array(
 			'auto_on_create'        => true,
 			'include_on_wc_order'   => true,
-			'subject'               => __( 'Your wallet pass for {site_name}', 'epasscard' ),
+			'subject'               => __( 'Your {pass_name} wallet pass from {site_name}', 'epasscard' ),
 			'body'                  => __( "Hi {user_first_name},\n\nYour digital wallet pass is ready. Add it to Apple Wallet or Google Wallet using the link below:\n\n{pass_link}\n\nThanks,\n{site_name}", 'epasscard' ),
 		);
 	}
@@ -181,6 +181,15 @@ class EPC_Pass_Email {
 			$to = sanitize_email( (string) $user->user_email );
 		}
 
+		/**
+		 * Filter the pass link email recipient (e.g. send a gift card pass to the gift recipient instead of the buyer).
+		 *
+		 * @param string $to       Recipient email.
+		 * @param object $pass_row Pass row.
+		 * @param array  $args     Send args.
+		 */
+		$to = sanitize_email( (string) apply_filters( 'epc_pass_email_recipient', $to, $pass_row, $args ) );
+
 		if ( '' === $to || ! is_email( $to ) ) {
 			return new WP_Error( 'epc_no_recipient', __( 'No valid email address for this member.', 'epasscard' ) );
 		}
@@ -194,6 +203,7 @@ class EPC_Pass_Email {
 		$body    = isset( $args['body'] ) ? (string) $args['body'] : (string) $settings['body'];
 
 		$subject = self::replace_tags( $subject, $replacements );
+		$subject = trim( (string) preg_replace( '/\s{2,}/', ' ', $subject ) );
 		$body    = self::replace_tags( $body, $replacements );
 
 		/**
@@ -491,6 +501,8 @@ class EPC_Pass_Email {
 			'site_name'         => (string) get_bloginfo( 'name' ),
 			'membership_title'  => $entity_label,
 			'module_label'      => $module_label,
+			// Plan, product, event or card name; falls back to the integration name.
+			'pass_name'         => '' !== $entity_label ? $entity_label : $module_label,
 		);
 	}
 

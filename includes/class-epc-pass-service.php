@@ -27,6 +27,16 @@ class EPC_Pass_Service {
 			? $mapping['field_mapping']
 			: array();
 
+		// Field types from the template snapshot saved with the mapping (uid => type).
+		$types = array();
+		if ( ! empty( $mapping['pass_fields'] ) && is_array( $mapping['pass_fields'] ) ) {
+			foreach ( $mapping['pass_fields'] as $pass_field ) {
+				if ( is_array( $pass_field ) && ! empty( $pass_field['uid'] ) ) {
+					$types[ (string) $pass_field['uid'] ] = strtolower( (string) ( $pass_field['field_type'] ?? ( $pass_field['type'] ?? '' ) ) );
+				}
+			}
+		}
+
 		foreach ( $map as $pass_field_uid => $entry ) {
 			$pass_uid = EPC_Api_Client::sanitize_uid( (string) $pass_field_uid );
 			if ( false === $pass_uid ) {
@@ -52,6 +62,7 @@ class EPC_Pass_Service {
 			}
 
 			$value = self::resolve_mapped_value_for_module( $normalized, $source_values, $module_slug );
+			$value = self::coerce_field_value( $value, $types[ $pass_uid ] ?? '' );
 			if ( '' === $value ) {
 				continue;
 			}
@@ -63,6 +74,48 @@ class EPC_Pass_Service {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Convert a value to the format a typed pass field accepts.
+	 *
+	 * The API rejects the whole pass when a date field is not YYYY-MM-DD or a number
+	 * field is not numeric, e.g. "October 3, 2125" or "$501.00". Values that cannot be
+	 * converted are sent unchanged, exactly as in earlier releases.
+	 *
+	 * @param string $value Value.
+	 * @param string $type  Pass field type.
+	 * @return string
+	 */
+	public static function coerce_field_value( $value, $type ) {
+		$value = (string) $value;
+		if ( '' === $value || '' === $type ) {
+			return $value;
+		}
+
+		if ( 'date' === $type ) {
+			if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) {
+				return $value;
+			}
+			$ts = strtotime( $value );
+			// Unparseable: send as before rather than silently dropping the value.
+			return false === $ts ? $value : gmdate( 'Y-m-d', $ts );
+		}
+
+		if ( 'number' === $type ) {
+			if ( is_numeric( $value ) ) {
+				return $value;
+			}
+			$plain = html_entity_decode( wp_strip_all_tags( $value ), ENT_QUOTES, 'UTF-8' );
+			if ( preg_match( '/-?\d[\d,]*(?:\.\d+)?/', $plain, $m ) ) {
+				$num = str_replace( ',', '', $m[0] );
+				return is_numeric( $num ) ? $num : $value;
+			}
+			// No number in it (e.g. a status word): send as before; some templates accept text.
+			return $value;
+		}
+
+		return $value;
 	}
 
 	/**
@@ -191,6 +244,67 @@ class EPC_Pass_Service {
 	 * @return true|\WP_Error
 	 */
 	public static function sync_pass( $module, $source_id, $entity_id, $user_id, array $mapping, array $source_values, $mode = 'sync' ) {
+		// Several plugin hooks can fire for one change (e.g. UMP assigns and activates in one request).
+		// If an identical sync already failed in this request, return that error instead of calling the API again.
+		$failure_key = $module . '|' . $source_id . '|' . md5( (string) wp_json_encode( array( $entity_id, $mode, $mapping['template_uid'] ?? '', $source_values ) ) );
+		if ( isset( self::$failed_in_request[ $failure_key ] ) ) {
+			return self::$failed_in_request[ $failure_key ];
+		}
+
+		$result = self::run_sync_pass( $module, $source_id, $entity_id, $user_id, $mapping, $source_values, $mode );
+
+		if ( is_wp_error( $result ) ) {
+			self::$failed_in_request[ $failure_key ] = $result;
+		}
+
+		if ( class_exists( 'EPC_Pass_Issues' ) ) {
+			if ( is_wp_error( $result ) ) {
+				EPC_Pass_Issues::record( $module, $source_id, sanitize_key( (string) $mode ), $result );
+			} else {
+				EPC_Pass_Issues::clear( $module, $source_id );
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Per-request guard so one record is not sent to EpassCard several times in one request.
+	 *
+	 * Gift card plugins fire several hooks while a card is generated; each used to send its
+	 * own create call (one before the balance was set).
+	 *
+	 * @var array<string, true>
+	 */
+	private static $in_flight = array();
+
+	/**
+	 * Hash of the last field payload sent per record in this request.
+	 *
+	 * @var array<string, string>
+	 */
+	private static $sent_hash = array();
+
+	/**
+	 * Sync calls that already failed in this request, keyed by record and payload.
+	 *
+	 * @var array<string, \WP_Error>
+	 */
+	private static $failed_in_request = array();
+
+	/**
+	 * Sync implementation (see sync_pass()).
+	 *
+	 * @param string               $module        Module slug.
+	 * @param int|string           $source_id     Source id.
+	 * @param int                  $entity_id     Entity id.
+	 * @param int                  $user_id       User id.
+	 * @param array<string, mixed> $mapping       Mapping.
+	 * @param array<string,string> $source_values Values.
+	 * @param string               $mode          Mode.
+	 * @return true|\WP_Error
+	 */
+	private static function run_sync_pass( $module, $source_id, $entity_id, $user_id, array $mapping, array $source_values, $mode = 'sync' ) {
 		$mode = sanitize_key( (string) $mode );
 		if ( ! in_array( $mode, array( 'sync', 'create', 'update' ), true ) ) {
 			$mode = 'sync';
@@ -236,20 +350,57 @@ class EPC_Pass_Service {
 				return new WP_Error( 'epc_no_fields', __( 'No mapped fields to update.', 'epasscard' ) );
 			}
 
+			$orphaned = false;
+
 			if ( 'revoked' === (string) ( $existing->status ?? '' ) ) {
 				$restored = self::restore_expired_pass( $existing, $source_values, $module_slug );
 				if ( is_wp_error( $restored ) ) {
-					return $restored;
+					if ( ! EPC_Api_Client::is_ownership_error( $restored ) ) {
+						return $restored;
+					}
+					$orphaned = true;
 				}
 			}
 
-			if ( class_exists( 'EPC_Api_Log' ) ) {
-				EPC_Api_Log::set_request_context( $module_slug . ':update_pass' );
+			$hash_key = $module_slug . '|' . EPC_DB::sanitize_source_id( $source_id );
+			$hash     = md5( (string) wp_json_encode( $fields ) );
+			if ( ! $orphaned && isset( self::$sent_hash[ $hash_key ] ) && self::$sent_hash[ $hash_key ] === $hash && 'active' === (string) ( $existing->status ?? '' ) ) {
+				// The same values were already sent for this record in this request.
+				return true;
 			}
 
-			$result = EPC_Api_Client::update_pass( (string) $existing->pass_uid, $fields );
-			if ( is_wp_error( $result ) ) {
-				return $result;
+			if ( ! $orphaned ) {
+				if ( class_exists( 'EPC_Api_Log' ) ) {
+					EPC_Api_Log::set_request_context( $module_slug . ':update_pass' );
+				}
+
+				$result = EPC_Api_Client::update_pass( (string) $existing->pass_uid, $fields );
+				if ( is_wp_error( $result ) ) {
+					if ( ! EPC_Api_Client::is_ownership_error( $result ) ) {
+						return $result;
+					}
+					$orphaned = true;
+				} else {
+					self::$sent_hash[ $hash_key ] = $hash;
+				}
+			}
+
+			if ( $orphaned ) {
+				/*
+				 * The stored pass belongs to another EpassCard account (the site was reconnected
+				 * with a different API key) or was deleted there. Issue a fresh pass for this
+				 * record on the current account instead of failing forever.
+				 */
+				$old_meta                     = EPC_DB::get_pass_meta( $existing );
+				$old_meta['replaced_pass_uid'] = (string) $existing->pass_uid;
+				return self::create_new_pass( $module, $source_id, $entity_id, $user_id, $mapping, $source_values, $mode, $template_uid, $module_slug, $old_meta );
+			}
+
+			$meta = EPC_DB::get_pass_meta( $existing );
+			if ( ! empty( $meta['revoke_pending'] ) ) {
+				// The record is active again; an earlier failed revoke must not fire later.
+				unset( $meta['revoke_pending'] );
+				EPC_DB::update_pass_meta( $existing, $meta );
 			}
 
 			EPC_DB::upsert_pass(
@@ -271,32 +422,62 @@ class EPC_Pass_Service {
 			return true;
 		}
 
+		return self::create_new_pass( $module, $source_id, $entity_id, $user_id, $mapping, $source_values, $mode, $template_uid, $module_slug );
+	}
+
+	/**
+	 * Create a new pass for a record and store it.
+	 *
+	 * @param string                    $module        Module slug.
+	 * @param int|string                $source_id     Source id.
+	 * @param int                       $entity_id     Entity id.
+	 * @param int                       $user_id       User id.
+	 * @param array<string, mixed>      $mapping       Mapping.
+	 * @param array<string, string>     $source_values Values.
+	 * @param string                    $mode          Mode.
+	 * @param string                    $template_uid  Template uid.
+	 * @param string                    $module_slug   Sanitized module slug.
+	 * @param array<string, mixed>|null $meta          Meta to store (null keeps existing).
+	 * @return true|\WP_Error
+	 */
+	private static function create_new_pass( $module, $source_id, $entity_id, $user_id, array $mapping, array $source_values, $mode, $template_uid, $module_slug, $meta = null ) {
 		$fields = self::build_create_fields( $mapping, $source_values, $module_slug );
 		if ( empty( $fields ) ) {
 			return new WP_Error( 'epc_no_fields', __( 'No mapped fields to send.', 'epasscard' ) );
 		}
+
+		$guard = $module_slug . '|' . EPC_DB::sanitize_source_id( $source_id );
+		if ( isset( self::$in_flight[ $guard ] ) ) {
+			return new WP_Error( 'epc_pass_in_flight', __( 'A pass for this record is already being created.', 'epasscard' ) );
+		}
+		self::$in_flight[ $guard ] = true;
 
 		if ( class_exists( 'EPC_Api_Log' ) ) {
 			EPC_Api_Log::set_request_context( $module_slug . ':create_pass' );
 		}
 
 		$result = EPC_Api_Client::create_pass( $template_uid, $fields );
+		unset( self::$in_flight[ $guard ] );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
+		self::$sent_hash[ $guard ] = md5( (string) wp_json_encode( $fields ) );
 
-		EPC_DB::upsert_pass(
-			array(
-				'module'       => $module,
-				'source_id'    => $source_id,
-				'entity_id'    => $entity_id,
-				'user_id'      => $user_id,
-				'pass_uid'     => $result['passUid'],
-				'pass_link'    => $result['passLink'],
-				'template_uid' => $template_uid,
-				'status'       => 'active',
-			)
+		$row = array(
+			'module'       => $module,
+			'source_id'    => $source_id,
+			'entity_id'    => $entity_id,
+			'user_id'      => $user_id,
+			'pass_uid'     => $result['passUid'],
+			'pass_link'    => $result['passLink'],
+			'template_uid' => $template_uid,
+			'status'       => 'active',
 		);
+		if ( is_array( $meta ) ) {
+			unset( $meta['revoke_pending'] );
+			$row['meta'] = $meta;
+		}
+		EPC_DB::upsert_pass( $row );
 
 		$pass_row = EPC_DB::get_pass( $module_slug, $source_id );
 		self::fire_pass_synced_hooks( $module_slug, $source_id, $pass_row, $mode, true );
@@ -386,15 +567,28 @@ class EPC_Pass_Service {
 	/**
 	 * Expire the wallet pass and mark the local row revoked.
 	 *
-	 * Local status alone does not remove the pass from Apple Wallet or Google Wallet.
-	 * POST /pass-expire/{passUid} with a past date does. When the API call fails, the
-	 * local row is still marked revoked so cancellation is recorded.
+	 * Local status alone does not remove the pass from Apple Wallet or Google Wallet;
+	 * POST /pass-expire/{passUid} with a past date does. Until 1.0.9 the row was marked
+	 * revoked even when that call failed, so the wallet pass stayed live while the admin
+	 * saw "Revoked". Now a failed call keeps the row active with a `revoke_pending` flag,
+	 * records the failure for the merchant and retries automatically. When the pass belongs
+	 * to another EpassCard account (or was deleted there) it cannot be expired from this
+	 * site, so the row is marked revoked.
 	 *
 	 * @param string     $module    Module slug.
 	 * @param int|string $source_id Source id.
+	 * @param int        $attempt   Retry attempt (0 = first call).
 	 * @return void
 	 */
-	public static function revoke_pass( $module, $source_id ) {
+	public static function revoke_pass( $module, $source_id, $attempt = 0 ) {
+		$existing = EPC_DB::get_pass( $module, $source_id );
+		if ( ! $existing || empty( $existing->pass_uid ) ) {
+			return;
+		}
+		if ( 'revoked' === (string) $existing->status ) {
+			return;
+		}
+
 		$result = self::expire_issued_pass( $module, $source_id );
 		if ( ! is_wp_error( $result ) ) {
 			return;
@@ -405,7 +599,13 @@ class EPC_Pass_Service {
 			return;
 		}
 
-		self::store_revoked_status( $existing );
+		$meta                   = EPC_DB::get_pass_meta( $existing );
+		$meta['revoke_pending'] = 1;
+		EPC_DB::update_pass_meta( $existing, $meta );
+
+		if ( class_exists( 'EPC_Pass_Issues' ) ) {
+			EPC_Pass_Issues::schedule_revoke_retry( $module, $source_id, $attempt );
+		}
 	}
 
 	/**
@@ -432,11 +632,27 @@ class EPC_Pass_Service {
 		}
 
 		$result = EPC_Api_Client::expire_pass( (string) $existing->pass_uid );
-		if ( is_wp_error( $result ) ) {
+		if ( is_wp_error( $result ) && ! EPC_Api_Client::is_ownership_error( $result ) ) {
+			if ( class_exists( 'EPC_Pass_Issues' ) ) {
+				EPC_Pass_Issues::record( $module, $source_id, 'expire', $result );
+			}
 			return $result;
 		}
 
 		self::store_revoked_status( $existing );
+
+		$meta = EPC_DB::get_pass_meta( $existing );
+		if ( ! empty( $meta['revoke_pending'] ) ) {
+			unset( $meta['revoke_pending'] );
+			$fresh = EPC_DB::get_pass( $module, $source_id );
+			if ( $fresh ) {
+				EPC_DB::update_pass_meta( $fresh, $meta );
+			}
+		}
+
+		if ( class_exists( 'EPC_Pass_Issues' ) ) {
+			EPC_Pass_Issues::clear( $module, $source_id );
+		}
 
 		return true;
 	}

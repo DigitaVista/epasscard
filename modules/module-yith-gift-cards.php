@@ -675,6 +675,59 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 			return;
 		}
 
+		/*
+		 * YITH saves a new card in several steps (post, recipient meta, balance) and each step
+		 * fires a hook. Handling each one immediately sent create calls before the recipient
+		 * was stored. Queue the card and handle it once at the end of the request.
+		 */
+		$card_id = absint( $card->ID );
+		if ( $card_id <= 0 ) {
+			return;
+		}
+		$this->deferred_cards[ $card_id ] = true;
+		if ( ! $this->shutdown_hooked ) {
+			$this->shutdown_hooked = true;
+			add_action( 'shutdown', array( $this, 'process_deferred_cards' ), 5 );
+		}
+	}
+
+	/**
+	 * Card ids queued during this request.
+	 *
+	 * @var array<int, true>
+	 */
+	private $deferred_cards = array();
+
+	/**
+	 * Whether the shutdown handler is registered.
+	 *
+	 * @var bool
+	 */
+	private $shutdown_hooked = false;
+
+	/**
+	 * Handle queued cards once YITH has stored everything.
+	 *
+	 * @return void
+	 */
+	public function process_deferred_cards() {
+		$ids                  = array_keys( $this->deferred_cards );
+		$this->deferred_cards = array();
+		foreach ( $ids as $card_id ) {
+			$card = $this->get_card( $card_id );
+			if ( $card ) {
+				$this->handle_card_now( $card );
+			}
+		}
+	}
+
+	/**
+	 * Apply the status rule for one card now.
+	 *
+	 * @param YITH_YWGC_Gift_Card $card Card.
+	 * @return void
+	 */
+	private function handle_card_now( $card ) {
 		if ( self::$handling ) {
 			return;
 		}
@@ -684,6 +737,11 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		try {
 			$status = $this->normalize_card_status( $card );
 			$action = $this->get_status_rule( $status );
+
+			$existing = EPC_DB::get_pass( $this->get_slug(), absint( $card->ID ) );
+			if ( 'sync' === $action && ( ! $existing || empty( $existing->pass_uid ) ) && (float) $card->get_balance() <= 0 ) {
+				return;
+			}
 
 			switch ( $action ) {
 				case 'sync':
@@ -730,6 +788,16 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		$user_id         = epc_resolve_gift_card_user_id( $recipient_email, $order_id );
 		$first           = '';
 		$last            = '';
+		// The recipient often has no account: fall back to the purchase order for missing details.
+		$order = ( $order_id > 0 && function_exists( 'wc_get_order' ) ) ? wc_get_order( $order_id ) : null;
+		if ( $order instanceof WC_Order ) {
+			if ( '' === $sender_name ) {
+				$sender_name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+			}
+			if ( '' === $recipient_email || ! is_email( $recipient_email ) ) {
+				$recipient_email = (string) $order->get_billing_email();
+			}
+		}
 		$display         = $recipient_name ? $recipient_name : $sender_name;
 
 		// Prefer recipient profile for pass field values when that account exists.

@@ -23,6 +23,7 @@ class EPC_Loyalty_Order_Service {
 		add_action( 'woocommerce_payment_complete', array( __CLASS__, 'on_payment_complete' ), 20 );
 		add_action( 'woocommerce_order_status_changed', array( __CLASS__, 'on_order_status_changed' ), 20, 4 );
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'on_order_refunded' ), 20, 2 );
+		add_action( 'epc_loyalty_balance_changed', array( __CLASS__, 'add_order_note_for_entry' ), 20, 2 );
 	}
 
 	/**
@@ -404,10 +405,16 @@ class EPC_Loyalty_Order_Service {
 			$statuses
 		);
 
+		// New programs skip gift cards by default; programs saved before 1.0.9 keep earning on them until the merchant opts in.
+		$exclude_gift_cards = array_key_exists( 'exclude_gift_cards', $saved )
+			? ! empty( $saved['exclude_gift_cards'] )
+			: empty( $saved );
+
 		$settings = array(
 			'points_per_currency' => max( 0.0, (float) ( $saved['points_per_currency'] ?? 1 ) ),
 			'rounding'            => $rounding,
 			'qualifying_statuses' => array_values( array_unique( array_filter( $statuses ) ) ),
+			'exclude_gift_cards'  => $exclude_gift_cards,
 		);
 
 		/**
@@ -444,6 +451,45 @@ class EPC_Loyalty_Order_Service {
 			return (int) round( $points );
 		}
 		return (int) floor( $points );
+	}
+
+	/**
+	 * Note points earned / held / reversed on the order so staff can see the loyalty effect.
+	 *
+	 * @param object|null $entry   Ledger entry.
+	 * @param object|null $account Account after the change.
+	 * @return void
+	 */
+	public static function add_order_note_for_entry( $entry, $account ) {
+		if ( ! is_object( $entry ) || empty( $entry->order_id ) || 0 === (int) ( $entry->points_delta ?? 0 ) || ! function_exists( 'wc_get_order' ) ) {
+			return;
+		}
+		$order = wc_get_order( absint( $entry->order_id ) );
+		if ( ! $order instanceof WC_Order ) {
+			return;
+		}
+		$delta = (int) $entry->points_delta;
+		$label = trim( wp_strip_all_tags( (string) ( $entry->description ?? '' ) ) );
+		$order->add_order_note(
+			sprintf(
+				/* translators: 1: signed points, 2: ledger description, 3: new balance. */
+				__( 'EpassCard loyalty: %1$s points (%2$s). Customer balance: %3$s.', 'epasscard' ),
+				( $delta > 0 ? '+' : '' ) . number_format_i18n( $delta ),
+				'' !== $label ? $label : sanitize_text_field( (string) ( $entry->entry_type ?? '' ) ),
+				is_object( $account ) ? number_format_i18n( (int) $account->points_balance ) : '—'
+			)
+		);
+	}
+
+	/**
+	 * Points awarded for an order (0 when none).
+	 *
+	 * @param int $order_id Order ID.
+	 * @return int
+	 */
+	public static function get_points_awarded_for_order( $order_id ) {
+		$award = EPC_Loyalty_Ledger_Service::get_by_event_key( self::award_event_key( $order_id ) );
+		return $award ? max( 0, (int) $award->points_delta ) : 0;
 	}
 
 	/**

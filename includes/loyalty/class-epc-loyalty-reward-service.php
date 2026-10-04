@@ -259,6 +259,50 @@ class EPC_Loyalty_Reward_Service {
 
 		if ( (int) ( $entry->lifetime_delta ?? 0 ) > 0 ) {
 			self::create_earned_claims( $user_id, (int) $account->lifetime_points );
+		} elseif ( (int) ( $entry->lifetime_delta ?? 0 ) < 0 ) {
+			self::withdraw_unearned_claims( $user_id, (int) $account->lifetime_points );
+		}
+	}
+
+	/**
+	 * Withdraw unclaimed rewards whose milestone is no longer reached after a reversal.
+	 *
+	 * Example: a refund drops lifetime points from 513 to 470, so an unclaimed reward
+	 * at 500 is withdrawn. Rewards already issued (coupon created) are never touched.
+	 * If the customer reaches the milestone again the same reward becomes available again.
+	 *
+	 * @param int $user_id         User ID.
+	 * @param int $lifetime_points Lifetime points after the change.
+	 * @return void
+	 */
+	public static function withdraw_unearned_claims( $user_id, $lifetime_points ) {
+		/**
+		 * Whether unclaimed milestone rewards are withdrawn when lifetime points drop below them.
+		 *
+		 * @param bool $withdraw Default true.
+		 * @param int  $user_id  User ID.
+		 */
+		if ( ! apply_filters( 'epc_loyalty_withdraw_unearned_rewards', true, $user_id ) ) {
+			return;
+		}
+
+		global $wpdb;
+		$table = EPC_DB::loyalty_claims_table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Candidate claims for withdrawal.
+		$claims = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE user_id = %d AND status = 'available'", absint( $user_id ) ) );
+		foreach ( is_array( $claims ) ? $claims : array() as $claim ) {
+			$meta      = json_decode( (string) $claim->meta, true );
+			$milestone = is_array( $meta ) && isset( $meta['milestone'] ) && is_array( $meta['milestone'] ) ? $meta['milestone'] : array();
+			$needed    = (int) ( $milestone['threshold'] ?? 0 ) * max( 1, (int) ( $meta['cycle'] ?? 1 ) );
+			if ( $needed <= 0 || $lifetime_points >= $needed ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Status transition.
+			$updated = $wpdb->update( $table, array( 'status' => 'withdrawn' ), array( 'id' => (int) $claim->id, 'status' => 'available' ), array( '%s' ), array( '%d', '%s' ) );
+			if ( $updated ) {
+				$claim->status = 'withdrawn';
+				do_action( 'epc_loyalty_reward_expired', $claim );
+			}
 		}
 	}
 
@@ -328,6 +372,19 @@ class EPC_Loyalty_Reward_Service {
 		}
 		if ( 0 === $inserted ) {
 			$existing = self::get_claim_by_reward_key( $user_id, $reward_key );
+			if ( $existing && 'withdrawn' === (string) $existing->status ) {
+				// Reached again after a reversal: make the same reward available again.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Status transition.
+				$wpdb->update( $table, array( 'status' => 'available' ), array( 'id' => (int) $existing->id, 'status' => 'withdrawn' ), array( '%s' ), array( '%d', '%s' ) );
+				$existing = self::get_claim( (int) $existing->id );
+				if ( $existing ) {
+					do_action( 'epc_loyalty_reward_available', $existing, $milestone );
+					if ( 'automatic' === $milestone['claim_mode'] && 'waive' !== self::$claim_mode ) {
+						return self::issue_claim( (int) $existing->id, absint( $user_id ) );
+					}
+				}
+				return $existing;
+			}
 			if ( $existing && 'available' === $existing->status && 'automatic' === $milestone['claim_mode'] && 'waive' !== self::$claim_mode ) {
 				return self::issue_claim( (int) $existing->id, absint( $user_id ) );
 			}
@@ -540,12 +597,12 @@ class EPC_Loyalty_Reward_Service {
 
 		$owner_id = absint( $coupon->get_meta( '_epc_loyalty_user_id', true ) );
 		if ( $owner_id <= 0 || $owner_id !== get_current_user_id() ) {
-			throw new Exception( esc_html_e( 'This loyalty reward belongs to another customer.', 'epasscard' ) );
+			throw new Exception( esc_html__( 'This loyalty reward belongs to another customer.', 'epasscard' ) );
 		}
 
 		$claim = self::get_claim( $claim_id );
 		if ( ! $claim || (int) $claim->user_id !== $owner_id || 'issued' !== (string) $claim->status ) {
-			throw new Exception( esc_html_e( 'This loyalty reward is no longer available.', 'epasscard' ) );
+			throw new Exception( esc_html__( 'This loyalty reward is no longer available.', 'epasscard' ) );
 		}
 
 		return true;

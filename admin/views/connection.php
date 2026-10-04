@@ -118,6 +118,7 @@ EPC_Admin_Shell::render_open(
 			</div>
 		<?php endif; ?>
 
+		<?php if ( ! $connected ) : // Sign-in forms only when no account is connected; Disconnect first to switch accounts. ?>
 		<div class="epc-grid">
 			<div class="epc-card">
 				<h2><?php esc_html_e( 'Use API key', 'epasscard' ); ?></h2>
@@ -235,6 +236,7 @@ EPC_Admin_Shell::render_open(
 			</div>
 
 		</div>
+		<?php endif; ?>
 	</div>
 
 	<div id="epc-section-integrations" class="epc-section epc-section--integrations">
@@ -280,8 +282,36 @@ EPC_Admin_Shell::render_open(
 								</td>
 								<td><?php echo esc_html( $module->get_dependency_label() ); ?></td>
 								<td>
+									<?php
+									$epc_inactive_file = '';
+									if ( ! $available ) {
+										// Installed but inactive? Offer "Activate" instead of saying "Not installed".
+										$epc_known = array(
+											'memberpress'               => 'memberpress/memberpress.php',
+											'ultimate-membership-pro'   => 'indeed-membership-pro/indeed-membership-pro.php',
+											'woocommerce-subscriptions' => 'woocommerce-subscriptions/woocommerce-subscriptions.php',
+										);
+										$epc_files = isset( $epc_known[ $slug ] ) ? array( $epc_known[ $slug ] ) : array();
+										foreach ( (array) $module->get_dependency_install_info() as $epc_dep ) {
+											if ( ! empty( $epc_dep['plugin_file'] ) ) {
+												$epc_files[] = (string) $epc_dep['plugin_file'];
+											}
+										}
+										foreach ( $epc_files as $epc_file ) {
+											if ( file_exists( WP_PLUGIN_DIR . '/' . $epc_file ) && ( ! function_exists( 'is_plugin_active' ) || ! is_plugin_active( $epc_file ) ) ) {
+												$epc_inactive_file = $epc_file;
+												break;
+											}
+										}
+									}
+									?>
 									<?php if ( $available ) : ?>
 										<span class="epc-badge epc-badge--ok"><?php esc_html_e( 'Installed', 'epasscard' ); ?></span>
+									<?php elseif ( '' !== $epc_inactive_file ) : ?>
+										<span class="epc-badge epc-badge--muted"><?php esc_html_e( 'Inactive', 'epasscard' ); ?></span>
+										<?php if ( current_user_can( 'activate_plugins' ) ) : ?>
+											<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'plugins.php?action=activate&plugin=' . rawurlencode( $epc_inactive_file ) ), 'activate-plugin_' . $epc_inactive_file ) ); ?>"><?php esc_html_e( 'Activate', 'epasscard' ); ?></a>
+										<?php endif; ?>
 									<?php else : ?>
 										<span class="epc-badge epc-badge--muted"><?php esc_html_e( 'Not installed', 'epasscard' ); ?></span>
 									<?php endif; ?>
@@ -339,6 +369,7 @@ EPC_Admin_Shell::render_open(
 						<code>{user_last_name}</code>,
 						<code>{user_display_name}</code>,
 						<code>{user_email}</code>,
+						<code>{pass_name}</code>,
 						<code>{membership_title}</code>,
 						<code>{module_label}</code>,
 						<code>{site_name}</code>

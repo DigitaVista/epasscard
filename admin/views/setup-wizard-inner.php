@@ -177,7 +177,7 @@ $builder    = isset( $builder ) && is_array( $builder ) ? $builder : EPC_Setup_W
 <section class="epc-wizard__panel" data-panel="choose" <?php echo 'choose' === $step ? '' : 'hidden'; ?>>
 	<header class="epc-wizard__header">
 		<h2 class="epc-wizard__title"><?php esc_html_e( 'What should customers receive?', 'epasscard' ); ?></h2>
-		<p class="epc-wizard__lead"><?php esc_html_e( 'Pick one to finish first. You can enable more integrations later from Connection.', 'epasscard' ); ?></p>
+		<p class="epc-wizard__lead"><?php esc_html_e( 'Pick one to finish first. You can enable more integrations later under EpassCard → Integrations.', 'epasscard' ); ?></p>
 	</header>
 	<form id="epc-wizard-goal-form">
 		<div class="epc-wizard__goals">

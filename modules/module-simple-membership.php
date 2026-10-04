@@ -842,6 +842,25 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 			return absint( $data['member_id'] );
 		}
 
+		/*
+		 * swpm_admin_end_registration_complete_user_data passes the submitted form data,
+		 * which has no member_id yet. Look the new member up by username, then email.
+		 */
+		$lookup = is_object( $data ) ? get_object_vars( $data ) : ( is_array( $data ) ? $data : array() );
+		global $wpdb;
+		$table = $wpdb->prefix . 'swpm_members_tbl';
+		foreach ( array( 'user_name', 'email' ) as $column ) {
+			$value = isset( $lookup[ $column ] ) ? sanitize_text_field( (string) $lookup[ $column ] ) : '';
+			if ( '' === $value ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Lookup in Simple Membership's own table.
+			$found = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT member_id FROM %i WHERE %i = %s ORDER BY member_id DESC LIMIT 1', $table, $column, $value ) );
+			if ( $found > 0 ) {
+				return $found;
+			}
+		}
+
 		return 0;
 	}
 
@@ -1075,5 +1094,27 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 		}
 
 		return wp_date( get_option( 'date_format' ), $ts );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		$entity_id = absint( $entity_id );
+		if ( $entity_id <= 0 ) {
+			return array();
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Simple Membership table read for bulk pass creation.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT member_id FROM %i WHERE membership_level = %d AND account_state = 'active' ORDER BY member_id ASC LIMIT %d OFFSET %d",
+				$wpdb->prefix . 'swpm_members_tbl',
+				$entity_id,
+				absint( $limit ),
+				absint( $offset )
+			)
+		);
+		return array_map( 'absint', (array) $ids );
 	}
 }

@@ -21,6 +21,21 @@ class EPC_Api_Log {
 	public const OPTION_RETENTION_DAYS = 'epc_api_log_retention_days';
 
 	/**
+	 * Option storing the version of the one-time scrub of previously stored secrets.
+	 */
+	public const OPTION_REDACTION_VERSION = 'epc_api_log_redaction_version';
+
+	/**
+	 * Option storing the last scrubbed row id while the one-time scrub is running.
+	 */
+	public const OPTION_REDACTION_CURSOR = 'epc_api_log_redaction_cursor';
+
+	/**
+	 * Current redaction scrub version.
+	 */
+	public const REDACTION_VERSION = 1;
+
+	/**
 	 * Optional context for the next request(s) in this request cycle.
 	 *
 	 * @var string|null
@@ -37,6 +52,7 @@ class EPC_Api_Log {
 		add_action( 'wp_ajax_epc_save_api_log_settings', array( __CLASS__, 'ajax_save_settings' ) );
 		add_action( 'wp_ajax_epc_purge_api_logs', array( __CLASS__, 'ajax_purge_logs' ) );
 		add_action( 'wp_ajax_epc_clear_api_logs', array( __CLASS__, 'ajax_clear_logs' ) );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_scrub_stored_secrets' ) );
 	}
 
 	/**
@@ -226,7 +242,7 @@ class EPC_Api_Log {
 				'method'        => $method,
 				'endpoint_url'  => $url,
 				'request_body'  => self::redact_body( $request_body ),
-				'response_body' => self::truncate_body( $response_body ),
+				'response_body' => self::redact_body( $response_body ),
 				'http_status'   => max( 0, $http_status ),
 				'is_success'    => $is_success ? 1 : 0,
 				'error_code'    => sanitize_key( (string) $error_code ),
@@ -474,31 +490,187 @@ class EPC_Api_Log {
 	}
 
 	/**
-	 * Redact secrets from a JSON request body string.
+	 * Redact secrets from a request or response body and limit its size.
 	 *
-	 * @param string $body JSON body.
+	 * @param string $body JSON (or plain text) body.
 	 * @return string
 	 */
 	private static function redact_body( $body ) {
+		return self::truncate_body( self::redact_secrets( (string) $body ) );
+	}
+
+	/**
+	 * Remove API keys, passwords and tokens from a body string.
+	 *
+	 * JSON bodies are redacted recursively by key name. Non-JSON (or truncated)
+	 * bodies fall back to pattern replacement. The site's current API key is
+	 * always masked wherever it appears.
+	 *
+	 * @since 1.0.9
+	 *
+	 * @param string $body Body text.
+	 * @return string
+	 */
+	public static function redact_secrets( $body ) {
 		$body = (string) $body;
 		if ( '' === $body ) {
 			return '';
 		}
 
 		$decoded = json_decode( $body, true );
-		if ( ! is_array( $decoded ) ) {
-			return self::truncate_body( $body );
+		if ( is_array( $decoded ) ) {
+			$encoded = wp_json_encode( self::redact_array( $decoded ) );
+			if ( false !== $encoded ) {
+				$body = (string) $encoded;
+			}
+		} else {
+			$keys = implode( '|', array_map( 'preg_quote', self::get_sensitive_key_names() ) );
+			$body = (string) preg_replace(
+				'/("(?:' . $keys . ')"\s*:\s*)"(?:[^"\\\\]|\\\\.)*"/i',
+				'$1"***"',
+				$body
+			);
 		}
 
-		foreach ( array( 'apiKey', 'api_key', 'password', 'key' ) as $key ) {
-			if ( isset( $decoded[ $key ] ) ) {
-				$decoded[ $key ] = '***';
+		$api_key = function_exists( 'epc_get_api_key' ) ? (string) epc_get_api_key() : '';
+		if ( strlen( $api_key ) >= 8 ) {
+			$body = str_replace( $api_key, '***', $body );
+		}
+
+		return $body;
+	}
+
+	/**
+	 * Recursively mask sensitive keys.
+	 *
+	 * @param array<mixed> $data Decoded JSON.
+	 * @return array<mixed>
+	 */
+	private static function redact_array( array $data ) {
+		$sensitive = array_map( array( __CLASS__, 'normalize_key_name' ), self::get_sensitive_key_names() );
+
+		foreach ( $data as $key => $value ) {
+			if ( is_string( $key ) && in_array( self::normalize_key_name( $key ), $sensitive, true ) && ! is_array( $value ) ) {
+				$data[ $key ] = '***';
+				continue;
+			}
+			if ( is_array( $value ) ) {
+				$data[ $key ] = self::redact_array( $value );
 			}
 		}
 
-		$encoded = wp_json_encode( $decoded );
+		return $data;
+	}
 
-		return self::truncate_body( false === $encoded ? $body : (string) $encoded );
+	/**
+	 * Normalize a key name for comparison (case and separators ignored).
+	 *
+	 * @param string $key Key.
+	 * @return string
+	 */
+	private static function normalize_key_name( $key ) {
+		return strtolower( str_replace( array( '_', '-' ), '', (string) $key ) );
+	}
+
+	/**
+	 * Key names treated as secrets in logged bodies.
+	 *
+	 * @return string[]
+	 */
+	private static function get_sensitive_key_names() {
+		$keys = array( 'apiKey', 'api_key', 'x-api-key', 'key', 'password', 'token', 'access_token', 'refresh_token', 'secret', 'client_secret', 'authorization' );
+
+		/**
+		 * Filter key names redacted from API log bodies.
+		 *
+		 * @since 1.0.9
+		 *
+		 * @param string[] $keys Key names.
+		 */
+		$keys = apply_filters( 'epc_api_log_redact_keys', $keys );
+
+		return array_values( array_filter( array_map( 'strval', (array) $keys ) ) );
+	}
+
+	/**
+	 * One-time scrub of secrets stored by versions before 1.0.9.
+	 *
+	 * Runs in small batches on admin requests until every matching row is clean.
+	 *
+	 * @since 1.0.9
+	 *
+	 * @return void
+	 */
+	public static function maybe_scrub_stored_secrets() {
+		if ( (int) get_option( self::OPTION_REDACTION_VERSION, 0 ) >= self::REDACTION_VERSION ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$table = self::table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time maintenance check.
+		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+		if ( $exists !== $table ) {
+			update_option( self::OPTION_REDACTION_VERSION, self::REDACTION_VERSION, false );
+			return;
+		}
+
+		$cursor = (int) get_option( self::OPTION_REDACTION_CURSOR, 0 );
+		$limit  = 200;
+
+		for ( $batch = 0; $batch < 5; $batch++ ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time maintenance scan.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT id, request_body, response_body FROM %i WHERE id > %d AND ( request_body LIKE %s OR request_body LIKE %s OR response_body LIKE %s OR response_body LIKE %s OR response_body LIKE %s OR response_body LIKE %s ) ORDER BY id ASC LIMIT %d',
+					$table,
+					$cursor,
+					'%' . $wpdb->esc_like( 'apiKey' ) . '%',
+					'%' . $wpdb->esc_like( 'password' ) . '%',
+					'%' . $wpdb->esc_like( 'apiKey' ) . '%',
+					'%' . $wpdb->esc_like( 'api_key' ) . '%',
+					'%' . $wpdb->esc_like( 'token' ) . '%',
+					'%' . $wpdb->esc_like( 'password' ) . '%',
+					$limit
+				)
+			);
+
+			if ( empty( $rows ) ) {
+				update_option( self::OPTION_REDACTION_VERSION, self::REDACTION_VERSION, false );
+				delete_option( self::OPTION_REDACTION_CURSOR );
+				return;
+			}
+
+			foreach ( $rows as $row ) {
+				$cursor   = (int) $row->id;
+				$request  = self::redact_secrets( (string) $row->request_body );
+				$response = self::redact_secrets( (string) $row->response_body );
+
+				if ( $request !== (string) $row->request_body || $response !== (string) $row->response_body ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time maintenance write.
+					$wpdb->update(
+						$table,
+						array(
+							'request_body'  => $request,
+							'response_body' => $response,
+						),
+						array( 'id' => $cursor ),
+						array( '%s', '%s' ),
+						array( '%d' )
+					);
+				}
+			}
+
+			update_option( self::OPTION_REDACTION_CURSOR, $cursor, false );
+
+			if ( count( $rows ) < $limit ) {
+				update_option( self::OPTION_REDACTION_VERSION, self::REDACTION_VERSION, false );
+				delete_option( self::OPTION_REDACTION_CURSOR );
+				return;
+			}
+		}
 	}
 
 	/**
