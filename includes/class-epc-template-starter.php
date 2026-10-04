@@ -644,7 +644,7 @@ class EPC_Template_Starter {
 					<span class="epc-starter-status" aria-live="polite"></span>
 				</p>
 				<p class="description">
-					<?php esc_html_e( 'This uses one template in your EpassCard account. Free accounts can create up to 5 templates and 20 passes.', 'epasscard' ); ?>
+					<?php esc_html_e( 'This uses one template in your EpassCard account. The Free plan includes 3 templates and 50 live passes.', 'epasscard' ); ?>
 					<a href="<?php echo esc_url( self::upgrade_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Upgrade your plan', 'epasscard' ); ?></a>
 				</p>
 			<?php else : ?>
