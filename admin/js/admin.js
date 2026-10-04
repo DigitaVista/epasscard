@@ -24,6 +24,12 @@
 		});
 	}
 
+	// Prefer the server's message (e.g. EpassCard's "Request origin is not allowed") over a generic error.
+	function xhrMessage(xhr) {
+		var json = xhr && xhr.responseJSON;
+		return (json && json.data && json.data.message) || epcAdmin.i18n.error;
+	}
+
 	function ajaxPost(action, data) {
 		return $.ajax({
 			url: epcAdmin.ajaxUrl,
@@ -142,8 +148,8 @@
 					loadPassFields(selectUid);
 				}
 			})
-			.fail(function () {
-				setModalStatus(epcAdmin.i18n.error, 'error');
+			.fail(function (xhr) {
+				setModalStatus(xhrMessage(xhr), 'error');
 				$select.prop('disabled', false);
 				$refresh.prop('disabled', false).removeClass('is-loading');
 			});
@@ -181,8 +187,8 @@
 				state.passFields = resp.data.passFields || [];
 				renderMappingRows();
 			})
-			.fail(function () {
-				setModalStatus(epcAdmin.i18n.error, 'error');
+			.fail(function (xhr) {
+				setModalStatus(xhrMessage(xhr), 'error');
 			});
 	}
 

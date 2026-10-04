@@ -132,7 +132,7 @@ class EPC_Setup_Wizard {
 	 */
 	public static function register_menu() {
 		add_filter( 'admin_title', array( __CLASS__, 'filter_admin_title' ), 10, 2 );
-		add_submenu_page(
+		$hook = add_submenu_page(
 			'',
 			__( 'Setup Wizard', 'epasscard' ),
 			__( 'Setup Wizard', 'epasscard' ),
@@ -140,6 +140,22 @@ class EPC_Setup_Wizard {
 			self::PAGE_SLUG,
 			array( __CLASS__, 'render_page' )
 		);
+		if ( $hook ) {
+			add_action( 'load-' . $hook, array( __CLASS__, 'set_page_title' ) );
+		}
+	}
+
+	/**
+	 * Hidden admin pages have no global $title, which makes admin-header.php pass null
+	 * to strip_tags() (PHP 8.1+ deprecation). Set it before the header loads.
+	 *
+	 * @return void
+	 */
+	public static function set_page_title() {
+		global $title;
+		if ( empty( $title ) ) {
+			$title = __( 'EpassCard Setup Wizard', 'epasscard' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- hidden page has no title.
+		}
 	}
 
 	/**
