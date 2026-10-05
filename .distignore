@@ -12,7 +12,6 @@ Thumbs.db
 bin
 plan
 chatpgt.txt
-composer.json
 composer.lock
 docs/marketing
 docs/README.md

@@ -1008,7 +1008,9 @@ abstract class EPC_Module {
 			'fieldDate'        => __( 'Date', 'epasscard' ),
 			'uniqueHint'       => __( 'Every pass needs a different value here. Map an ID or code, not a value another pass of this template may already use.', 'epasscard' ),
 			'requiredMissing'  => __( 'Map these required fields before saving:', 'epasscard' ),
+			/* translators: 1: number of passes created, 2: number of members who already had a pass, 3: number of failures. */
 			'backfillRunning'  => __( 'Creating passes… %1$d created, %2$d already had one, %3$d failed', 'epasscard' ),
+			/* translators: 1: number of passes created, 2: number of members who already had a pass, 3: number of failures. */
 			'backfillDone'     => __( 'Done: %1$d created, %2$d already had one, %3$d failed.', 'epasscard' ),
 			'backfillConfirm'  => __( 'Create wallet passes for every active member of this plan who does not have one yet? Each pass counts toward your EpassCard plan limit.', 'epasscard' ),
 			'saveAgain'        => __( 'Click Save mapping again to keep it anyway.', 'epasscard' ),
