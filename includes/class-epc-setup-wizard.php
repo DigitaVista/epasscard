@@ -2492,4 +2492,15 @@ class EPC_Setup_Wizard {
 
 		return trailingslashit( (string) $uploads['baseurl'] ) . 'epasscard/wizard-strip.png';
 	}
+
+	/**
+	 * Default logo and strip image URLs for plugin-created pass templates.
+	 *
+	 * Public wrapper used by EPC_Template_Starter (ready-made designs per integration).
+	 *
+	 * @return array{logo_url:string,strip_url:string}
+	 */
+	public static function get_default_pass_media() {
+		return self::ensure_loyalty_media();
+	}
 }

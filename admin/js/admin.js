@@ -672,6 +672,41 @@
 		step(0);
 	});
 
+	// "Create pass design for me" / "Use it for the unmapped items".
+	$(document).on('click', '.epc-starter-action', function (e) {
+		e.preventDefault();
+		var $btn = $(this);
+		var $status = $btn.nextAll('.epc-starter-status').first();
+		if ($btn.data('busy')) {
+			return;
+		}
+		$btn.data('busy', true).prop('disabled', true).attr('aria-busy', 'true');
+		$('.epc-starter-action').not($btn).prop('disabled', true);
+		$status.removeClass('is-error').text(epcAdmin.i18n.starterWorking || '');
+		ajaxPost('epc_starter_template', {
+			module: String($btn.data('module') || epcAdmin.module || ''),
+			op: String($btn.data('op') || 'create'),
+		})
+			.done(function (resp) {
+				if (resp && resp.success) {
+					$status.text((resp.data && resp.data.message) || '');
+					window.setTimeout(function () {
+						window.location.reload();
+					}, 1200);
+					return;
+				}
+				$status.addClass('is-error').text((resp && resp.data && resp.data.message) || epcAdmin.i18n.error);
+				$btn.data('busy', false).prop('disabled', false).removeAttr('aria-busy');
+				$('.epc-starter-action').prop('disabled', false);
+			})
+			.fail(function (xhr) {
+				var msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
+				$status.addClass('is-error').text(msg || epcAdmin.i18n.error);
+				$btn.data('busy', false).prop('disabled', false).removeAttr('aria-busy');
+				$('.epc-starter-action').prop('disabled', false);
+			});
+	});
+
 	if ($('#epc-mapping-modal').length) {
 		$(document).on('click', '.epc-map-trigger', function () {
 			openModal(parseInt($(this).data('entity-id'), 10), String($(this).data('entity-label') || ''));

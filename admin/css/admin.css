@@ -579,3 +579,41 @@
 .epc-backfill-status:empty {
 	display: none;
 }
+
+/* Ready-made pass design card ("Create pass design for me"). */
+.epc-card.epc-starter-card,
+.epc-section .epc-card.epc-starter-card {
+	margin: 12px 0 16px;
+	padding: 16px 20px;
+	border-left: 4px solid #4f46e5;
+}
+
+.epc-starter-card h3 {
+	margin: 0 0 6px;
+	font-size: 14px;
+}
+
+.epc-starter-card p {
+	margin: 6px 0;
+}
+
+.epc-starter-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.epc-starter-status {
+	font-size: 12px;
+	color: #50575e;
+}
+
+.epc-starter-status.is-error {
+	color: #b32d2e;
+}
+
+.epc-template-actions__or {
+	margin: 0 6px;
+	color: #50575e;
+}

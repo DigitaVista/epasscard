@@ -780,15 +780,16 @@ class EPC_Api_Client {
 	 * POST /api/public/v2/create-pass-template
 	 *
 	 * @param array<string, mixed> $payload Sanitized create payload.
+	 * @param string               $context Optional API log context (defaults to the loyalty designer).
 	 * @return array<string,mixed>|\WP_Error Template data (uid, fields, …).
 	 */
-	public static function create_pass_template_v2( array $payload ) {
+	public static function create_pass_template_v2( array $payload, $context = '' ) {
 		if ( ! self::is_configured() ) {
 			return new WP_Error( 'epc_no_key', __( 'EpassCard API key is not configured.', 'epasscard' ) );
 		}
 
 		if ( class_exists( 'EPC_Api_Log' ) ) {
-			EPC_Api_Log::set_request_context( 'loyalty:create_pass_template_v2' );
+			EPC_Api_Log::set_request_context( '' !== $context ? sanitize_text_field( $context ) : 'loyalty:create_pass_template_v2' );
 		}
 
 		$url       = self::api_base_v2() . '/create-pass-template';

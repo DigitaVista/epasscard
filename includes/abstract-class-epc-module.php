@@ -1009,6 +1009,7 @@ abstract class EPC_Module {
 			'uniqueHint'       => __( 'Every pass needs a different value here. Map an ID or code, not a value another pass of this template may already use.', 'epasscard' ),
 			'requiredMissing'  => __( 'Map these required fields before saving:', 'epasscard' ),
 			'backfillRunning'  => __( 'Creating passes… %1$d created, %2$d already had one, %3$d failed', 'epasscard' ),
+			'starterWorking'   => __( 'Creating your pass design in EpassCard…', 'epasscard' ),
 			'backfillDone'     => __( 'Done: %1$d created, %2$d already had one, %3$d failed.', 'epasscard' ),
 			'backfillConfirm'  => __( 'Create wallet passes for every active member of this plan who does not have one yet? Each pass counts toward your EpassCard plan limit.', 'epasscard' ),
 			'saveAgain'        => __( 'Click Save mapping again to keep it anyway.', 'epasscard' ),
@@ -1218,6 +1219,12 @@ abstract class EPC_Module {
 					<?php esc_html_e( 'Select a plan or product, choose an EpassCard pass template, then map each pass field to subscription or membership data.', 'epasscard' ); ?>
 				</p>
 
+				<?php
+				if ( class_exists( 'EPC_Template_Starter' ) ) {
+					EPC_Template_Starter::render_card( $this, $entities, $mappings );
+				}
+				?>
+
 				<?php if ( empty( $entities ) ) : ?>
 					<div class="epc-card epc-empty-mapping">
 						<p><strong><?php esc_html_e( 'No mappable items found.', 'epasscard' ); ?></strong></p>
@@ -1338,6 +1345,13 @@ abstract class EPC_Module {
 									<?php esc_html_e( 'Create a new template', 'epasscard' ); ?>
 									<span class="dashicons dashicons-external" aria-hidden="true"></span>
 								</a>
+								<?php if ( class_exists( 'EPC_Template_Starter' ) && EPC_Template_Starter::should_offer_create( $this ) ) : ?>
+									<span class="epc-template-actions__or"><?php esc_html_e( 'or', 'epasscard' ); ?></span>
+									<button type="button" class="button-link epc-starter-action" data-op="create" data-module="<?php echo esc_attr( $this->get_slug() ); ?>">
+										<?php esc_html_e( 'Create a pass design for me', 'epasscard' ); ?>
+									</button>
+									<span class="epc-starter-status" aria-live="polite"></span>
+								<?php endif; ?>
 							</p>
 						</div>
 						<div id="epc-mapping-rows"></div>
