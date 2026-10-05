@@ -4,7 +4,7 @@ Tags: apple wallet, google wallet, wallet pass, loyalty card, membership card
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.9
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -229,6 +229,17 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 3. Issued passes — searchable list of wallet passes and delivery links.
 
 == Changelog ==
+= 1.1.0 =
+* New: "Create pass design for me". On the Paid Memberships Pro, MemberPress, Simple Membership, Ultimate Membership Pro, WooCommerce Subscriptions, The Events Calendar, Events Manager, PW Gift Cards and YITH Gift Cards pages, one click creates a ready-made pass template in your EpassCard account (fields, QR code, colors and logo) and maps it to every plan, event or product that is not mapped yet. Existing mappings are never changed.
+* New: Customize the ready-made pass before or after it is created: your own logo and strip image (from the Media Library or a URL), background, value and label colors, every field label on the front and back, and the QR/barcode format, with a live front and back preview. "Edit design" updates the template in EpassCard and keeps all mappings.
+* Images from sites that are not public (localhost, .test, staging) are sent to EpassCard inline, so custom logos and strips also work on local and staging sites.
+* New: "Use it for the unmapped items" button applies your ready-made design to plans, events or products you add later.
+* New: A "Create a pass design for me" link next to "Create a new template" in the mapping window.
+* Each integration creates at most one template, even after a double click or a retry. The design card shows how many items use it.
+* Fix: Primary buttons inside EpassCard screens were shown in grey.
+* Fix: Empty logo and strip previews on the WooCommerce Loyalty Pass Design screen showed broken images.
+* Developer: New filters epc_starter_template_preset and epc_starter_template_payload (now also receives the design), and action epc_starter_template_updated. EPC_Api_Client::create_pass_template_v2() and update_pass_template_v2() accept an optional API Log context.
+
 = 1.0.9 =
 * Security: API keys, passwords and tokens are now masked in both request and response bodies in the API Log. Existing log entries are cleaned automatically after updating.
 * Security: The "Our Products" catalog is now sanitized before display and cached for 12 hours, so the Connection screen no longer waits on a remote request every time it loads.
@@ -292,6 +303,9 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 * Initial release: Connection, MemberPress module, WooCommerce Subscriptions module.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Adds one-click, customizable pass designs (logo, strip, colors, labels) for membership, subscription, event and gift card integrations. Safe update; existing connections, mappings and passes are kept.
 
 = 1.0.9 =
 Security and stability release. Masks API keys in the API Log, sanitizes the plugin catalog, and fixes repeated push reminders. Safe update; existing connections, mappings and passes are kept.

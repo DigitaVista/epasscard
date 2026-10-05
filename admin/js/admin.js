@@ -707,6 +707,323 @@
 			});
 	});
 
+	// Ready-made pass designer: logo, strip image, colors, labels and barcode.
+	var sd = { cfg: null, face: 'front', frames: {} };
+
+	function sdI18n(key, fallback) {
+		return (epcAdmin.i18n && epcAdmin.i18n[key]) || fallback;
+	}
+
+	function sdConfig() {
+		if (sd.cfg) {
+			return sd.cfg;
+		}
+		try {
+			sd.cfg = JSON.parse($('#epc-starter-designer').attr('data-config') || '{}');
+		} catch (err) {
+			sd.cfg = {};
+		}
+		return sd.cfg;
+	}
+
+	function sdEsc(value) {
+		return String(value === undefined || value === null ? '' : value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
+	function sdForm() {
+		return $('#epc-sd-form');
+	}
+
+	function sdFill(design) {
+		var $f = sdForm();
+		var colors = design.colors || {};
+		var labels = design.labels || {};
+		$f.find('[name="template_name"]').val(design.template_name || '');
+		$f.find('[name="organization_name"]').val(design.organization_name || '');
+		['logo', 'strip'].forEach(function (slot) {
+			$f.find('[name="' + slot + '_id"]').val(parseInt(design[slot + '_id'], 10) || 0);
+			$f.find('[name="' + slot + '_url"]').val(design[slot + '_url'] || '');
+		});
+		$f.find('[name="colors[background]"]').val(colors.background || '#1E1B4B');
+		$f.find('[name="colors[text]"]').val(colors.text || '#FFFFFF');
+		$f.find('[name="colors[label]"]').val(colors.label || '#C7D2FE');
+		$f.find('[name="barcode_format"]').val(design.barcode_format || 'QR');
+		$f.find('[data-field]').each(function () {
+			var name = String($(this).attr('data-field'));
+			$(this).val(Object.prototype.hasOwnProperty.call(labels, name) ? labels[name] : '');
+		});
+	}
+
+	function sdCollect() {
+		var $f = sdForm();
+		var design = {
+			template_name: $.trim($f.find('[name="template_name"]').val() || ''),
+			organization_name: $.trim($f.find('[name="organization_name"]').val() || ''),
+			logo_id: parseInt($f.find('[name="logo_id"]').val(), 10) || 0,
+			logo_url: $.trim($f.find('[name="logo_url"]').val() || ''),
+			strip_id: parseInt($f.find('[name="strip_id"]').val(), 10) || 0,
+			strip_url: $.trim($f.find('[name="strip_url"]').val() || ''),
+			colors: {
+				background: $f.find('[name="colors[background]"]').val() || '#1E1B4B',
+				text: $f.find('[name="colors[text]"]').val() || '#FFFFFF',
+				label: $f.find('[name="colors[label]"]').val() || '#C7D2FE',
+			},
+			barcode_format: $f.find('[name="barcode_format"]').val() || 'QR',
+			labels: {},
+		};
+		$f.find('[data-field]').each(function () {
+			design.labels[String($(this).attr('data-field'))] = $.trim($(this).val() || '');
+		});
+		return design;
+	}
+
+	function sdLuminance(hex) {
+		var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+		if (!m) {
+			return 0;
+		}
+		var n = parseInt(m[1], 16);
+		return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+			.map(function (c) {
+				c = c / 255;
+				return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+			})
+			.reduce(function (sum, c, i) {
+				return sum + c * [0.2126, 0.7152, 0.0722][i];
+			}, 0);
+	}
+
+	function sdContrast(a, b) {
+		var la = sdLuminance(a);
+		var lb = sdLuminance(b);
+		return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+	}
+
+	function sdBarcodeUrl(format, value) {
+		var map = { QR: 'qrcode', PDF417: 'pdf417', AZTEC: 'azteccode', CODE128: 'code128' };
+		return 'https://bwipjs-api.metafloor.com/?' + $.param({
+			bcid: map[String(format || 'QR').toUpperCase()] || 'qrcode',
+			text: value || '10042',
+			scale: 3,
+			backgroundcolor: 'ffffff',
+		});
+	}
+
+	function sdField(field, labels, extraClass) {
+		var label = labels[field.name] || field.name;
+		return '<div class="epc-sd-pass__field ' + (extraClass || '') + '">' +
+			'<span class="epc-sd-pass__label">' + sdEsc(label) + '</span>' +
+			'<span class="epc-sd-pass__value">' + sdEsc(field.sample) + '</span>' +
+			'</div>';
+	}
+
+	function sdSyncThumbs() {
+		var $f = sdForm();
+		['logo', 'strip'].forEach(function (slot) {
+			var url = $.trim($f.find('[name="' + slot + '_url"]').val() || '');
+			var $thumb = $f.find('.epc-sd__thumb--' + slot);
+			if (url) {
+				$thumb.attr('src', url).prop('hidden', false);
+			} else {
+				$thumb.removeAttr('src').prop('hidden', true);
+			}
+		});
+	}
+
+	function sdRender() {
+		var cfg = sdConfig();
+		var areas = (cfg.preview && cfg.preview.areas) || {};
+		var d = sdCollect();
+		var labels = d.labels;
+		var html = '';
+
+		$('.epc-sd__contrast').prop('hidden', sdContrast(d.colors.background, d.colors.text) >= 3);
+
+		if (sd.face === 'back') {
+			html += '<div class="epc-sd-pass__back">';
+			(areas.back || []).concat(areas.barcode || []).forEach(function (f) {
+				html += sdField(f, labels, 'is-row');
+			});
+			html += '</div>';
+		} else {
+			html += '<div class="epc-sd-pass__header">';
+			html += '<div class="epc-sd-pass__logo">' + (d.logo_url
+				? '<img src="' + sdEsc(d.logo_url) + '" alt="" />'
+				: '<span>' + sdEsc(d.organization_name) + '</span>') + '</div>';
+			html += '<div class="epc-sd-pass__header-fields">';
+			(areas.header || []).forEach(function (f) {
+				html += sdField(f, labels, 'is-right');
+			});
+			html += '</div></div>';
+
+			html += '<div class="epc-sd-pass__strip' + (d.strip_url ? ' has-image' : '') + '">';
+			if (d.strip_url) {
+				html += '<img src="' + sdEsc(d.strip_url) + '" alt="" />';
+			}
+			html += '<div class="epc-sd-pass__primary">';
+			(areas.primary || []).forEach(function (f) {
+				html += sdField(f, labels, 'is-primary');
+			});
+			html += '</div></div>';
+
+			['secondary', 'auxiliary'].forEach(function (area) {
+				if ((areas[area] || []).length) {
+					html += '<div class="epc-sd-pass__row">';
+					areas[area].forEach(function (f, i) {
+						html += sdField(f, labels, i > 0 && i === areas[area].length - 1 ? 'is-right' : '');
+					});
+					html += '</div>';
+				}
+			});
+
+			var code = (areas.barcode || [])[0] || { sample: '' };
+			var linear = d.barcode_format === 'CODE128' || d.barcode_format === 'PDF417';
+			html += '<div class="epc-sd-pass__code">' +
+				'<img class="' + (linear ? 'is-linear' : '') + '" src="' + sdEsc(sdBarcodeUrl(d.barcode_format, code.sample)) + '" alt="" />' +
+				'<code>' + sdEsc(code.sample) + '</code></div>';
+		}
+
+		$('#epc-sd-pass')
+			.css({
+				'--sd-bg': d.colors.background,
+				'--sd-text': d.colors.text,
+				'--sd-label': d.colors.label,
+			})
+			.toggleClass('is-back', sd.face === 'back')
+			.html(html);
+	}
+
+	function sdOpen() {
+		var cfg = sdConfig();
+		sdFill(cfg.design || cfg.defaults || {});
+		sdSyncThumbs();
+		sd.face = 'front';
+		$('.epc-sd__tabs [data-face]').removeClass('is-active').attr('aria-selected', 'false')
+			.filter('[data-face="front"]').addClass('is-active').attr('aria-selected', 'true');
+		$('.epc-sd-status').removeClass('is-error').text('');
+		$('.epc-sd-save').prop('disabled', false);
+		sdRender();
+		$('#epc-starter-designer').removeAttr('hidden');
+		$('#epc-sd-template-name').trigger('focus');
+	}
+
+	function sdClose() {
+		$('#epc-starter-designer').attr('hidden', 'hidden');
+	}
+
+	function sdPickMedia(slot) {
+		if (typeof wp === 'undefined' || !wp.media) {
+			return;
+		}
+		var frame = sd.frames[slot];
+		if (!frame) {
+			frame = wp.media({
+				title: slot === 'logo' ? sdI18n('sdLogoTitle', 'Choose a logo') : sdI18n('sdStripTitle', 'Choose a strip image'),
+				button: { text: sdI18n('sdUseImage', 'Use this image') },
+				multiple: false,
+				library: { type: 'image' },
+			});
+			frame.on('select', function () {
+				var attachment = frame.state().get('selection').first().toJSON();
+				var $f = sdForm();
+				$f.find('[name="' + slot + '_id"]').val(attachment.id || 0);
+				$f.find('[name="' + slot + '_url"]').val(attachment.url || '');
+				sdSyncThumbs();
+				sdRender();
+			});
+			sd.frames[slot] = frame;
+		}
+		frame.open();
+	}
+
+	if ($('#epc-starter-designer').length) {
+		$(document).on('click', '.epc-starter-customize', function (e) {
+			e.preventDefault();
+			sdOpen();
+		});
+		$(document).on('click', '[data-epc-sd-close]', function (e) {
+			e.preventDefault();
+			sdClose();
+		});
+		$(document).on('keydown', function (e) {
+			if ((e.key === 'Escape' || e.keyCode === 27) && !$('#epc-starter-designer').is('[hidden]') && !$('.media-modal:visible').length) {
+				sdClose();
+			}
+		});
+		$(document).on('input change', '#epc-sd-form :input', function () {
+			if (this.name === 'logo_url' || this.name === 'strip_url') {
+				sdForm().find('[name="' + this.name.replace('_url', '_id') + '"]').val(0);
+				sdSyncThumbs();
+			}
+			sdRender();
+		});
+		$(document).on('click', '.epc-sd-media-pick', function (e) {
+			e.preventDefault();
+			sdPickMedia(String($(this).data('slot')));
+		});
+		$(document).on('click', '.epc-sd-media-clear', function (e) {
+			e.preventDefault();
+			var slot = String($(this).data('slot'));
+			sdForm().find('[name="' + slot + '_id"]').val(0);
+			sdForm().find('[name="' + slot + '_url"]').val('');
+			sdSyncThumbs();
+			sdRender();
+		});
+		$(document).on('click', '.epc-sd-reset', function (e) {
+			e.preventDefault();
+			sdFill(sdConfig().defaults || {});
+			sdSyncThumbs();
+			sdRender();
+		});
+		$(document).on('click', '.epc-sd__tabs [data-face]', function (e) {
+			e.preventDefault();
+			sd.face = String($(this).data('face'));
+			$('.epc-sd__tabs [data-face]').removeClass('is-active').attr('aria-selected', 'false');
+			$(this).addClass('is-active').attr('aria-selected', 'true');
+			sdRender();
+		});
+		$(document).on('submit', '#epc-sd-form', function (e) {
+			e.preventDefault();
+		});
+		$(document).on('click', '.epc-sd-save', function (e) {
+			e.preventDefault();
+			var $btn = $(this);
+			var $status = $('.epc-sd-status');
+			var cfg = sdConfig();
+			if ($btn.prop('disabled')) {
+				return;
+			}
+			$btn.prop('disabled', true).attr('aria-busy', 'true');
+			$status.removeClass('is-error').text(cfg.exists ? sdI18n('sdSaving', 'Saving your design in EpassCard…') : (epcAdmin.i18n.starterWorking || ''));
+			ajaxPost('epc_starter_template', {
+				module: String(cfg.module || epcAdmin.module || ''),
+				op: 'save_design',
+				design: JSON.stringify(sdCollect()),
+			})
+				.done(function (resp) {
+					if (resp && resp.success) {
+						$status.text((resp.data && resp.data.message) || '');
+						window.setTimeout(function () {
+							window.location.reload();
+						}, 1200);
+						return;
+					}
+					$status.addClass('is-error').text((resp && resp.data && resp.data.message) || epcAdmin.i18n.error);
+					$btn.prop('disabled', false).removeAttr('aria-busy');
+				})
+				.fail(function (xhr) {
+					var msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
+					$status.addClass('is-error').text(msg || epcAdmin.i18n.error);
+					$btn.prop('disabled', false).removeAttr('aria-busy');
+				});
+		});
+	}
+
 	if ($('#epc-mapping-modal').length) {
 		$(document).on('click', '.epc-map-trigger', function () {
 			openModal(parseInt($(this).data('entity-id'), 10), String($(this).data('entity-label') || ''));

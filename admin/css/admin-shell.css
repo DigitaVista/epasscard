@@ -603,14 +603,17 @@ body.epc-admin-ui .epc-tabs__tab.is-active {
 	transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
 
-.epc-app .button-primary {
+.epc-app .button-primary,
+.epc-app .button.button-primary {
 	background: var(--epc-primary);
 	border-color: var(--epc-primary);
 	color: var(--epc-on-primary);
 }
 
 .epc-app .button-primary:hover,
-.epc-app .button-primary:focus {
+.epc-app .button-primary:focus,
+.epc-app .button.button-primary:hover,
+.epc-app .button.button-primary:focus {
 	background: var(--epc-primary-hover);
 	border-color: var(--epc-primary-hover);
 	color: var(--epc-on-primary);

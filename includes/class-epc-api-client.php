@@ -841,9 +841,10 @@ class EPC_Api_Client {
 	 *
 	 * @param string               $template_uid Template UUID from create.
 	 * @param array<string, mixed> $payload      Same simplified shape as create_pass_template_v2().
+	 * @param string               $context      Optional API log context (defaults to the loyalty designer).
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public static function update_pass_template_v2( $template_uid, array $payload ) {
+	public static function update_pass_template_v2( $template_uid, array $payload, $context = '' ) {
 		$san = self::sanitize_uid( $template_uid );
 		if ( false === $san ) {
 			return new WP_Error( 'epc_bad_uid', __( 'Invalid template identifier.', 'epasscard' ) );
@@ -854,7 +855,7 @@ class EPC_Api_Client {
 		}
 
 		if ( class_exists( 'EPC_Api_Log' ) ) {
-			EPC_Api_Log::set_request_context( 'loyalty:update_pass_template_v2' );
+			EPC_Api_Log::set_request_context( '' !== $context ? sanitize_text_field( $context ) : 'loyalty:update_pass_template_v2' );
 		}
 
 		$url       = self::api_base_v2() . '/update-pass-template/' . rawurlencode( $san );

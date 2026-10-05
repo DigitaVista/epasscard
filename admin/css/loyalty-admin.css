@@ -970,3 +970,7 @@ body.epc-admin-ui .epc-loyalty-item__toggle {
 	color: #00a32a;
 }
 
+/* Keep [hidden] media thumbnails and preview images hidden (display rules above override it). */
+.epc-loyalty-designer [hidden] {
+	display: none !important;
+}
