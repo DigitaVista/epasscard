@@ -1,0 +1,69 @@
+# Deploys EpassCard to WordPress.org when a version tag is pushed.
+#
+#   git tag v1.0.9 && git push origin v1.0.9
+#
+# Needs two repository secrets (Settings > Secrets and variables > Actions):
+#   SVN_USERNAME  your WordPress.org username
+#   SVN_PASSWORD  the SVN password from wordpress.org/profile > Account & Security
+name: Deploy to WordPress.org
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+concurrency:
+  group: wporg-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Release to WordPress.org
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag matches the plugin version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          HEADER=$(grep -m1 -iE '^[[:space:]]*\*?[[:space:]]*Version:' epasscard.php | sed -E 's/.*Version:[[:space:]]*//' | tr -d '\r[:space:]')
+          STABLE=$(grep -m1 -iE '^Stable tag:' readme.txt | sed -E 's/.*:[[:space:]]*//' | tr -d '\r[:space:]')
+          CONST=$(grep -m1 "'EPC_VERSION'" epasscard.php | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" || true)
+          echo "Tag: $TAG | Version header: $HEADER | EPC_VERSION: $CONST | Stable tag: $STABLE"
+          if [ "$TAG" != "$HEADER" ] || [ "$TAG" != "$STABLE" ] || [ "$TAG" != "$CONST" ]; then
+            echo "::error::Version mismatch. Tag, Version header, EPC_VERSION and readme Stable tag must all be $TAG."
+            exit 1
+          fi
+          git fetch origin main --quiet
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::The tagged commit is not on main. Merge the release into main first, then tag main."
+            exit 1
+          fi
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to WordPress.org SVN
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          generate-zip: true
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: epasscard
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Create GitHub release with the zip
+        uses: softprops/action-gh-release@v2
+        with:
+          name: EpassCard ${{ steps.version.outputs.version }}
+          files: ${{ steps.deploy.outputs.zip-path }}
+          generate_release_notes: true
