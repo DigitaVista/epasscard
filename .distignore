@@ -18,3 +18,5 @@ docs/README.md
 docs/.htaccess
 *.log
 *.md
+# Claude working folder - never shipped
+claude-brain

@@ -12,3 +12,6 @@ epasscard-epasscard-php-*.md
 
 # Composer (keep lockfile; vendor is tracked for WordPress.org packaging)
 # vendor/ is intentionally committed so Appsero ships with plugin zips.
+
+# Claude working folder (plans, analysis, outputs) - never committed
+claude-brain/
