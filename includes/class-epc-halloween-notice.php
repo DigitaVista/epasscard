@@ -41,6 +41,15 @@ class EPC_Halloween_Notice {
 	private $img_base = 'https://www.webcartisan.com/wp-content/uploads/2026/10/';
 
 	/**
+	 * Last moment the notice is shown (site time, Y-m-d H:i:s).
+	 *
+	 * Filter with `epc_halloween_notice_ends_at`.
+	 *
+	 * @var string
+	 */
+	private $ends_at = '2026-11-01 00:00:00';
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var EPC_Halloween_Notice|null
@@ -76,6 +85,11 @@ class EPC_Halloween_Notice {
 	 */
 	private function should_show_notice() {
 		if ( ! current_user_can( 'manage_options' ) ) {
+			return false;
+		}
+
+		$ends_at = (string) apply_filters( 'epc_halloween_notice_ends_at', $this->ends_at );
+		if ( '' !== $ends_at && current_time( 'mysql' ) >= $ends_at ) {
 			return false;
 		}
 
@@ -205,7 +219,7 @@ class EPC_Halloween_Notice {
 		$action = isset( $_POST['dismiss_action'] ) ? sanitize_text_field( wp_unslash( $_POST['dismiss_action'] ) ) : '';
 
 		if ( 'later' === $action ) {
-			$until = gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) + ( 3 * DAY_IN_SECONDS ) );
+			$until = wp_date( 'Y-m-d H:i:s', time() + ( 3 * DAY_IN_SECONDS ) );
 			update_option(
 				$this->option_name,
 				array(
