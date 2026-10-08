@@ -239,6 +239,8 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 * Fix: Primary buttons inside EpassCard screens were shown in grey.
 * Fix: Empty logo and strip previews on the WooCommerce Loyalty Pass Design screen showed broken images.
 * Developer: New filters epc_starter_template_preset and epc_starter_template_payload (now also receives the design), and action epc_starter_template_updated. EPC_Api_Client::create_pass_template_v2() and update_pass_template_v2() accept an optional API Log context.
+* Security: Every database query on EpassCard's own tables now uses prepared table-name placeholders, and request input in the setup wizard, pass actions and loyalty points adjustment is sanitized more strictly. The plugin passes WordPress Plugin Check with no errors.
+* New: A dismissible Halloween deal notice for administrators. It stops showing automatically after October 31, 2026.
 
 = 1.0.9 =
 * Security: API keys, passwords and tokens are now masked in both request and response bodies in the API Log. Existing log entries are cleaned automatically after updating.
