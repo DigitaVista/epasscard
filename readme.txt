@@ -1,10 +1,10 @@
 === EpassCard – Apple & Google Wallet Passes for Loyalty, Memberships, Events & Gift Cards ===
 Contributors: wooxperto, hasan350
-Tags: apple wallet, google wallet, wallet pass, loyalty card, membership card
+Tags: apple wallet, google wallet, wallet pass, woocommerce, membership
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.9
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -229,6 +229,11 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 3. Issued passes — searchable list of wallet passes and delivery links.
 
 == Changelog ==
+
+= 1.1.1 =
+* Halloween notice updated
+* DB queries updated
+
 = 1.0.9 =
 * Security: API keys, passwords and tokens are now masked in both request and response bodies in the API Log. Existing log entries are cleaned automatically after updating.
 * Security: The "Our Products" catalog is now sanitized before display and cached for 12 hours, so the Connection screen no longer waits on a remote request every time it loads.
