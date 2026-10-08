@@ -520,13 +520,13 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 			return $out;
 		}
 
-		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- Fallback when WC product helpers unavailable; terms list is small/fixed.
 		$query = new WP_Query(
 			array(
 				'post_type'      => 'product',
 				'post_status'    => $statuses,
 				'posts_per_page' => -1,
 				'fields'         => 'ids',
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- Fallback when WC product helpers are unavailable; terms list is small/fixed.
 				'tax_query'      => array(
 					array(
 						'taxonomy' => 'product_type',

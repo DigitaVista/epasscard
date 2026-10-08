@@ -44,7 +44,7 @@ class EPC_Loyalty_Ledger_Service {
 		$ledger_table  = EPC_DB::loyalty_ledger_table_name();
 		$account_table = EPC_DB::loyalty_accounts_table_name();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Atomic custom-table mutation.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Atomic custom-table mutation.
 		$wpdb->query( 'START TRANSACTION' );
 
 		$account = EPC_Loyalty_Account_Service::get_or_create( $user_id );
@@ -61,7 +61,7 @@ class EPC_Loyalty_Ledger_Service {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Idempotency lookup under account row lock.
 		$existing = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$ledger_table} WHERE event_key = %s LIMIT 1", $event_key )
+			$wpdb->prepare( "SELECT * FROM %i WHERE event_key = %s LIMIT 1", $ledger_table, $event_key )
 		);
 		if ( $existing ) {
 			if ( (int) $existing->user_id !== $user_id ) {
@@ -69,7 +69,7 @@ class EPC_Loyalty_Ledger_Service {
 				return new WP_Error( 'epc_loyalty_event_conflict', __( 'The loyalty event key belongs to another customer.', 'epasscard' ) );
 			}
 
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- End read-only transaction.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- End read-only transaction.
 			$wpdb->query( 'COMMIT' );
 			return array(
 				'created' => false,
@@ -199,13 +199,14 @@ class EPC_Loyalty_Ledger_Service {
 
 		$entry_id = (int) $wpdb->insert_id;
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Account row is locked in this transaction.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Account row is locked in this transaction.
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$account_table}
+				"UPDATE %i
 				SET points_balance = points_balance + %d,
 					lifetime_points = GREATEST(0, lifetime_points + %d)
 				WHERE user_id = %d",
+				$account_table,
 				$points_delta + $reclassified_points,
 				$lifetime_delta + $reclassified_points,
 				$user_id
@@ -218,9 +219,9 @@ class EPC_Loyalty_Ledger_Service {
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read the newly inserted ledger row.
-		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$ledger_table} WHERE id = %d", $entry_id ) );
+		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d", $ledger_table, $entry_id ) );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Commit atomic ledger and balance update.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Commit atomic ledger and balance update.
 		$wpdb->query( 'COMMIT' );
 
 		$account = EPC_Loyalty_Account_Service::get( $user_id );
@@ -269,14 +270,16 @@ class EPC_Loyalty_Ledger_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer ledger history.
 		$total = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE user_id = %d",
+				"SELECT COUNT(*) FROM %i WHERE user_id = %d",
+				$table,
 				$user_id
 			)
 		);
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer ledger history.
 		$items = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE user_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d",
+				"SELECT * FROM %i WHERE user_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d",
+				$table,
 				$user_id,
 				$per_page,
 				$offset
@@ -392,7 +395,7 @@ class EPC_Loyalty_Ledger_Service {
 
 		$table = EPC_DB::loyalty_ledger_table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom ledger lookup.
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE event_key = %s LIMIT 1", $event_key ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE event_key = %s LIMIT 1", $table, $event_key ) );
 		return $row ?: null;
 	}
 
@@ -422,8 +425,9 @@ class EPC_Loyalty_Ledger_Service {
 				"SELECT
 					COALESCE(SUM(ABS(points_delta)), 0) AS points,
 					COALESCE(SUM(ABS(amount)), 0) AS amount
-				FROM {$table}
+				FROM %i
 				WHERE order_id = %d AND entry_type = 'refund_reversal'",
+				$table,
 				absint( $order_id )
 			)
 		);
@@ -454,8 +458,9 @@ class EPC_Loyalty_Ledger_Service {
 						ELSE 0
 					END
 				), 0)
-				FROM {$table}
+				FROM %i
 				WHERE order_id = %d",
+				$table,
 				absint( $order_id )
 			)
 		);
@@ -476,7 +481,8 @@ class EPC_Loyalty_Ledger_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate custom ledger lookup.
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE order_id = %d AND entry_type = 'order_reversal'",
+				"SELECT COUNT(*) FROM %i WHERE order_id = %d AND entry_type = 'order_reversal'",
+				$table,
 				absint( $order_id )
 			)
 		);
@@ -501,9 +507,10 @@ class EPC_Loyalty_Ledger_Service {
 						WHEN entry_type = 'order_reinstatement' THEN -ABS(points_delta)
 						ELSE 0
 					END
-				), 0) FROM {$table}
+				), 0) FROM %i
 				WHERE order_id = %d
 				AND entry_type IN ('refund_reversal', 'order_reversal', 'order_reinstatement')",
+				$table,
 				absint( $order_id )
 			)
 		);
@@ -580,7 +587,7 @@ class EPC_Loyalty_Ledger_Service {
 	 */
 	private static function rollback() {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Atomic custom-table mutation.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Atomic custom-table mutation.
 		$wpdb->query( 'ROLLBACK' );
 	}
 }

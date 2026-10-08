@@ -285,7 +285,7 @@ class EPC_Pass_Issues {
 		}
 		check_admin_referer( 'epc_dismiss_pass_issue' );
 		$module    = isset( $_GET['module'] ) ? sanitize_key( wp_unslash( (string) $_GET['module'] ) ) : '';
-		$source_id = isset( $_GET['source_id'] ) ? EPC_DB::sanitize_source_id( wp_unslash( (string) $_GET['source_id'] ) ) : '';
+		$source_id = isset( $_GET['source_id'] ) ? EPC_DB::sanitize_source_id( sanitize_text_field( wp_unslash( (string) $_GET['source_id'] ) ) ) : '';
 		if ( '' !== $module && '' !== $source_id ) {
 			self::clear( $module, $source_id );
 		}

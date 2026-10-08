@@ -528,8 +528,10 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 					'no_found_rows'          => true,
 					'update_post_meta_cache' => false,
 					'update_post_term_cache' => false,
+					// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Fallback lookup only, capped at 50 rows.
 					'meta_key'               => '_ywgc_order_id',
 					'meta_value'             => (string) $order->get_id(),
+					// phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 				)
 			);
 			foreach ( (array) $query_ids as $gift_id ) {

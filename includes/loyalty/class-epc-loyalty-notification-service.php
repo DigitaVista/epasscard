@@ -245,9 +245,10 @@ class EPC_Loyalty_Notification_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled expiry notification scan.
 		$entries = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table}
+				"SELECT * FROM %i
 				WHERE points_delta > 0 AND expires_at IS NOT NULL
 				AND expires_at > %s AND expires_at <= %s ORDER BY expires_at ASC LIMIT 500",
+				$table,
 				$now,
 				$until
 			)

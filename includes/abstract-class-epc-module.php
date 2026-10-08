@@ -586,7 +586,7 @@ abstract class EPC_Module {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
 		}
 
-		$source_id = isset( $_POST['source_id'] ) ? EPC_DB::sanitize_source_id( wp_unslash( (string) $_POST['source_id'] ) ) : '';
+		$source_id = isset( $_POST['source_id'] ) ? EPC_DB::sanitize_source_id( sanitize_text_field( wp_unslash( (string) $_POST['source_id'] ) ) ) : '';
 		$nonce     = isset( $_POST['email_nonce'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['email_nonce'] ) ) : '';
 
 		if ( '' === $source_id || ! wp_verify_nonce( $nonce, 'epc_send_pass_email_' . $source_id ) ) {
@@ -727,7 +727,7 @@ abstract class EPC_Module {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
 		}
 
-		$source_id = isset( $_POST['source_id'] ) ? EPC_DB::sanitize_source_id( wp_unslash( (string) $_POST['source_id'] ) ) : '';
+		$source_id = isset( $_POST['source_id'] ) ? EPC_DB::sanitize_source_id( sanitize_text_field( wp_unslash( (string) $_POST['source_id'] ) ) ) : '';
 		$action    = isset( $_POST['pass_action'] ) ? sanitize_key( wp_unslash( (string) $_POST['pass_action'] ) ) : '';
 		$nonce     = isset( $_POST['pass_nonce'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['pass_nonce'] ) ) : '';
 

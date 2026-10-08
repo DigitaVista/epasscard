@@ -152,12 +152,13 @@ class EPC_Loyalty_Customer_Service {
 		$offset       = ( $page - 1 ) * $per_page;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Privacy export for custom claims.
 		$claim_total = (int) $wpdb->get_var(
-			$wpdb->prepare( "SELECT COUNT(*) FROM {$claims_table} WHERE user_id = %d", $user_id )
+			$wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE user_id = %d", $claims_table, $user_id )
 		);
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Privacy export for custom claims.
 		$claims = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$claims_table} WHERE user_id = %d ORDER BY id ASC LIMIT %d OFFSET %d",
+				"SELECT * FROM %i WHERE user_id = %d ORDER BY id ASC LIMIT %d OFFSET %d",
+				$claims_table,
 				$user_id,
 				$per_page,
 				$offset
@@ -303,13 +304,13 @@ class EPC_Loyalty_Customer_Service {
 				EPC_DB::loyalty_accounts_table_name(),
 			) as $table
 		) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Privacy erasure for custom loyalty tables.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Privacy erasure for custom loyalty tables.
 			$deleted = $wpdb->delete( $table, array( 'user_id' => $user_id ), array( '%d' ) );
 			$removed = $removed || ( is_int( $deleted ) && $deleted > 0 );
 		}
 
 		$passes = EPC_DB::table_name();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Privacy erasure for local loyalty passes.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Privacy erasure for local loyalty passes.
 		$deleted = $wpdb->delete(
 			$passes,
 			array( 'module' => 'woocommerce-loyalty', 'user_id' => $user_id ),
@@ -326,8 +327,10 @@ class EPC_Loyalty_Customer_Service {
 				'no_found_rows'          => true,
 				'update_post_meta_cache' => false,
 				'update_post_term_cache' => false,
+				// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- One-off privacy erasure lookup, not a front-end query.
 				'meta_key'               => '_epc_loyalty_user_id',
 				'meta_value'             => $user_id,
+				// phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 			)
 		);
 		foreach ( $coupon_ids as $coupon_id ) {
@@ -782,7 +785,7 @@ class EPC_Loyalty_Customer_Service {
 		}
 
 		$user_id         = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : 0;
-		$points          = isset( $_POST['points'] ) ? (int) wp_unslash( $_POST['points'] ) : 0;
+		$points          = isset( $_POST['points'] ) ? intval( sanitize_text_field( wp_unslash( (string) $_POST['points'] ) ) ) : 0;
 		$reason          = isset( $_POST['reason'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['reason'] ) ) : '';
 		$affect_lifetime = ! empty( $_POST['affect_lifetime'] );
 

@@ -342,6 +342,7 @@ class EPC_Loyalty_Order_Sync_Service {
 	 * @return array{from: string, to: string, grant_rewards: bool, sync_passes: bool}
 	 */
 	private static function sanitize_request_args() {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Only called from ajax_preview()/ajax_start() after self::assert_can_manage() verified the nonce.
 		$from = isset( $_POST['from'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['from'] ) ) : '';
 		$to   = isset( $_POST['to'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['to'] ) ) : '';
 		$from = self::sanitize_date( $from );
@@ -353,6 +354,7 @@ class EPC_Loyalty_Order_Sync_Service {
 			'grant_rewards' => ! empty( $_POST['grant_rewards'] ),
 			'sync_passes'   => ! isset( $_POST['sync_passes'] ) || ! empty( $_POST['sync_passes'] ),
 		);
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
@@ -381,7 +383,7 @@ class EPC_Loyalty_Order_Sync_Service {
 		global $wpdb;
 
 		$sql = self::order_sql( $from, $to, 0, 0, true );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Built from trusted table/status lists.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Built in order_sql(): core table names, prepared status list and dates, absint() cursor/limit.
 		return (int) $wpdb->get_var( $sql );
 	}
 
@@ -398,7 +400,7 @@ class EPC_Loyalty_Order_Sync_Service {
 		global $wpdb;
 
 		$sql = self::order_sql( $from, $to, $cursor, $limit, false );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Built from trusted table/status lists.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Built in order_sql(): core table names, prepared status list and dates, absint() cursor/limit.
 		$ids = $wpdb->get_col( $sql );
 		return array_values( array_filter( array_map( 'absint', is_array( $ids ) ? $ids : array() ) ) );
 	}

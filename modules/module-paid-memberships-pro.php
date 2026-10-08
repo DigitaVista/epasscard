@@ -719,10 +719,11 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 
 		$table = $this->get_memberships_users_table();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from trusted helper.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Table name from trusted helper.
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE id = %d LIMIT 1",
+				"SELECT * FROM %i WHERE id = %d LIMIT 1",
+				$table,
 				$row_id
 			)
 		);
@@ -751,10 +752,11 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 		$table = $this->get_memberships_users_table();
 
 		if ( 'active' === $hint ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$row = $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT * FROM {$table} WHERE user_id = %d AND membership_id = %d AND status = 'active' ORDER BY id DESC LIMIT 1",
+					"SELECT * FROM %i WHERE user_id = %d AND membership_id = %d AND status = 'active' ORDER BY id DESC LIMIT 1",
+					$table,
 					$user_id,
 					$level_id
 				)
@@ -764,10 +766,11 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 			}
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE user_id = %d AND membership_id = %d ORDER BY id DESC LIMIT 1",
+				"SELECT * FROM %i WHERE user_id = %d AND membership_id = %d ORDER BY id DESC LIMIT 1",
+				$table,
 				$user_id,
 				$level_id
 			)
@@ -792,10 +795,11 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 
 		$table = $this->get_memberships_users_table();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE user_id = %d AND status = 'active' ORDER BY id DESC",
+				"SELECT * FROM %i WHERE user_id = %d AND status = 'active' ORDER BY id DESC",
+				$table,
 				$user_id
 			)
 		);
@@ -819,10 +823,11 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 
 		$table = $this->get_memberships_users_table();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE user_id = %d ORDER BY id DESC LIMIT 20",
+				"SELECT * FROM %i WHERE user_id = %d ORDER BY id DESC LIMIT 20",
+				$table,
 				$user_id
 			)
 		);
@@ -850,19 +855,21 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 		$table = $this->get_orders_table();
 
 		if ( $level_id > 0 ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$order = $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT id, code FROM {$table} WHERE user_id = %d AND membership_id = %d AND status NOT IN ('error','pending','token','review') ORDER BY id DESC LIMIT 1",
+					"SELECT id, code FROM %i WHERE user_id = %d AND membership_id = %d AND status NOT IN ('error','pending','token','review') ORDER BY id DESC LIMIT 1",
+					$table,
 					$user_id,
 					$level_id
 				)
 			);
 		} else {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$order = $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT id, code FROM {$table} WHERE user_id = %d AND status NOT IN ('error','pending','token','review') ORDER BY id DESC LIMIT 1",
+					"SELECT id, code FROM %i WHERE user_id = %d AND status NOT IN ('error','pending','token','review') ORDER BY id DESC LIMIT 1",
+					$table,
 					$user_id
 				)
 			);

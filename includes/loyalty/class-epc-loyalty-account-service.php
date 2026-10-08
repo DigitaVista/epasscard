@@ -36,8 +36,9 @@ class EPC_Loyalty_Account_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom transactional account table.
 		$result = $wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$table} (user_id, member_id) VALUES (%d, %s)
+				"INSERT INTO %i (user_id, member_id) VALUES (%d, %s)
 				ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)",
+				$table,
 				$user_id,
 				$member_id
 			)
@@ -66,13 +67,13 @@ class EPC_Loyalty_Account_Service {
 		}
 
 		$table = EPC_DB::loyalty_accounts_table_name();
-		$sql   = $wpdb->prepare( "SELECT * FROM {$table} WHERE user_id = %d LIMIT 1", $user_id );
 		if ( $for_update ) {
-			$sql .= ' FOR UPDATE';
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Row lock inside a ledger transaction; must not be cached.
+			$account = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE user_id = %d LIMIT 1 FOR UPDATE', $table, $user_id ) );
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom loyalty account table; balance must be current.
+			$account = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE user_id = %d LIMIT 1', $table, $user_id ) );
 		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Prepared above; table name is internal.
-		$account = $wpdb->get_row( $sql );
 
 		return $account ?: null;
 	}
@@ -121,7 +122,8 @@ class EPC_Loyalty_Account_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Unique membership ID lookup.
 		$account = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE member_id = %s LIMIT 1",
+				"SELECT * FROM %i WHERE member_id = %s LIMIT 1",
+				$table,
 				$member_id
 			)
 		);

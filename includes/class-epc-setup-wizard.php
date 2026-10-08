@@ -401,6 +401,8 @@ class EPC_Setup_Wizard {
 	public static function ajax_save_goal() {
 		self::require_ajax();
 
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce and capability verified in self::require_ajax().
+
 		$goal   = isset( $_POST['goal'] ) ? sanitize_key( wp_unslash( (string) $_POST['goal'] ) ) : '';
 		$slug   = isset( $_POST['module'] ) ? sanitize_key( wp_unslash( (string) $_POST['module'] ) ) : '';
 		$goals  = self::get_goals();
@@ -433,6 +435,7 @@ class EPC_Setup_Wizard {
 		self::save_state( $state );
 
 		self::send_step_success( __( 'Integration enabled.', 'epasscard' ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
@@ -1469,6 +1472,7 @@ class EPC_Setup_Wizard {
 	 * @return true|\WP_Error
 	 */
 	private static function setup_loyalty() {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce and capability verified in self::require_ajax() by the calling AJAX handler (ajax_setup).
 		if ( ! function_exists( 'epc_is_woocommerce_active' ) || ! epc_is_woocommerce_active() ) {
 			return new WP_Error( 'epc_wizard_wc', __( 'Activate WooCommerce to set up loyalty cards.', 'epasscard' ) );
 		}
@@ -1507,8 +1511,8 @@ class EPC_Setup_Wizard {
 			return $media;
 		}
 
-		$posted_logo = isset( $_POST['logo_url'] ) ? trim( (string) wp_unslash( $_POST['logo_url'] ) ) : '';
-		$posted_strip = isset( $_POST['strip_url'] ) ? trim( (string) wp_unslash( $_POST['strip_url'] ) ) : '';
+		$posted_logo = isset( $_POST['logo_url'] ) ? trim( sanitize_url( wp_unslash( (string) $_POST['logo_url'] ) ) ) : '';
+		$posted_strip = isset( $_POST['strip_url'] ) ? trim( sanitize_url( wp_unslash( (string) $_POST['strip_url'] ) ) ) : '';
 		$logo_url    = self::sanitize_public_image_url( $posted_logo );
 		$strip_url   = self::sanitize_public_image_url( $posted_strip );
 		$name      = isset( $_POST['template_name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['template_name'] ) ) : '';
@@ -1544,6 +1548,7 @@ class EPC_Setup_Wizard {
 		}
 
 		return $result;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
@@ -1556,6 +1561,7 @@ class EPC_Setup_Wizard {
 	 * @return true|\WP_Error
 	 */
 	private static function setup_mapping( $slug ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce and capability verified in self::require_ajax() by the calling AJAX handler (ajax_setup).
 		$registry = EPC_Module_Loader::get_registry();
 		if ( ! isset( $registry[ $slug ] ) ) {
 			return new WP_Error( 'epc_wizard_module', __( 'That integration is not available.', 'epasscard' ) );
@@ -1636,6 +1642,7 @@ class EPC_Setup_Wizard {
 		);
 
 		return true;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
@@ -1782,6 +1789,7 @@ class EPC_Setup_Wizard {
 	 * @return array{uid:string,template_name:string,pass_fields:array<int,array<string,mixed>>}|\WP_Error
 	 */
 	private static function create_starter_template_for_goal( $template_name = '' ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce and capability verified in self::require_ajax() by the calling AJAX handler (ajax_setup).
 		$state = self::get_state();
 		$goal  = sanitize_key( (string) ( $state['goal'] ?? 'membership' ) );
 		$blog  = (string) get_bloginfo( 'name' );
@@ -1796,7 +1804,7 @@ class EPC_Setup_Wizard {
 			return $media;
 		}
 
-		$posted_logo = isset( $_POST['logo_url'] ) ? trim( (string) wp_unslash( $_POST['logo_url'] ) ) : '';
+		$posted_logo = isset( $_POST['logo_url'] ) ? trim( sanitize_url( wp_unslash( (string) $_POST['logo_url'] ) ) ) : '';
 		$logo_url    = self::sanitize_public_image_url( $posted_logo );
 		if ( '' === $logo_url ) {
 			$logo_url = $media['logo_url'];
@@ -1863,6 +1871,7 @@ class EPC_Setup_Wizard {
 			'template_name' => $name,
 			'pass_fields'   => $pass_fields,
 		);
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/**

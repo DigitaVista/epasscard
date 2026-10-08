@@ -1195,9 +1195,10 @@ class EPC_Loyalty_Redemption_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate custom ledger lookup.
 		$total = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COALESCE(SUM(points_delta), 0) FROM {$table}
+				"SELECT COALESCE(SUM(points_delta), 0) FROM %i
 				WHERE order_id = %d
 				AND entry_type IN ('redemption_release', 'redemption_restore', 'redemption_reinstatement')",
+				$table,
 				absint( $order_id )
 			)
 		);

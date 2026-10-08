@@ -274,7 +274,7 @@ class EPC_Api_Log {
 		$success_val = $has_success ? ( '1' === (string) $args['is_success'] ? 1 : 0 ) : 0;
 		$like        = $has_search ? '%' . $wpdb->esc_like( $search ) . '%' : '';
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table admin list.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table admin list; paginated, filtered admin data that must be fresh.
 		if ( ! $has_success && ! $has_search ) {
 			$total = (int) $wpdb->get_var(
 				$wpdb->prepare(
@@ -361,6 +361,7 @@ class EPC_Api_Log {
 			);
 		}
 
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return array(
 			'items' => is_array( $items ) ? $items : array(),
 			'total' => $total,

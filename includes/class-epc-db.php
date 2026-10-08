@@ -182,7 +182,7 @@ class EPC_DB {
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery.NoCaching -- Required column type migration.
-		$wpdb->query( "ALTER TABLE {$table} MODIFY source_id varchar(64) NOT NULL DEFAULT ''" );
+		$wpdb->query( $wpdb->prepare( "ALTER TABLE %i MODIFY source_id varchar(64) NOT NULL DEFAULT ''", $table ) );
 	}
 
 	/**
@@ -519,7 +519,7 @@ class EPC_DB {
 		$has_search = '' !== $search;
 		$like       = $has_search ? '%' . $wpdb->esc_like( $search ) . '%' : '';
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table admin list.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table admin list; paginated, filtered admin data that must be fresh.
 		if ( ! $has_status && ! $has_entity && ! $has_search ) {
 			$total = (int) $wpdb->get_var(
 				$wpdb->prepare(
@@ -706,6 +706,7 @@ class EPC_DB {
 			);
 		}
 
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		if ( $count_only ) {
 			return array(
 				'items' => array(),

@@ -812,10 +812,11 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 
 		global $wpdb;
 		$table = $wpdb->prefix . 'swpm_members_tbl';
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE member_id = %d LIMIT 1",
+				"SELECT * FROM %i WHERE member_id = %d LIMIT 1",
+				$table,
 				$member_id
 			)
 		);

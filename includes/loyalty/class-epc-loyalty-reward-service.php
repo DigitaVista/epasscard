@@ -289,7 +289,7 @@ class EPC_Loyalty_Reward_Service {
 		global $wpdb;
 		$table = EPC_DB::loyalty_claims_table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Candidate claims for withdrawal.
-		$claims = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE user_id = %d AND status = 'available'", absint( $user_id ) ) );
+		$claims = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE user_id = %d AND status = 'available'", $table, absint( $user_id ) ) );
 		foreach ( is_array( $claims ) ? $claims : array() as $claim ) {
 			$meta      = json_decode( (string) $claim->meta, true );
 			$milestone = is_array( $meta ) && isset( $meta['milestone'] ) && is_array( $meta['milestone'] ) ? $meta['milestone'] : array();
@@ -297,7 +297,7 @@ class EPC_Loyalty_Reward_Service {
 			if ( $needed <= 0 || $lifetime_points >= $needed ) {
 				continue;
 			}
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Status transition.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Status transition.
 			$updated = $wpdb->update( $table, array( 'status' => 'withdrawn' ), array( 'id' => (int) $claim->id, 'status' => 'available' ), array( '%s' ), array( '%d', '%s' ) );
 			if ( $updated ) {
 				$claim->status = 'withdrawn';
@@ -352,12 +352,13 @@ class EPC_Loyalty_Reward_Service {
 		$table  = EPC_DB::loyalty_claims_table_name();
 		$status = 'waive' === self::$claim_mode ? 'waived' : 'available';
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Idempotent custom claim insert.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Idempotent custom claim insert.
 		$inserted = $wpdb->query(
 			$wpdb->prepare(
-				"INSERT IGNORE INTO {$table}
+				"INSERT IGNORE INTO %i
 				(user_id, reward_key, reward_type, status, meta, expires_at)
 				VALUES (%d, %s, %s, %s, %s, NULLIF(%s, ''))",
+				$table,
 				absint( $user_id ),
 				$reward_key,
 				$milestone['reward']['type'],
@@ -374,7 +375,7 @@ class EPC_Loyalty_Reward_Service {
 			$existing = self::get_claim_by_reward_key( $user_id, $reward_key );
 			if ( $existing && 'withdrawn' === (string) $existing->status ) {
 				// Reached again after a reversal: make the same reward available again.
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Status transition.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Status transition.
 				$wpdb->update( $table, array( 'status' => 'available' ), array( 'id' => (int) $existing->id, 'status' => 'withdrawn' ), array( '%s' ), array( '%d', '%s' ) );
 				$existing = self::get_claim( (int) $existing->id );
 				if ( $existing ) {
@@ -422,35 +423,35 @@ class EPC_Loyalty_Reward_Service {
 		$user_id  = absint( $user_id );
 		$table    = EPC_DB::loyalty_claims_table_name();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Claim row lock.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Claim row lock.
 		$wpdb->query( 'START TRANSACTION' );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Locked claim lookup.
-		$claim = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d FOR UPDATE", $claim_id ) );
+		$claim = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d FOR UPDATE", $table, $claim_id ) );
 
 		if ( ! $claim || (int) $claim->user_id !== $user_id ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- End failed claim transaction.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- End failed claim transaction.
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'epc_loyalty_claim_missing', __( 'The loyalty reward was not found.', 'epasscard' ) );
 		}
 		if ( 'issued' === $claim->status || 'claimed' === $claim->status ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- End idempotent claim transaction.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- End idempotent claim transaction.
 			$wpdb->query( 'COMMIT' );
 			return $claim;
 		}
 		if ( 'available' !== $claim->status || ( $claim->expires_at && strtotime( $claim->expires_at . ' UTC' ) <= time() ) ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- End unavailable claim transaction.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- End unavailable claim transaction.
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'epc_loyalty_claim_unavailable', __( 'This loyalty reward is no longer available.', 'epasscard' ) );
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Reserve claim against concurrent issuance.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Reserve claim against concurrent issuance.
 		$updated = $wpdb->update( $table, array( 'status' => 'processing' ), array( 'id' => $claim_id ), array( '%s' ), array( '%d' ) );
 		if ( false === $updated ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- End failed reservation transaction.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- End failed reservation transaction.
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'epc_loyalty_claim_lock_failed', __( 'The loyalty reward could not be reserved.', 'epasscard' ) );
 		}
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Commit claim reservation.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Commit claim reservation.
 		$wpdb->query( 'COMMIT' );
 
 		$meta      = self::decode_meta( $claim );
@@ -458,13 +459,13 @@ class EPC_Loyalty_Reward_Service {
 		$result    = self::issue_reward( $claim, $milestone );
 
 		if ( is_wp_error( $result ) ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Release failed reservation.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Release failed reservation.
 			$wpdb->update( $table, array( 'status' => 'available' ), array( 'id' => $claim_id, 'status' => 'processing' ), array( '%s' ), array( '%d', '%s' ) );
 			return $result;
 		}
 
 		$meta['issued'] = $result;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Finalize reward claim.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Finalize reward claim.
 		$wpdb->update(
 			$table,
 			array(
@@ -712,13 +713,14 @@ class EPC_Loyalty_Reward_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled claim expiry candidates.
 		$expired_claims = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$claims} WHERE status = 'available'
+				"SELECT * FROM %i WHERE status = 'available'
 				AND expires_at IS NOT NULL AND expires_at <= %s LIMIT 500",
+				$claims,
 				$now
 			)
 		);
 		foreach ( is_array( $expired_claims ) ? $expired_claims : array() as $claim ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Scheduled claim expiry.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled claim expiry.
 			$updated = $wpdb->update(
 				$claims,
 				array( 'status' => 'expired' ),
@@ -735,10 +737,12 @@ class EPC_Loyalty_Reward_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled point expiry candidates.
 		$entries = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT l.* FROM {$ledger} l
-				LEFT JOIN {$ledger} x ON x.event_key = CONCAT('point_expiry:', l.id)
+				"SELECT l.* FROM %i l
+				LEFT JOIN %i x ON x.event_key = CONCAT('point_expiry:', l.id)
 				WHERE l.points_delta > 0 AND l.expires_at IS NOT NULL AND l.expires_at <= %s AND x.id IS NULL
 				ORDER BY l.id ASC LIMIT 500",
+				$ledger,
+				$ledger,
 				$now
 			)
 		);
@@ -777,7 +781,7 @@ class EPC_Loyalty_Reward_Service {
 		global $wpdb;
 		$table = EPC_DB::loyalty_claims_table_name();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom claim lookup.
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d LIMIT 1", absint( $claim_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id = %d LIMIT 1", $table, absint( $claim_id ) ) );
 		return $row ?: null;
 	}
 
@@ -794,7 +798,8 @@ class EPC_Loyalty_Reward_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Idempotency lookup.
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE user_id = %d AND reward_key = %s LIMIT 1",
+				"SELECT * FROM %i WHERE user_id = %d AND reward_key = %s LIMIT 1",
+				$table,
 				absint( $user_id ),
 				sanitize_text_field( (string) $reward_key )
 			)
@@ -814,8 +819,9 @@ class EPC_Loyalty_Reward_Service {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer claim list.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE user_id = %d AND status = 'available'
+				"SELECT * FROM %i WHERE user_id = %d AND status = 'available'
 				AND (expires_at IS NULL OR expires_at > %s) ORDER BY created_at DESC",
+				$table,
 				absint( $user_id ),
 				current_time( 'mysql', true )
 			)

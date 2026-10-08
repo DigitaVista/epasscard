@@ -620,12 +620,12 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 
 		$decoded = array();
 		foreach ( array( 'earning_rules', 'tiers', 'milestones', 'redemption', 'notifications' ) as $field ) {
-			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Decoded/array payloads are sanitized by domain services.
-			$raw = $_POST[ $field ] ?? null;
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Decoded/array payloads are sanitized field-by-field by the loyalty domain services.
+			$raw = isset( $_POST[ $field ] ) ? wp_unslash( $_POST[ $field ] ) : null;
 			if ( is_string( $raw ) ) {
-				$value = json_decode( wp_unslash( $raw ), true );
+				$value = json_decode( $raw, true );
 			} elseif ( is_array( $raw ) ) {
-				$value = wp_unslash( $raw );
+				$value = $raw;
 			} else {
 				$value = ( 'redemption' === $field || 'notifications' === $field ) ? array() : array();
 			}

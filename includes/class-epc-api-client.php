@@ -661,6 +661,7 @@ class EPC_Api_Client {
 		);
 
 		if ( function_exists( 'set_time_limit' ) ) {
+			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Sign-up makes up to two 45s remote calls; the default 30s limit would abort it mid-request.
 			set_time_limit( 120 );
 		}
 
