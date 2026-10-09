@@ -1,0 +1,33 @@
+# Updates the WordPress.org readme without a new release.
+# Runs when readme.txt changes on main. It copies the readme to
+# SVN trunk and to the current Stable tag, so the plugin page updates.
+# Uses the same SVN_USERNAME / SVN_PASSWORD secrets as deploy.yml.
+name: Update WordPress.org readme and assets
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "readme.txt"
+
+concurrency:
+  group: wporg-deploy
+  cancel-in-progress: false
+
+jobs:
+  readme-assets:
+    name: Push readme/assets to WordPress.org
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: WordPress.org plugin asset/readme update
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: epasscard
+          IGNORE_OTHER_FILES: true
+          # The repo has no .wordpress-org/ folder yet. Without this the action
+          # would rsync an empty folder with --delete and wipe the banner/icon on SVN.
+          SKIP_ASSETS: true

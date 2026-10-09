@@ -14,7 +14,7 @@ Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty
 
 **EpassCard turns your WordPress data into Apple Wallet and Google Wallet passes.** Loyalty cards for WooCommerce, membership cards for MemberPress and Paid Memberships Pro, event tickets, and gift cards are issued, updated and pushed to your customers' phones automatically. No code, no Zapier.
 
-[youtube https://youtu.be/-arN8Db3fjA]
+[youtube https://www.youtube.com/watch?v=-Xg8wzQ5lVw]
 
 = Why EpassCard =
 
@@ -35,6 +35,10 @@ Give every customer a loyalty card that lives on their phone, not in a forgotten
 * Coupon rewards, and point redemption at checkout
 * The wallet card shows the current points balance and updates automatically
 * Push notifications to bring customers back
+
+Full setup walkthrough (16 minutes, with chapters):
+
+[youtube https://youtu.be/-arN8Db3fjA]
 
 = Digital membership cards =
 
