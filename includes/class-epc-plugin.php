@@ -34,7 +34,6 @@ require_once EPC_PLUGIN_DIR . 'includes/class-epc-admin-menu.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-admin-shell.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-setup-help.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-setup-help-notice.php';
-require_once EPC_PLUGIN_DIR . 'includes/class-epc-halloween-notice.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-setup-wizard.php';
 require_once EPC_PLUGIN_DIR . 'includes/abstract-class-epc-module.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-service.php';
@@ -117,7 +116,6 @@ final class EPC_Plugin {
 		EPC_Admin_Menu::init();
 		EPC_Admin_Shell::init();
 		EPC_Setup_Help_Notice::init();
-		EPC_Halloween_Notice::init();
 		EPC_Setup_Wizard::init();
 
 		$this->all_modules = EPC_Module_Loader::get_registry();

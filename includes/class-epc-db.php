@@ -162,6 +162,10 @@ class EPC_DB {
 				self::ensure_source_id_varchar();
 				self::migrate_memberpress_source_ids();
 			}
+			if ( version_compare( $installed, '1.4.0', '<' ) ) {
+				// The Halloween 2026 notice was removed in plugin 1.2.0; drop its dismissal flag.
+				delete_option( 'epasscard_halloween_deal_notice' );
+			}
 			if ( ! $unique_ok ) {
 				// Retry on the next load (a duplicate slipped in between the merge and the ALTER),
 				// at most 5 times so a database that refuses the index is not retried forever.
