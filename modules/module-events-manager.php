@@ -115,18 +115,6 @@ class EPC_Module_Events_Manager extends EPC_Module {
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	public function get_status_action_options() {
-		return array(
-			'none'   => __( 'Do nothing', 'epasscard' ),
-			'sync'   => __( 'Create or update pass', 'epasscard' ),
-			'update' => __( 'Update pass only', 'epasscard' ),
-			'revoke' => __( 'Revoke pass', 'epasscard' ),
-		);
-	}
-
-	/**
 	 * Default pass behavior by EM booking status id.
 	 *
 	 * @return array<string, string>
@@ -143,6 +131,16 @@ class EPC_Module_Events_Manager extends EPC_Module {
 			'7' => 'sync',    // Waitlist approved.
 			'8' => 'revoke',  // Waitlist expired.
 		);
+	}
+
+	/**
+	 * Booking statuses are numeric ids ('0'-'8').
+	 *
+	 * @param string|int $status Status id.
+	 * @return string
+	 */
+	protected function normalize_status_rule_key( $status ) {
+		return (string) absint( $status );
 	}
 
 	/**
@@ -174,41 +172,6 @@ class EPC_Module_Events_Manager extends EPC_Module {
 	}
 
 	/**
-	 * @return array<string, string>
-	 */
-	public function get_status_rules() {
-		$saved    = get_option( $this->get_status_rules_option_key(), array() );
-		$defaults = $this->get_default_status_rules();
-		$allowed  = array_keys( $this->get_status_action_options() );
-
-		// Booking statuses are numeric strings ('0'-'8'). wp_parse_args()/array_merge() renumbers
-		// numeric keys, which made saved rules lose to the defaults. Overlay key by key instead.
-		$merged = $defaults;
-		foreach ( is_array( $saved ) ? $saved : array() as $status => $action ) {
-			$merged[ (string) $status ] = is_string( $action ) ? $action : '';
-		}
-
-		foreach ( $merged as $status => $action ) {
-			if ( ! in_array( $action, $allowed, true ) ) {
-				$merged[ $status ] = $defaults[ $status ] ?? 'none';
-			}
-		}
-
-		return $merged;
-	}
-
-	/**
-	 * @param string|int $status Status id.
-	 * @return string
-	 */
-	public function get_status_rule( $status ) {
-		$key   = (string) absint( $status );
-		$rules = $this->get_status_rules();
-
-		return $rules[ $key ] ?? 'none';
-	}
-
-	/**
 	 * @inheritDoc
 	 */
 	public function render_module_settings() {
@@ -216,45 +179,13 @@ class EPC_Module_Events_Manager extends EPC_Module {
 			return;
 		}
 
-		$statuses = $this->get_configurable_booking_statuses();
-		$actions  = $this->get_status_action_options();
-		$rules    = $this->get_status_rules();
-		?>
-		<div id="epc-section-pass-behavior" class="epc-section epc-section--status-rules">
-			<h2><?php esc_html_e( 'Pass behavior by booking status', 'epasscard' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Choose what happens to the wallet pass when a booking reaches each status.', 'epasscard' ); ?>
-			</p>
-			<form class="epc-ajax-form" data-epc-action="<?php echo esc_attr( 'epc_save_status_rules_' . $this->get_slug() ); ?>" method="post" action="">
-				<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
-				<table class="widefat striped epc-status-rules-table">
-					<thead>
-						<tr>
-							<th scope="col"><?php esc_html_e( 'Booking status', 'epasscard' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'Pass action', 'epasscard' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $statuses as $status => $label ) : ?>
-							<tr>
-								<td><strong><?php echo esc_html( $label ); ?></strong></td>
-								<td>
-									<select name="epc_status_rule_<?php echo esc_attr( $status ); ?>">
-										<?php foreach ( $actions as $action_key => $action_label ) : ?>
-											<option value="<?php echo esc_attr( $action_key ); ?>" <?php selected( $rules[ $status ] ?? 'none', $action_key ); ?>>
-												<?php echo esc_html( $action_label ); ?>
-											</option>
-										<?php endforeach; ?>
-									</select>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-				<p><?php submit_button( __( 'Save pass behavior', 'epasscard' ), 'secondary', 'submit', false ); ?></p>
-			</form>
-		</div>
-		<?php
+		$this->render_status_rules_form(
+			array(
+				'heading'      => __( 'Pass behavior by booking status', 'epasscard' ),
+				'description'  => __( 'Choose what happens to the wallet pass when a booking reaches each status.', 'epasscard' ),
+				'status_label' => __( 'Booking status', 'epasscard' ),
+			)
+		);
 		$this->render_push_notification_settings();
 	}
 

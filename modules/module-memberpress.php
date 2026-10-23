@@ -175,18 +175,6 @@ class EPC_Module_MemberPress extends EPC_Module {
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	public function get_status_action_options() {
-		return array(
-			'none'   => __( 'Do nothing', 'epasscard' ),
-			'sync'   => __( 'Create or update pass', 'epasscard' ),
-			'update' => __( 'Update pass only', 'epasscard' ),
-			'revoke' => __( 'Revoke pass', 'epasscard' ),
-		);
-	}
-
-	/**
 	 * Default behavior. Completed + stopped match 1.0.8 behavior; refunded and
 	 * expired were not handled before and now revoke the pass.
 	 *
@@ -202,84 +190,6 @@ class EPC_Module_MemberPress extends EPC_Module {
 	}
 
 	/**
-	 * Saved rules merged with defaults.
-	 *
-	 * @return array<string, string>
-	 */
-	public function get_status_rules() {
-		$saved    = get_option( $this->get_status_rules_option_key(), array() );
-		$defaults = $this->get_default_status_rules();
-		$merged   = wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
-		$allowed  = array_keys( $this->get_status_action_options() );
-		foreach ( $merged as $status => $action ) {
-			if ( ! in_array( $action, $allowed, true ) ) {
-				$merged[ $status ] = $defaults[ $status ] ?? 'none';
-			}
-		}
-		return $merged;
-	}
-
-	/**
-	 * Rule for one status.
-	 *
-	 * @param string $status Status slug.
-	 * @return string
-	 */
-	public function get_status_rule( $status ) {
-		$rules = $this->get_status_rules();
-		return $rules[ sanitize_key( (string) $status ) ] ?? 'none';
-	}
-
-	/**
-	 * Pass behavior table.
-	 *
-	 * @return void
-	 */
-	private function render_status_rules_form() {
-		$statuses = $this->get_pass_behavior_statuses();
-		$actions  = $this->get_status_action_options();
-		$rules    = $this->get_status_rules();
-		?>
-		<div id="epc-section-pass-behavior" class="epc-section epc-section--status-rules">
-			<h2><?php esc_html_e( 'Pass behavior by membership status', 'epasscard' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Choose what happens to the wallet pass when a MemberPress transaction or subscription changes.', 'epasscard' ); ?>
-			</p>
-			<form class="epc-ajax-form" data-epc-action="<?php echo esc_attr( 'epc_save_status_rules_' . $this->get_slug() ); ?>" method="post" action="">
-				<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
-				<table class="widefat striped epc-status-rules-table">
-					<thead>
-						<tr>
-							<th scope="col"><?php esc_html_e( 'Membership status', 'epasscard' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'Pass action', 'epasscard' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $statuses as $status => $label ) : ?>
-							<tr>
-								<td><strong><?php echo esc_html( $label ); ?></strong></td>
-								<td>
-									<select name="epc_status_rule_<?php echo esc_attr( $status ); ?>">
-										<?php foreach ( $actions as $action_key => $action_label ) : ?>
-											<option value="<?php echo esc_attr( $action_key ); ?>" <?php selected( $rules[ $status ] ?? 'none', $action_key ); ?>>
-												<?php echo esc_html( $action_label ); ?>
-											</option>
-										<?php endforeach; ?>
-									</select>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-				<p>
-					<?php submit_button( __( 'Save pass behavior', 'epasscard' ), 'secondary', 'submit', false ); ?>
-				</p>
-			</form>
-		</div>
-		<?php
-	}
-
-	/**
 	 * @inheritDoc
 	 */
 	public function render_module_settings() {
@@ -287,7 +197,13 @@ class EPC_Module_MemberPress extends EPC_Module {
 			return;
 		}
 
-		$this->render_status_rules_form();
+		$this->render_status_rules_form(
+			array(
+				'heading'      => __( 'Pass behavior by membership status', 'epasscard' ),
+				'description'  => __( 'Choose what happens to the wallet pass when a MemberPress transaction or subscription changes.', 'epasscard' ),
+				'status_label' => __( 'Membership status', 'epasscard' ),
+			)
+		);
 
 		$this->render_native_reminder_notice(
 			admin_url( 'edit.php?post_type=mp-reminder' ),

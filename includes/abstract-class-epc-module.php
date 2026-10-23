@@ -360,12 +360,159 @@ abstract class EPC_Module {
 	}
 
 	/**
-	 * Pass action options for status rules (override in modules).
+	 * Pass action options for status rules.
+	 *
+	 * Modules with pass behavior settings share the same four actions; override only to change them.
 	 *
 	 * @return array<string, string>
 	 */
 	public function get_status_action_options() {
+		if ( ! $this->has_pass_behavior_settings() ) {
+			return array();
+		}
+
+		return array(
+			'none'   => __( 'Do nothing', 'epasscard' ),
+			'sync'   => __( 'Create or update pass', 'epasscard' ),
+			'update' => __( 'Update pass only', 'epasscard' ),
+			'revoke' => __( 'Revoke pass', 'epasscard' ),
+		);
+	}
+
+	/**
+	 * Default pass action per status (override in modules).
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_default_status_rules() {
 		return array();
+	}
+
+	/**
+	 * Turn a status into the key used in the rules array.
+	 *
+	 * Override when a module's statuses are not slugs (Events Manager uses numeric ids).
+	 *
+	 * @param string|int $status Status from the host plugin.
+	 * @return string
+	 */
+	protected function normalize_status_rule_key( $status ) {
+		return sanitize_key( (string) $status );
+	}
+
+	/**
+	 * Action used for a status that has no rule.
+	 *
+	 * @return string
+	 */
+	protected function get_fallback_status_action() {
+		return 'none';
+	}
+
+	/**
+	 * Saved status rules laid over the defaults, with unknown actions reset to the default.
+	 *
+	 * Overlays key by key instead of wp_parse_args()/array_merge(): those renumber numeric keys,
+	 * which made saved rules lose to the defaults for numeric statuses.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_status_rules() {
+		$option_key = $this->get_status_rules_option_key();
+		$saved      = '' === $option_key ? array() : get_option( $option_key, array() );
+		$defaults   = $this->get_default_status_rules();
+		$allowed    = array_keys( $this->get_status_action_options() );
+		$fallback   = $this->get_fallback_status_action();
+
+		$merged = $defaults;
+		foreach ( is_array( $saved ) ? $saved : array() as $status => $action ) {
+			$merged[ (string) $status ] = is_string( $action ) ? $action : '';
+		}
+
+		foreach ( $merged as $status => $action ) {
+			if ( ! in_array( $action, $allowed, true ) ) {
+				$merged[ $status ] = isset( $defaults[ $status ] ) ? $defaults[ $status ] : $fallback;
+			}
+		}
+
+		return $merged;
+	}
+
+	/**
+	 * Configured pass action for one status.
+	 *
+	 * @param string|int $status Status from the host plugin.
+	 * @return string
+	 */
+	public function get_status_rule( $status ) {
+		$rules = $this->get_status_rules();
+		$key   = $this->normalize_status_rule_key( $status );
+
+		return isset( $rules[ $key ] ) ? $rules[ $key ] : $this->get_fallback_status_action();
+	}
+
+	/**
+	 * Render the "pass behavior by status" settings form.
+	 *
+	 * @param array<string, string> $labels {
+	 *     Texts for this module.
+	 *
+	 *     @type string $heading      Section heading.
+	 *     @type string $description  Help text under the heading.
+	 *     @type string $status_label Column header for the status column.
+	 * }
+	 * @return void
+	 */
+	protected function render_status_rules_form( array $labels ) {
+		$labels   = wp_parse_args(
+			$labels,
+			array(
+				'heading'      => __( 'Pass behavior by status', 'epasscard' ),
+				'description'  => __( 'Choose what happens to the wallet pass when a record reaches each status.', 'epasscard' ),
+				'status_label' => __( 'Status', 'epasscard' ),
+			)
+		);
+		$statuses = $this->get_pass_behavior_statuses();
+		$actions  = $this->get_status_action_options();
+		$rules    = $this->get_status_rules();
+		?>
+		<div id="epc-section-pass-behavior" class="epc-section epc-section--status-rules">
+			<h2><?php echo esc_html( $labels['heading'] ); ?></h2>
+			<p class="description">
+				<?php echo esc_html( $labels['description'] ); ?>
+			</p>
+			<form class="epc-ajax-form" data-epc-action="<?php echo esc_attr( 'epc_save_status_rules_' . $this->get_slug() ); ?>" method="post" action="">
+				<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
+				<table class="widefat striped epc-status-rules-table">
+					<thead>
+						<tr>
+							<th scope="col"><?php echo esc_html( $labels['status_label'] ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Pass action', 'epasscard' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $statuses as $status => $label ) : ?>
+							<tr>
+								<td><strong><?php echo esc_html( $label ); ?></strong></td>
+								<td>
+									<select name="epc_status_rule_<?php echo esc_attr( $status ); ?>">
+										<?php foreach ( $actions as $action_key => $action_label ) : ?>
+											<option value="<?php echo esc_attr( $action_key ); ?>" <?php selected( isset( $rules[ $status ] ) ? $rules[ $status ] : 'none', $action_key ); ?>>
+												<?php echo esc_html( $action_label ); ?>
+											</option>
+										<?php endforeach; ?>
+									</select>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<p>
+					<?php submit_button( __( 'Save pass behavior', 'epasscard' ), 'secondary', 'submit', false ); ?>
+				</p>
+			</form>
+		</div>
+		<?php
 	}
 
 	/**

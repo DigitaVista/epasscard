@@ -129,18 +129,6 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	public function get_status_action_options() {
-		return array(
-			'none'   => __( 'Do nothing', 'epasscard' ),
-			'sync'   => __( 'Create or update pass', 'epasscard' ),
-			'update' => __( 'Update pass only', 'epasscard' ),
-			'revoke' => __( 'Revoke pass', 'epasscard' ),
-		);
-	}
-
-	/**
 	 * Default pass behavior.
 	 *
 	 * @return array<string, string>
@@ -155,6 +143,15 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 	}
 
 	/**
+	 * Attendee statuses this module does not know about still get a pass (1.1.0 behavior).
+	 *
+	 * @return string
+	 */
+	protected function get_fallback_status_action() {
+		return 'sync';
+	}
+
+	/**
 	 * Attendee statuses for behavior UI.
 	 *
 	 * @return array<string, string>
@@ -166,35 +163,6 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 			'active'  => __( 'Paid / active ticket', 'epasscard' ),
 			'deleted' => __( 'Deleted / refunded', 'epasscard' ),
 		);
-	}
-
-	/**
-	 * @return array<string, string>
-	 */
-	public function get_status_rules() {
-		$saved    = get_option( $this->get_status_rules_option_key(), array() );
-		$defaults = $this->get_default_status_rules();
-		$merged   = wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
-		$allowed  = array_keys( $this->get_status_action_options() );
-
-		foreach ( $merged as $status => $action ) {
-			if ( ! in_array( $action, $allowed, true ) ) {
-				$merged[ $status ] = $defaults[ $status ] ?? 'none';
-			}
-		}
-
-		return $merged;
-	}
-
-	/**
-	 * @param string $status Status.
-	 * @return string
-	 */
-	public function get_status_rule( $status ) {
-		$status = sanitize_key( (string) $status );
-		$rules  = $this->get_status_rules();
-
-		return $rules[ $status ] ?? 'sync';
 	}
 
 	/**
@@ -220,45 +188,13 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 			<?php
 		}
 
-		$statuses = $this->get_configurable_attendee_statuses();
-		$actions  = $this->get_status_action_options();
-		$rules    = $this->get_status_rules();
-		?>
-		<div id="epc-section-pass-behavior" class="epc-section epc-section--status-rules">
-			<h2><?php esc_html_e( 'Pass behavior by attendee status', 'epasscard' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Choose what happens when an Event Tickets attendee is created or their RSVP/ticket status changes for a mapped event.', 'epasscard' ); ?>
-			</p>
-			<form class="epc-ajax-form" data-epc-action="<?php echo esc_attr( 'epc_save_status_rules_' . $this->get_slug() ); ?>" method="post" action="">
-				<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
-				<table class="widefat striped epc-status-rules-table">
-					<thead>
-						<tr>
-							<th scope="col"><?php esc_html_e( 'Attendee status', 'epasscard' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'Pass action', 'epasscard' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $statuses as $status => $label ) : ?>
-							<tr>
-								<td><strong><?php echo esc_html( $label ); ?></strong></td>
-								<td>
-									<select name="epc_status_rule_<?php echo esc_attr( $status ); ?>">
-										<?php foreach ( $actions as $action_key => $action_label ) : ?>
-											<option value="<?php echo esc_attr( $action_key ); ?>" <?php selected( $rules[ $status ] ?? 'none', $action_key ); ?>>
-												<?php echo esc_html( $action_label ); ?>
-											</option>
-										<?php endforeach; ?>
-									</select>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-				<p><?php submit_button( __( 'Save pass behavior', 'epasscard' ), 'secondary', 'submit', false ); ?></p>
-			</form>
-		</div>
-		<?php
+		$this->render_status_rules_form(
+			array(
+				'heading'      => __( 'Pass behavior by attendee status', 'epasscard' ),
+				'description'  => __( 'Choose what happens when an Event Tickets attendee is created or their RSVP/ticket status changes for a mapped event.', 'epasscard' ),
+				'status_label' => __( 'Attendee status', 'epasscard' ),
+			)
+		);
 		$this->render_push_notification_settings();
 	}
 
