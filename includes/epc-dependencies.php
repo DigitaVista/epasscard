@@ -539,7 +539,7 @@ function epc_register_module( $slug, $file, $class_name ) {
 		}
 	);
 
-	if ( str_starts_with( $file, '/' ) || ( 1 < strlen( $file ) && ':' === $file[1] ) ) {
+	if ( 0 === strpos( $file, '/' ) || ( 1 < strlen( $file ) && ':' === $file[1] ) ) {
 		add_filter(
 			'epc_module_path',
 			static function ( $path, $filter_slug, $filter_file ) use ( $slug, $file ) {

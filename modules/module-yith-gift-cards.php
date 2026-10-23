@@ -19,7 +19,7 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 	 *
 	 * @var bool
 	 */
-	private static bool $handling = false;
+	private static $handling = false;
 
 	/**
 	 * @inheritDoc

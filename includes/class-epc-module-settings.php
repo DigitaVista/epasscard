@@ -24,7 +24,7 @@ class EPC_Module_Settings {
 	 *
 	 * @var array<string, bool>
 	 */
-	private static array $initialized = array();
+	private static $initialized = array();
 
 	/**
 	 * Get enabled module slugs (saved + dependency available).

@@ -40,7 +40,7 @@ class EPC_Api_Log {
 	 *
 	 * @var string|null
 	 */
-	private static ?string $request_context = null;
+	private static $request_context = null;
 
 	/**
 	 * Register hooks.
@@ -170,7 +170,7 @@ class EPC_Api_Log {
 		if ( wp_doing_ajax() ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only request metadata for logging; not form processing.
 			$action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['action'] ) ) : '';
-			if ( str_starts_with( $action, 'epc_' ) ) {
+			if ( 0 === strpos( $action, 'epc_' ) ) {
 				return 'ajax:' . $action;
 			}
 			return 'ajax';

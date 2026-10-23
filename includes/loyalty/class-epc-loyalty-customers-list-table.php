@@ -23,7 +23,7 @@ class EPC_Loyalty_Customers_List_Table extends WP_List_Table {
 	 *
 	 * @var string
 	 */
-	private string $search;
+	private $search;
 
 	/**
 	 * Module instance for pass actions.

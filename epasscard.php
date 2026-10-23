@@ -5,7 +5,7 @@
  * Description:       Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty cards, membership cards, event tickets & gift cards.
  * Version:           1.1.0
  * Requires at least: 6.5
- * Requires PHP:      8.1
+ * Requires PHP:      7.2
  * Author:            WebCartisan
  * Author URI:        https://webcartisan.com/
  * License:           GPL v2 or later

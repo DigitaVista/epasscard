@@ -21,7 +21,7 @@ class EPC_User_Pass_Sync {
 	 *
 	 * @var array<int, string>
 	 */
-	private static array $watched_meta_keys = array(
+	private static $watched_meta_keys = array(
 		'first_name',
 		'last_name',
 		'nickname',

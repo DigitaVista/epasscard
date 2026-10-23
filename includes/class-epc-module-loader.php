@@ -19,7 +19,7 @@ class EPC_Module_Loader {
 	 *
 	 * @var array<string, EPC_Module>|null
 	 */
-	private static ?array $registry = null;
+	private static $registry = null;
 
 	/**
 	 * Module file definitions.

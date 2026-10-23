@@ -19,7 +19,7 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 	 *
 	 * @var array<int, bool>
 	 */
-	private static array $status_just_changed = array();
+	private static $status_just_changed = array();
 
 	/**
 	 * @inheritDoc

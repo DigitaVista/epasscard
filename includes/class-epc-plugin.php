@@ -56,21 +56,21 @@ final class EPC_Plugin {
 	 *
 	 * @var EPC_Plugin|null
 	 */
-	private static ?EPC_Plugin $instance = null;
+	private static $instance = null;
 
 	/**
 	 * Loaded modules.
 	 *
 	 * @var array<string, EPC_Module>
 	 */
-	private array $modules = array();
+	private $modules = array();
 
 	/**
 	 * All registered module instances (enabled or not).
 	 *
 	 * @var array<string, EPC_Module>
 	 */
-	private array $all_modules = array();
+	private $all_modules = array();
 
 	/**
 	 * Get singleton.

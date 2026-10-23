@@ -2111,28 +2111,28 @@ class EPC_Module_List_Table extends WP_List_Table {
 	 *
 	 * @var EPC_Module
 	 */
-	private EPC_Module $module;
+	private $module;
 
 	/**
 	 * Search string.
 	 *
 	 * @var string
 	 */
-	private string $search;
+	private $search;
 
 	/**
 	 * List filters.
 	 *
 	 * @var array<string, mixed>
 	 */
-	private array $filters;
+	private $filters;
 
 	/**
 	 * Redirect URL for row actions.
 	 *
 	 * @var string
 	 */
-	private string $redirect_url;
+	private $redirect_url;
 
 	/**
 	 * Constructor.
