@@ -358,6 +358,13 @@ class EPC_Admin_Shell {
 		}
 
 		$primary[] = array(
+			'id'    => 'data',
+			'label' => __( 'Data', 'epasscard' ),
+			'url'   => $connection_url . '#epc-section-data',
+			'icon'  => 'database',
+		);
+
+		$primary[] = array(
 			'id'    => 'our-products',
 			'label' => __( 'Our Products', 'epasscard' ),
 			'url'   => $connection_url . '#epc-section-our-products',

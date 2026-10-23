@@ -386,6 +386,30 @@ EPC_Admin_Shell::render_open(
 		</div>
 	<?php endif; ?>
 
+	<div id="epc-section-data" class="epc-section epc-section--data">
+		<div class="epc-card epc-card--data">
+			<h2><?php esc_html_e( 'Data when deleting the plugin', 'epasscard' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'By default, deleting EpassCard keeps its data so you can reinstall without losing anything. Turn this on to remove it all when the plugin is deleted from the Plugins screen.', 'epasscard' ); ?>
+			</p>
+			<form class="epc-ajax-form" data-epc-action="epc_save_data_settings" method="post" action="">
+				<p>
+					<label class="epc-toggle">
+						<input type="checkbox" name="epc_delete_data_on_uninstall" value="1" <?php checked( EPC_Admin_Menu::delete_data_on_uninstall() ); ?> />
+						<span class="epc-toggle__track" aria-hidden="true"></span>
+						<span class="epc-toggle__label"><?php esc_html_e( 'Delete all EpassCard data when the plugin is deleted', 'epasscard' ); ?></span>
+					</label>
+				</p>
+				<p class="description">
+					<?php esc_html_e( 'Removed: connection settings and API key, integration settings and template mappings, issued pass records, API logs, and loyalty points, history, rewards and settings. Not removed: reward coupons already given to customers and WooCommerce order details, and passes on EpassCard\'s servers (manage those in your EpassCard account). Deactivating the plugin never deletes anything.', 'epasscard' ); ?>
+				</p>
+				<p style="margin-bottom:0;">
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save', 'epasscard' ); ?></button>
+				</p>
+			</form>
+		</div>
+	</div>
+
 	<div id="epc-section-our-products" class="epc-section epc-section--our-products">
 		<div class="epc-card epc-card--our-products">
 			<h2><?php esc_html_e( 'Our Products', 'epasscard' ); ?></h2>

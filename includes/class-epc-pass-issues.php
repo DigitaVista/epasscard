@@ -280,7 +280,7 @@ class EPC_Pass_Issues {
 	 * @return void
 	 */
 	public static function handle_dismiss() {
-		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( ! epc_current_user_can_manage_passes() ) {
 			wp_die( esc_html__( 'Permission denied.', 'epasscard' ) );
 		}
 		check_admin_referer( 'epc_dismiss_pass_issue' );
@@ -342,7 +342,7 @@ class EPC_Pass_Issues {
 	 * @return void
 	 */
 	public static function render_admin_notice() {
-		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( ! epc_current_user_can_manage_passes() ) {
 			return;
 		}
 

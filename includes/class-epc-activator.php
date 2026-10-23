@@ -61,5 +61,19 @@ class EPC_Activator {
 		EPC_Pass_Notifications::clear_cron();
 		EPC_Loyalty_Reward_Service::clear_cron();
 		EPC_Loyalty_Order_Sync_Service::clear_cron();
+
+		/*
+		 * Queued per-user pass syncs. They carry the user id as an argument, which
+		 * wp_clear_scheduled_hook() would only match for one exact id, so remove every event
+		 * of these hooks. While the plugin is inactive they would run with no handler anyway;
+		 * after reactivation the next profile or points change queues a fresh sync.
+		 * Revoke retries (epc_retry_pass_revoke) and the one-time revoked-pass repair are kept:
+		 * clearing them could leave a pass active that should be expired.
+		 */
+		wp_unschedule_hook( 'epc_sync_user_passes' );
+		wp_unschedule_hook( 'epc_loyalty_sync_pass' );
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( 'epc_loyalty_sync_pass' );
+		}
 	}
 }

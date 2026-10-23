@@ -575,7 +575,7 @@ abstract class EPC_Module {
 	 * @return bool
 	 */
 	public function current_user_can_manage_passes() {
-		return current_user_can( 'manage_options' ) || current_user_can( 'manage_woocommerce' );
+		return epc_current_user_can_manage_passes();
 	}
 
 	/**

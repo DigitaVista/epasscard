@@ -722,7 +722,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 			'epasscard',
 			$this->get_label(),
 			$this->get_label(),
-			'manage_woocommerce',
+			epc_manage_passes_menu_capability(),
 			'epc-' . $this->get_slug(),
 			array( $this, 'render_admin_page' )
 		);
@@ -731,7 +731,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 			'epasscard',
 			__( 'Loyalty Customers', 'epasscard' ),
 			__( 'Loyalty Customers', 'epasscard' ),
-			'manage_woocommerce',
+			epc_manage_passes_menu_capability(),
 			$this->get_customers_page_slug(),
 			array( $this, 'render_customers_page' )
 		);
@@ -740,7 +740,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 			'epasscard',
 			__( 'Issued Loyalty Passes', 'epasscard' ),
 			__( 'Issued Loyalty Passes', 'epasscard' ),
-			'manage_woocommerce',
+			epc_manage_passes_menu_capability(),
 			$this->get_issued_passes_page_slug(),
 			array( $this, 'render_issued_passes_page' )
 		);

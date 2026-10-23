@@ -493,7 +493,7 @@ class EPC_Loyalty_Order_Sync_Service {
 	 */
 	private static function assert_can_manage() {
 		check_ajax_referer( 'epc_admin', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( ! epc_current_user_can_manage_passes() ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
 		}
 	}

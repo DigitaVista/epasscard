@@ -347,7 +347,7 @@ class EPC_Loyalty_Customer_Service {
 	 * @return bool
 	 */
 	public static function current_user_can_manage() {
-		return current_user_can( 'manage_options' ) || current_user_can( 'manage_woocommerce' );
+		return epc_current_user_can_manage_passes();
 	}
 
 	/**
@@ -605,6 +605,27 @@ class EPC_Loyalty_Customer_Service {
 	}
 
 	/**
+	 * Neutralise a CSV cell that a spreadsheet would run as a formula.
+	 *
+	 * Cells starting with = + - @ tab or carriage return get a leading apostrophe (OWASP CSV
+	 * injection guidance). Plain numbers such as "-50" are left alone so points stay numeric.
+	 *
+	 * @param string $value Cell value.
+	 * @return string
+	 */
+	public static function csv_safe_cell( $value ) {
+		$value = (string) $value;
+		if ( '' === $value || false === strpos( "=+-@\t\r", $value[0] ) ) {
+			return $value;
+		}
+		if ( preg_match( '/^[+-]?\d+(\.\d+)?$/', $value ) ) {
+			return $value;
+		}
+
+		return "'" . $value;
+	}
+
+	/**
 	 * Stream a CSV export of loyalty customers.
 	 *
 	 * @param string $search Optional search filter.
@@ -623,7 +644,7 @@ class EPC_Loyalty_Customer_Service {
 			wp_die( esc_html__( 'Unable to start the loyalty customer export.', 'epasscard' ) );
 		}
 
-		fputcsv( $output, array_values( $columns ) );
+		fputcsv( $output, array_map( array( __CLASS__, 'csv_safe_cell' ), array_values( $columns ) ) );
 
 		$page     = 1;
 		$per_page = 200;
@@ -648,7 +669,7 @@ class EPC_Loyalty_Customer_Service {
 				}
 				$line = array();
 				foreach ( array_keys( $columns ) as $key ) {
-					$line[] = isset( $summary[ $key ] ) ? (string) $summary[ $key ] : '';
+					$line[] = self::csv_safe_cell( isset( $summary[ $key ] ) ? (string) $summary[ $key ] : '' );
 				}
 				fputcsv( $output, $line );
 				++$exported;

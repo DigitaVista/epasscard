@@ -486,6 +486,66 @@ function epc_get_connection_option_name() {
 }
 
 /**
+ * Capability for EpassCard settings (connection, API log, setup wizard, integration settings).
+ *
+ * @return string
+ */
+function epc_settings_capability() {
+	return 'manage_options';
+}
+
+/**
+ * Staff capability for day-to-day pass work: pass buttons, issued passes and the Loyalty screens.
+ *
+ * Administrators (manage_options) always have access as well. Default: manage_woocommerce
+ * (Shop Manager), which matches EpassCard 1.1.x.
+ *
+ * @return string
+ */
+function epc_manage_passes_capability() {
+	/**
+	 * Filter the staff capability for day-to-day pass work.
+	 *
+	 * @param string $capability Default 'manage_woocommerce'.
+	 */
+	$capability = apply_filters( 'epc_manage_passes_cap', 'manage_woocommerce' );
+
+	return is_string( $capability ) ? $capability : 'manage_woocommerce';
+}
+
+/**
+ * Whether the current user can do day-to-day pass work.
+ *
+ * @return bool
+ */
+function epc_current_user_can_manage_passes() {
+	if ( current_user_can( epc_settings_capability() ) ) {
+		return true;
+	}
+
+	$capability = epc_manage_passes_capability();
+
+	return '' !== $capability && current_user_can( $capability );
+}
+
+/**
+ * Menu capability for screens open to pass staff.
+ *
+ * add_submenu_page() takes one capability, so administrators get theirs and everyone else the staff one.
+ *
+ * @return string
+ */
+function epc_manage_passes_menu_capability() {
+	if ( current_user_can( epc_settings_capability() ) ) {
+		return epc_settings_capability();
+	}
+
+	$capability = epc_manage_passes_capability();
+
+	return '' !== $capability ? $capability : epc_settings_capability();
+}
+
+/**
  * Get the decrypted EpassCard X-Api-Key for custom integrations.
  *
  * @return string Plain API key, or empty string when not connected.

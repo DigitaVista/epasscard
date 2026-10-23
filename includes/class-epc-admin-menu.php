@@ -15,6 +15,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Admin_Menu {
 
 	/**
+	 * Option: '1' when the site owner wants all EpassCard data removed when the plugin is deleted.
+	 * Read by uninstall.php.
+	 */
+	public const DELETE_DATA_OPTION = 'epc_delete_data_on_uninstall';
+
+	/**
 	 * Hook admin.
 	 *
 	 * @return void
@@ -29,6 +35,7 @@ class EPC_Admin_Menu {
 		add_action( 'wp_ajax_epc_save_modules', array( __CLASS__, 'ajax_save_modules' ) );
 		add_action( 'wp_ajax_epc_get_templates', array( __CLASS__, 'ajax_get_templates' ) );
 		add_action( 'wp_ajax_epc_get_pass_fields', array( __CLASS__, 'ajax_get_pass_fields' ) );
+		add_action( 'wp_ajax_epc_save_data_settings', array( __CLASS__, 'ajax_save_data_settings' ) );
 	}
 
 	/**
@@ -241,6 +248,40 @@ class EPC_Admin_Menu {
 	}
 
 	/**
+	 * Whether data should be deleted when the plugin is deleted.
+	 *
+	 * @return bool
+	 */
+	public static function delete_data_on_uninstall() {
+		return '1' === (string) get_option( self::DELETE_DATA_OPTION, '0' );
+	}
+
+	/**
+	 * AJAX: save the "delete data on uninstall" setting.
+	 *
+	 * @return void
+	 */
+	public static function ajax_save_data_settings() {
+		check_ajax_referer( 'epc_admin', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
+		$delete = ! empty( $_POST['epc_delete_data_on_uninstall'] );
+		update_option( self::DELETE_DATA_OPTION, $delete ? '1' : '0', false );
+
+		wp_send_json_success(
+			array(
+				'message' => $delete
+					? __( 'Saved. All EpassCard data will be removed when the plugin is deleted.', 'epasscard' )
+					: __( 'Saved. EpassCard data will be kept when the plugin is deleted.', 'epasscard' ),
+			)
+		);
+	}
+
+	/**
 	 * AJAX: connect with email/password to generate API key.
 	 *
 	 * @return void
@@ -399,7 +440,8 @@ class EPC_Admin_Menu {
 	public static function ajax_get_templates() {
 		check_ajax_referer( 'epc_admin', 'nonce' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
+		// Pass staff use the template picker on the Loyalty pass design screen.
+		if ( ! epc_current_user_can_manage_passes() ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
 		}
 
@@ -425,7 +467,8 @@ class EPC_Admin_Menu {
 	public static function ajax_get_pass_fields() {
 		check_ajax_referer( 'epc_admin', 'nonce' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
+		// Pass staff use the template picker on the Loyalty pass design screen.
+		if ( ! epc_current_user_can_manage_passes() ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
 		}
 

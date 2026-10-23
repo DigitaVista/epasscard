@@ -87,7 +87,43 @@ class EPC_Connection {
 			return '';
 		}
 		$plain = EPC_Encryption::decrypt( $enc );
-		return is_string( $plain ) ? $plain : '';
+		$plain = is_string( $plain ) ? $plain : '';
+
+		if ( '' !== $plain && EPC_Encryption::is_legacy( $enc ) ) {
+			self::upgrade_stored_key( $plain );
+		}
+
+		return $plain;
+	}
+
+	/**
+	 * Re-save a key stored in the pre-1.2.0 format with the current encryption.
+	 *
+	 * Runs at most once per request. If the new value cannot be written, the old one stays
+	 * and the next request tries again.
+	 *
+	 * @param string $plain Decrypted key.
+	 * @return void
+	 */
+	private static function upgrade_stored_key( $plain ) {
+		static $attempted = false;
+		if ( $attempted ) {
+			return;
+		}
+		$attempted = true;
+
+		$encrypted = EPC_Encryption::encrypt( $plain );
+		// Only replace the stored value when the new one reads back to the same key.
+		if ( '' === $encrypted || EPC_Encryption::decrypt( $encrypted ) !== $plain ) {
+			return;
+		}
+
+		$saved = get_option( self::OPTION, array() );
+		if ( ! is_array( $saved ) ) {
+			return;
+		}
+		$saved['api_key_encrypted'] = $encrypted;
+		update_option( self::OPTION, $saved );
 	}
 
 	/**
