@@ -312,6 +312,13 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 				continue;
 			}
 
+			// Safety net: a refund that no hook reported (WooCommerce tickets, legacy PayPal, or a
+			// missed Tickets Commerce update) is caught here, at most one daily run later.
+			if ( 'deleted' === $this->normalize_attendee_status( $data ) && 'revoke' === $this->get_status_rule( 'deleted' ) ) {
+				EPC_Pass_Service::revoke_pass( $this->get_slug(), (int) $pass_row->source_id );
+				continue;
+			}
+
 			$event_id = isset( $data['event_id'] ) ? absint( $data['event_id'] ) : 0;
 			$start_ts = $this->get_event_start_timestamp( $event_id );
 			if ( $start_ts <= 0 ) {
@@ -452,6 +459,8 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		add_action( 'event_tickets_attendee_update', array( $this, 'on_attendee_update' ), 20, 3 );
 		add_action( 'event_tickets_attendee_ticket_deleted', array( $this, 'on_attendee_deleted' ), 20, 2 );
 		add_action( 'tec_tickets_commerce_attendee_after_delete', array( $this, 'on_commerce_attendee_deleted' ), 20, 1 );
+		// Tickets Commerce orders are posts: a refund changes the order's post status.
+		add_action( 'transition_post_status', array( $this, 'on_order_post_status_change' ), 20, 3 );
 
 		add_filter( 'tribe_tickets_attendee_table_columns', array( $this, 'attendees_table_columns' ), 20, 2 );
 		add_filter( 'tribe_events_tickets_attendees_table_column', array( $this, 'attendees_table_column' ), 20, 3 );
@@ -697,12 +706,125 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 	}
 
 	/**
-	 * Apply status rule then sync.
+	 * A Tickets Commerce order changed status (e.g. completed -> refunded).
+	 *
+	 * @param string $new_status New post status.
+	 * @param string $old_status Old post status.
+	 * @param mixed  $post       Post object.
+	 * @return void
+	 */
+	public function on_order_post_status_change( $new_status, $old_status, $post ) {
+		if ( $new_status === $old_status || ! is_object( $post ) || empty( $post->ID ) || empty( $post->post_type ) ) {
+			return;
+		}
+
+		$order_class = 'TEC\\Tickets\\Commerce\\Order';
+		$order_type  = class_exists( $order_class ) && defined( $order_class . '::POSTTYPE' ) ? constant( $order_class . '::POSTTYPE' ) : 'tec_tc_order';
+		if ( $order_type !== $post->post_type ) {
+			return;
+		}
+
+		foreach ( $this->get_commerce_order_attendee_ids( (int) $post->ID ) as $attendee_id ) {
+			$this->handle_attendee( $attendee_id );
+		}
+	}
+
+	/**
+	 * Attendee ids of a Tickets Commerce order.
+	 *
+	 * Uses Module::get_attendees_by_order_id(), the method Event Tickets' own Order class uses.
+	 * Returns an empty list when Tickets Commerce is not active; the daily check still catches
+	 * the refund then.
+	 *
+	 * @param int $order_id Order post id.
+	 * @return array<int, int>
+	 */
+	private function get_commerce_order_attendee_ids( $order_id ) {
+		$module_class = 'TEC\\Tickets\\Commerce\\Module';
+		if ( $order_id <= 0 || ! function_exists( 'tribe' ) || ! class_exists( $module_class ) ) {
+			return array();
+		}
+
+		$module = tribe( $module_class );
+		if ( ! is_object( $module ) || ! method_exists( $module, 'get_attendees_by_order_id' ) ) {
+			return array();
+		}
+
+		$ids = array();
+		foreach ( (array) $module->get_attendees_by_order_id( $order_id ) as $attendee ) {
+			if ( is_array( $attendee ) ) {
+				$id = absint( $attendee['attendee_id'] ?? ( $attendee['ID'] ?? 0 ) );
+			} elseif ( is_object( $attendee ) ) {
+				$id = absint( isset( $attendee->ID ) ? $attendee->ID : ( isset( $attendee->attendee_id ) ? $attendee->attendee_id : 0 ) );
+			} else {
+				$id = absint( $attendee );
+			}
+			if ( $id > 0 ) {
+				$ids[ $id ] = $id;
+			}
+		}
+
+		return array_values( $ids );
+	}
+
+	/**
+	 * Attendees queued during this request.
+	 *
+	 * @var array<int, true>
+	 */
+	private $queued_attendees = array();
+
+	/**
+	 * Whether the shutdown handler is registered.
+	 *
+	 * @var bool
+	 */
+	private $shutdown_hooked = false;
+
+	/**
+	 * Queue an attendee; it is handled once at the end of the request.
+	 *
+	 * Tickets Commerce fires "attendee created" and the generate-attendee flag for the same
+	 * attendee, and an order update can touch it again, so handling each hook immediately sent
+	 * the same ticket to EpassCard several times.
 	 *
 	 * @param int $attendee_id Attendee ID.
 	 * @return void
 	 */
 	private function handle_attendee( $attendee_id ) {
+		$attendee_id = absint( $attendee_id );
+		if ( $attendee_id <= 0 || ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+
+		$this->queued_attendees[ $attendee_id ] = true;
+		if ( ! $this->shutdown_hooked ) {
+			$this->shutdown_hooked = true;
+			add_action( 'shutdown', array( $this, 'process_queued_attendees' ), 5 );
+		}
+	}
+
+	/**
+	 * Handle every queued attendee once.
+	 *
+	 * @return void
+	 */
+	public function process_queued_attendees() {
+		$ids                    = array_keys( $this->queued_attendees );
+		$this->queued_attendees = array();
+		$this->shutdown_hooked  = false;
+		foreach ( $ids as $attendee_id ) {
+			$this->handle_attendee_now( $attendee_id );
+		}
+	}
+
+	/**
+	 * Apply status rule then sync.
+	 *
+	 * @param int $attendee_id Attendee ID.
+	 * @return void
+	 */
+	private function handle_attendee_now( $attendee_id ) {
 		if ( ! EPC_Api_Client::is_configured() || $attendee_id <= 0 ) {
 			return;
 		}
@@ -916,8 +1038,22 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 			return 'no';
 		}
 
+		// Refunded or failed orders (Tickets Commerce, WooCommerce tickets, legacy PayPal).
+		// Before 1.2.0 these fell through to "active", so a refunded ticket kept a valid pass.
+		$plain = preg_replace( '/^(wc-|tec-tc-|tribe-tpp-)/', '', $raw );
+		if ( in_array( $plain, self::ENDED_ORDER_STATUSES, true ) ) {
+			return 'deleted';
+		}
+
 		return 'active';
 	}
+
+	/**
+	 * Order statuses that end a ticket (mapped to the "Deleted / refunded" rule).
+	 *
+	 * @var array<int, string>
+	 */
+	const ENDED_ORDER_STATUSES = array( 'refunded', 'cancelled', 'canceled', 'failed', 'denied', 'reversed', 'voided', 'not-completed', 'trash' );
 
 	/**
 	 * Whether a post is a The Events Calendar event.
