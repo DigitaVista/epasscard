@@ -427,34 +427,8 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 	 * @return void
 	 */
 	public function on_change_membership_level( $level_id, $user_id, $cancel_level = null ) {
-		if ( ! EPC_Api_Client::is_configured() ) {
-			return;
-		}
-
-		$user_id  = absint( $user_id );
-		$level_id = absint( $level_id );
-
-		if ( $user_id <= 0 ) {
-			return;
-		}
-
-		if ( $level_id > 0 ) {
-			$this->apply_status_rule_for_user_level( $user_id, $level_id, 'active' );
-			return;
-		}
-
-		$cancelled_level = absint( $cancel_level );
-		if ( $cancelled_level > 0 ) {
-			$this->apply_status_rule_for_user_level( $user_id, $cancelled_level, 'cancelled' );
-			return;
-		}
-
-		// Cancel-all path: revoke for each recent membership row still mapped.
-		$rows = $this->get_recent_membership_rows_for_user( $user_id );
-		foreach ( $rows as $row ) {
-			$status = $this->normalize_status( isset( $row->status ) ? (string) $row->status : 'cancelled' );
-			$this->apply_action_for_row( $row, $this->get_status_rule( $status ) );
-		}
+		unset( $level_id, $cancel_level );
+		$this->queue_member( $user_id );
 	}
 
 	/**
@@ -465,29 +439,97 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 	 * @return void
 	 */
 	public function on_after_checkout( $user_id, $morder = null ) {
-		if ( ! EPC_Api_Client::is_configured() ) {
-			return;
-		}
+		unset( $morder );
+		$this->queue_member( $user_id );
+	}
 
+	/**
+	 * Members queued during this request.
+	 *
+	 * @var array<int, true>
+	 */
+	private $queued_members = array();
+
+	/**
+	 * Whether the shutdown handler is registered.
+	 *
+	 * @var bool
+	 */
+	private $shutdown_hooked = false;
+
+	/**
+	 * Queue a member so their cards are reconciled once, at the end of the request.
+	 *
+	 * Checkout fires both pmpro_after_change_membership_level and pmpro_after_checkout for the
+	 * same membership, and a level switch fires the change hook once per level touched. Handling
+	 * each hook immediately sent the same card to EpassCard twice and never revoked the card of
+	 * the level the member left.
+	 *
+	 * @param int $user_id User id.
+	 * @return void
+	 */
+	private function queue_member( $user_id ) {
 		$user_id = absint( $user_id );
-		if ( $user_id <= 0 ) {
+		if ( $user_id <= 0 || ! EPC_Api_Client::is_configured() ) {
 			return;
 		}
 
-		$level_id = 0;
-		if ( is_object( $morder ) && ! empty( $morder->membership_id ) ) {
-			$level_id = absint( $morder->membership_id );
+		$this->queued_members[ $user_id ] = true;
+		if ( ! $this->shutdown_hooked ) {
+			$this->shutdown_hooked = true;
+			add_action( 'shutdown', array( $this, 'process_queued_members' ), 5 );
 		}
+	}
 
-		if ( $level_id <= 0 && function_exists( 'pmpro_getMembershipLevelForUser' ) ) {
-			$level = pmpro_getMembershipLevelForUser( $user_id );
-			if ( is_object( $level ) && ! empty( $level->id ) ) {
-				$level_id = absint( $level->id );
+	/**
+	 * Reconcile every queued member once PMPro has stored all level changes.
+	 *
+	 * @return void
+	 */
+	public function process_queued_members() {
+		$user_ids             = array_keys( $this->queued_members );
+		$this->queued_members = array();
+		// Long-running processes (WP-CLI, cron batches) may queue more members afterwards.
+		$this->shutdown_hooked = false;
+		foreach ( $user_ids as $user_id ) {
+			$this->reconcile_member( $user_id );
+		}
+	}
+
+	/**
+	 * Bring a member's cards in line with their memberships.
+	 *
+	 * - Active membership with a mapped level: apply the Active rule (sync by default).
+	 * - Ended membership (changed / cancelled / expired) whose card is still live: apply that
+	 *   status's rule (revoke by default). This revokes the old level's card on a level switch.
+	 * - Ended membership without a live card: nothing (never create cards for ended memberships).
+	 *
+	 * @param int $user_id User id.
+	 * @return void
+	 */
+	public function reconcile_member( $user_id ) {
+		foreach ( $this->get_recent_membership_rows_for_user( $user_id ) as $row ) {
+			$row_id = isset( $row->id ) ? absint( $row->id ) : 0;
+			if ( $row_id <= 0 ) {
+				continue;
 			}
-		}
 
-		if ( $level_id > 0 ) {
-			$this->apply_status_rule_for_user_level( $user_id, $level_id, 'active' );
+			$status = $this->normalize_status( isset( $row->status ) ? (string) $row->status : '' );
+			$action = $this->get_status_rule( $status );
+
+			if ( 'active' === $status ) {
+				$level_id = isset( $row->membership_id ) ? absint( $row->membership_id ) : 0;
+				if ( $level_id > 0 && ! empty( $this->get_mapping( $level_id )['template_uid'] ) ) {
+					$this->apply_action_for_row( $row, $action );
+				}
+				continue;
+			}
+
+			$pass = EPC_DB::get_pass( $this->get_slug(), $row_id );
+			if ( ! $pass || '' === (string) $pass->pass_uid || 'active' !== (string) $pass->status ) {
+				continue;
+			}
+			$this->apply_action_for_row( $row, $action );
 		}
 	}
 
@@ -543,23 +585,6 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 		return array_values( array_unique( array_filter( $source_ids ) ) );
 	}
 
-	/**
-	 * Apply configured pass action for a user + level.
-	 *
-	 * @param int    $user_id  User id.
-	 * @param int    $level_id Level id.
-	 * @param string $hint     Preferred status hint (active|cancelled|…).
-	 * @return void
-	 */
-	private function apply_status_rule_for_user_level( $user_id, $level_id, $hint = 'active' ) {
-		$row = $this->get_membership_row_for_user_level( $user_id, $level_id, $hint );
-		if ( ! $row ) {
-			return;
-		}
-
-		$status = $this->normalize_status( isset( $row->status ) ? (string) $row->status : $hint );
-		$this->apply_action_for_row( $row, $this->get_status_rule( $status ) );
-	}
 
 	/**
 	 * Run a pass action for a memberships_users row.
@@ -731,53 +756,6 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 		return $row instanceof stdClass ? $row : null;
 	}
 
-	/**
-	 * Find the best memberships_users row for a user + level.
-	 *
-	 * @param int    $user_id  User id.
-	 * @param int    $level_id Level id.
-	 * @param string $hint     Prefer active when hint is active.
-	 * @return object|null
-	 */
-	private function get_membership_row_for_user_level( $user_id, $level_id, $hint = 'active' ) {
-		global $wpdb;
-
-		$user_id  = absint( $user_id );
-		$level_id = absint( $level_id );
-
-		if ( $user_id <= 0 || $level_id <= 0 ) {
-			return null;
-		}
-
-		$table = $this->get_memberships_users_table();
-
-		if ( 'active' === $hint ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$row = $wpdb->get_row(
-				$wpdb->prepare(
-					"SELECT * FROM %i WHERE user_id = %d AND membership_id = %d AND status = 'active' ORDER BY id DESC LIMIT 1",
-					$table,
-					$user_id,
-					$level_id
-				)
-			);
-			if ( $row instanceof stdClass ) {
-				return $row;
-			}
-		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$row = $wpdb->get_row(
-			$wpdb->prepare(
-				"SELECT * FROM %i WHERE user_id = %d AND membership_id = %d ORDER BY id DESC LIMIT 1",
-				$table,
-				$user_id,
-				$level_id
-			)
-		);
-
-		return $row instanceof stdClass ? $row : null;
-	}
 
 	/**
 	 * Active membership rows for a user.
