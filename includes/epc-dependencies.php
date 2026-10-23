@@ -546,6 +546,80 @@ function epc_manage_passes_menu_capability() {
 }
 
 /**
+ * EpassCard Terms and Conditions URL.
+ *
+ * @return string
+ */
+function epc_terms_url() {
+	/**
+	 * Filter the EpassCard Terms and Conditions URL shown at sign-up and sign-in.
+	 *
+	 * @param string $url URL.
+	 */
+	return (string) apply_filters( 'epc_terms_url', 'https://www.epasscard.com/terms-and-conditions/' );
+}
+
+/**
+ * EpassCard Privacy Policy URL.
+ *
+ * @return string
+ */
+function epc_privacy_url() {
+	/**
+	 * Filter the EpassCard Privacy Policy URL shown at sign-up and sign-in.
+	 *
+	 * @param string $url URL.
+	 */
+	return (string) apply_filters( 'epc_privacy_url', 'https://www.epasscard.com/privacy-policy/' );
+}
+
+/**
+ * Consent notice shown next to each button that sends account data to EpassCard.
+ *
+ * States exactly what each action sends (see EPC_Api_Client::sign_up(), generate_api_key(),
+ * validate_api_key() and api_request_headers(), which adds the site address to every request).
+ *
+ * @param string $context sign_up, sign_in or api_key.
+ * @return string Escaped HTML (text with two links).
+ */
+function epc_consent_notice_html( $context ) {
+	$terms   = '<a href="' . esc_url( epc_terms_url() ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Terms and Conditions', 'epasscard' ) . '</a>';
+	$privacy = '<a href="' . esc_url( epc_privacy_url() ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Privacy Policy', 'epasscard' ) . '</a>';
+
+	switch ( sanitize_key( (string) $context ) ) {
+		case 'sign_up':
+			/* translators: 1: Terms and Conditions link, 2: Privacy Policy link. */
+			$text = esc_html__( 'By creating an account you agree to EpassCard\'s %1$s and %2$s. Your name, email address and site address are sent to EpassCard to create it.', 'epasscard' );
+			break;
+		case 'sign_in':
+			/* translators: 1: Terms and Conditions link, 2: Privacy Policy link. */
+			$text = esc_html__( 'Your email and password are sent to EpassCard once to create an API key, together with your site name, site address and timezone. The password is not stored. By connecting you agree to EpassCard\'s %1$s and %2$s.', 'epasscard' );
+			break;
+		default:
+			/* translators: 1: Terms and Conditions link, 2: Privacy Policy link. */
+			$text = esc_html__( 'The API key and your site address are sent to EpassCard to check the key. By connecting you agree to EpassCard\'s %1$s and %2$s.', 'epasscard' );
+			break;
+	}
+
+	return sprintf( $text, $terms, $privacy );
+}
+
+/**
+ * Allowed HTML for epc_consent_notice_html().
+ *
+ * @return array<string, array<string, bool>>
+ */
+function epc_consent_notice_allowed_html() {
+	return array(
+		'a' => array(
+			'href'   => true,
+			'target' => true,
+			'rel'    => true,
+		),
+	);
+}
+
+/**
  * Get the decrypted EpassCard X-Api-Key for custom integrations.
  *
  * @return string Plain API key, or empty string when not connected.

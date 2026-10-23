@@ -138,6 +138,7 @@ $builder    = isset( $builder ) && is_array( $builder ) ? $builder : EPC_Setup_W
 				</label>
 				<button type="submit" class="button button-primary epc-wizard__btn"><?php esc_html_e( 'Create account and connect', 'epasscard' ); ?></button>
 				<p class="epc-wizard__hint"><?php esc_html_e( 'A password will be emailed to you.', 'epasscard' ); ?></p>
+				<p class="epc-wizard__hint epc-consent-notice"><?php echo wp_kses( epc_consent_notice_html( 'sign_up' ), epc_consent_notice_allowed_html() ); ?></p>
 			</form>
 		</div>
 		<div class="epc-wizard__tile">
@@ -155,6 +156,7 @@ $builder    = isset( $builder ) && is_array( $builder ) ? $builder : EPC_Setup_W
 					<input type="password" id="epc-wizard-password" autocomplete="current-password" />
 				</label>
 				<button type="button" class="button button-primary epc-wizard__btn" id="epc-wizard-signin"><?php esc_html_e( 'Sign in and connect', 'epasscard' ); ?></button>
+				<p class="epc-wizard__hint epc-consent-notice"><?php echo wp_kses( epc_consent_notice_html( 'sign_in' ), epc_consent_notice_allowed_html() ); ?></p>
 				<div class="epc-wizard__divider"><span><?php esc_html_e( 'or', 'epasscard' ); ?></span></div>
 				<label class="epc-wizard__field" for="epc-wizard-api-key">
 					<span><?php esc_html_e( 'Paste an API key', 'epasscard' ); ?></span>
@@ -164,6 +166,7 @@ $builder    = isset( $builder ) && is_array( $builder ) ? $builder : EPC_Setup_W
 					<button type="button" class="button epc-wizard__btn" id="epc-wizard-connect-key"><?php esc_html_e( 'Connect with API key', 'epasscard' ); ?></button>
 					<a class="button-link" href="https://app.epasscard.com/api-keys" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Get an API key', 'epasscard' ); ?></a>
 				</div>
+				<p class="epc-wizard__hint epc-consent-notice"><?php echo wp_kses( epc_consent_notice_html( 'api_key' ), epc_consent_notice_allowed_html() ); ?></p>
 			</div>
 		</div>
 	</div>

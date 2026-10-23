@@ -135,6 +135,7 @@ EPC_Admin_Shell::render_open(
 						<?php esc_html_e( 'Get an API key', 'epasscard' ); ?>
 					</a>
 				</p>
+				<p class="description epc-consent-notice"><?php echo wp_kses( epc_consent_notice_html( 'api_key' ), epc_consent_notice_allowed_html() ); ?></p>
 			</div>
 
 			<div class="epc-card epc-card--tabs">
@@ -180,6 +181,7 @@ EPC_Admin_Shell::render_open(
 									<?php esc_html_e( 'Generate & connect', 'epasscard' ); ?>
 								</button>
 							</p>
+							<p class="description epc-consent-notice"><?php echo wp_kses( epc_consent_notice_html( 'sign_in' ), epc_consent_notice_allowed_html() ); ?></p>
 						</div>
 
 						<div class="epc-tabs__panel" role="tabpanel" id="epc-panel-sign-up" aria-labelledby="epc-tab-sign-up" hidden>
@@ -229,6 +231,7 @@ EPC_Admin_Shell::render_open(
 										<?php esc_html_e( 'Sign up & Connect Now', 'epasscard' ); ?>
 									</button>
 								</p>
+								<p class="description epc-consent-notice"><?php echo wp_kses( epc_consent_notice_html( 'sign_up' ), epc_consent_notice_allowed_html() ); ?></p>
 							</form>
 						</div>
 					</div>

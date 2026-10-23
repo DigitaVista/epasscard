@@ -115,11 +115,13 @@ This plugin relies on the following third-party services. Nothing is sent to the
 
 **EpassCard API** (`https://api.epasscard.com`) — the service that creates and delivers the wallet passes.
 
-* When you sign up from the plugin, your name and email address are sent to create an EpassCard account.
+* Every request to the EpassCard API includes your site address in its request headers.
+* When you sign up from the plugin, your name, email address and site address are sent to create an EpassCard account.
 * When you sign in, your EpassCard email and password are sent once to generate an API key, together with your site name, site address (used to lock the key to your domain) and timezone. The password is not stored by the plugin.
 * When you connect, refresh or renew an API key, the key is sent for validation.
-* When passes are created, updated, expired or notified, the pass field values you map (for example member name, email, membership level, expiry date, ticket or gift card details, loyalty points) are sent, along with your site address in request headers.
+* When passes are created, updated, expired or notified, the pass field values you map (for example member name, email, membership level, expiry date, ticket or gift card details, loyalty points) are sent.
 * Pass templates and template fields are read from your EpassCard account.
+* The sign-up, sign-in and API key forms (Connection screen and setup wizard) say what each one sends and link to the EpassCard terms below. Using them means you agree to those terms.
 * EpassCard [Terms and Conditions](https://www.epasscard.com/terms-and-conditions/) and [Privacy Policy](https://www.epasscard.com/privacy-policy/).
 
 **WebCartisan plugin catalog** (`https://webcartisan.com`) — the "Our Products" section on the EpassCard Connection screen loads a list of our other plugins from `https://webcartisan.com/wp-json/webcartisan/v1/catalog`. Only the plugin slug (`epasscard`) and the standard WordPress user agent (which includes your site address) are sent; the result is cached for 12 hours. [WebCartisan](https://webcartisan.com/).
