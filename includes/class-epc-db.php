@@ -59,7 +59,7 @@ class EPC_DB {
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
-			KEY module_source (module, source_id),
+			UNIQUE KEY module_source_unique (module, source_id),
 			KEY user_id (user_id),
 			KEY pass_uid (pass_uid)
 		) {$charset_collate};";
@@ -154,12 +154,198 @@ class EPC_DB {
 	public static function maybe_upgrade() {
 		$installed = (string) get_option( 'epc_db_version', '0' );
 		if ( version_compare( $installed, EPC_DB_VERSION, '<' ) ) {
+			// Merge duplicate rows and add the unique key before dbDelta runs, so dbDelta
+			// never tries to add the unique key to a table that still holds duplicates.
+			$unique_ok = self::ensure_pass_unique_key();
 			self::install();
 			if ( version_compare( $installed, '1.2.0', '<' ) ) {
 				self::ensure_source_id_varchar();
 				self::migrate_memberpress_source_ids();
 			}
+			if ( ! $unique_ok ) {
+				// Retry on the next load (a duplicate slipped in between the merge and the ALTER),
+				// at most 5 times so a database that refuses the index is not retried forever.
+				$attempts = (int) get_option( 'epc_pass_unique_attempts', 0 ) + 1;
+				update_option( 'epc_pass_unique_attempts', $attempts, false );
+				if ( $attempts < 5 ) {
+					update_option( 'epc_db_version', '1.3.0' );
+				}
+			}
 		}
+	}
+
+	/**
+	 * Make (module, source_id) unique on the passes table (1.4.0).
+	 *
+	 * One record must own exactly one pass row. Before 1.1.1 two requests handling the same
+	 * record at the same moment could each create a pass, leaving duplicate rows (and a second
+	 * billable pass on EpassCard). Duplicates are merged first: the row every read already used
+	 * (lowest id with a pass) is kept, and the other pass UIDs are saved in its meta under
+	 * `duplicate_pass_uids` so they can be reviewed. Nothing is deleted on EpassCard.
+	 *
+	 * Idempotent and safe to call on every upgrade.
+	 *
+	 * @return bool True when the unique key exists (or the table does not exist yet).
+	 */
+	public static function ensure_pass_unique_key() {
+		global $wpdb;
+
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema introspection.
+		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+		if ( $exists !== $table ) {
+			return true; // Fresh install: dbDelta creates the table with the unique key.
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema introspection.
+		$indexes = $wpdb->get_results( $wpdb->prepare( 'SHOW INDEX FROM %i', $table ), ARRAY_A );
+		$names   = array();
+		foreach ( (array) $indexes as $index ) {
+			$names[ (string) ( $index['Key_name'] ?? '' ) ] = true;
+		}
+
+		if ( isset( $names['module_source_unique'] ) ) {
+			return true;
+		}
+
+		self::merge_duplicate_passes();
+
+		$sql = isset( $names['module_source'] )
+			? 'ALTER TABLE %i DROP INDEX module_source, ADD UNIQUE KEY module_source_unique (module, source_id)'
+			: 'ALTER TABLE %i ADD UNIQUE KEY module_source_unique (module, source_id)';
+
+		$suppress = $wpdb->suppress_errors( true );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- One-time index migration; $sql is a fixed string.
+		$result = $wpdb->query( $wpdb->prepare( $sql, $table ) );
+		$wpdb->suppress_errors( $suppress );
+
+		return false !== $result;
+	}
+
+	/**
+	 * Merge duplicate pass rows (same module + source_id) into one row per record.
+	 *
+	 * Processes up to 500 duplicated records per call; the unique-key step retries on the
+	 * next load until none are left.
+	 *
+	 * @return int Number of rows removed.
+	 */
+	private static function merge_duplicate_passes() {
+		global $wpdb;
+
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time migration.
+		$groups = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT module, source_id FROM %i GROUP BY module, source_id HAVING COUNT(*) > 1 LIMIT 500',
+				$table
+			)
+		);
+
+		$removed = 0;
+		foreach ( (array) $groups as $group ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time migration.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT * FROM %i WHERE module = %s AND source_id = %s ORDER BY id ASC',
+					$table,
+					$group->module,
+					$group->source_id
+				)
+			);
+			if ( ! is_array( $rows ) || count( $rows ) < 2 ) {
+				continue;
+			}
+
+			$keep = self::pick_pass_row_to_keep( $rows );
+			$extra_uids = array();
+			foreach ( $rows as $row ) {
+				if ( (int) $row->id === (int) $keep->id ) {
+					continue;
+				}
+				$uid = (string) $row->pass_uid;
+				if ( '' !== $uid && $uid !== (string) $keep->pass_uid ) {
+					$extra_uids[] = $uid;
+				}
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time migration.
+				$removed += (int) $wpdb->delete( $table, array( 'id' => (int) $row->id ), array( '%d' ) );
+			}
+
+			if ( ! empty( $extra_uids ) ) {
+				$meta = self::get_pass_meta( $keep );
+				$old  = isset( $meta['duplicate_pass_uids'] ) && is_array( $meta['duplicate_pass_uids'] ) ? $meta['duplicate_pass_uids'] : array();
+				$meta['duplicate_pass_uids'] = array_values( array_unique( array_merge( $old, $extra_uids ) ) );
+				self::update_pass_meta( $keep, $meta );
+			}
+		}
+
+		return $removed;
+	}
+
+	/**
+	 * Choose which duplicate row to keep: the lowest id that has a pass UID.
+	 *
+	 * That is the row get_pass() returned before 1.1.1, so it is the one every later update,
+	 * revoke and reminder was written to.
+	 *
+	 * @param array<int, object> $rows Rows ordered by id ascending.
+	 * @return object
+	 */
+	private static function pick_pass_row_to_keep( array $rows ) {
+		foreach ( $rows as $row ) {
+			if ( '' !== (string) $row->pass_uid ) {
+				return $row;
+			}
+		}
+		return $rows[0];
+	}
+
+	/**
+	 * Take a cross-request lock for one pass record (MySQL named lock).
+	 *
+	 * @param string     $module    Module slug.
+	 * @param int|string $source_id Source record id.
+	 * @param int        $timeout   Seconds to wait for another request to finish.
+	 * @return bool|null True when held, false when another request still holds it after the
+	 *                   timeout, null when the database does not support named locks.
+	 */
+	public static function acquire_pass_lock( $module, $source_id, $timeout = 15 ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Named lock, not a data read.
+		$got = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', self::pass_lock_name( $module, $source_id ), max( 0, (int) $timeout ) ) );
+		if ( null === $got ) {
+			return null;
+		}
+
+		return '1' === (string) $got;
+	}
+
+	/**
+	 * Release a lock taken with acquire_pass_lock().
+	 *
+	 * @param string     $module    Module slug.
+	 * @param int|string $source_id Source record id.
+	 * @return void
+	 */
+	public static function release_pass_lock( $module, $source_id ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Named lock, not a data read.
+		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', self::pass_lock_name( $module, $source_id ) ) );
+	}
+
+	/**
+	 * Lock name for one record: unique per site (table prefix), module and source id; 41 chars.
+	 *
+	 * @param string     $module    Module slug.
+	 * @param int|string $source_id Source record id.
+	 * @return string
+	 */
+	private static function pass_lock_name( $module, $source_id ) {
+		global $wpdb;
+
+		return 'epc_pass_' . md5( $wpdb->prefix . '|' . sanitize_key( (string) $module ) . '|' . self::sanitize_source_id( $source_id ) );
 	}
 
 	/**
@@ -378,31 +564,63 @@ class EPC_DB {
 		$formats = array( '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s' );
 
 		if ( $existing ) {
-			// Keep stored meta (e.g. sent reminder flags) unless the caller explicitly provides new meta.
-			if ( ! array_key_exists( 'meta', $data ) ) {
-				unset( $row['meta'] );
-				array_pop( $formats );
-			}
-
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write.
-			$wpdb->update(
-				$table,
-				$row,
-				array( 'id' => (int) $existing ),
-				$formats,
-				array( '%d' )
-			);
-			return (int) $existing;
+			return self::update_pass_row( (int) $existing, $row, $formats, array_key_exists( 'meta', $data ) );
 		}
 
+		// The unique key on (module, source_id) rejects a second row for the same record.
+		// If another request inserted it a moment ago, update that row instead.
+		$suppress = $wpdb->suppress_errors( true );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table write.
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			$table,
 			$row,
 			$formats
 		);
+		$wpdb->suppress_errors( $suppress );
+
+		if ( false === $inserted ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table upsert lookup.
+			$existing = $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT id FROM %i WHERE module = %s AND source_id = %s LIMIT 1',
+					$table,
+					$module,
+					$source
+				)
+			);
+			return $existing ? self::update_pass_row( (int) $existing, $row, $formats, array_key_exists( 'meta', $data ) ) : false;
+		}
 
 		return $wpdb->insert_id ? (int) $wpdb->insert_id : false;
+	}
+
+	/**
+	 * Update an existing pass row.
+	 *
+	 * @param int                  $id       Row id.
+	 * @param array<string, mixed> $row      Column values (meta last).
+	 * @param array<int, string>   $formats  Formats matching $row.
+	 * @param bool                 $has_meta Whether the caller explicitly provided meta.
+	 * @return int Row id.
+	 */
+	private static function update_pass_row( $id, array $row, array $formats, $has_meta ) {
+		global $wpdb;
+
+		// Keep stored meta (e.g. sent reminder flags) unless the caller explicitly provides new meta.
+		if ( ! $has_meta ) {
+			unset( $row['meta'] );
+			array_pop( $formats );
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write.
+		$wpdb->update(
+			self::table_name(),
+			$row,
+			array( 'id' => (int) $id ),
+			$formats,
+			array( '%d' )
+		);
+		return (int) $id;
 	}
 
 	/**

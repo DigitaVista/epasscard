@@ -450,39 +450,84 @@ class EPC_Pass_Service {
 		if ( isset( self::$in_flight[ $guard ] ) ) {
 			return new WP_Error( 'epc_pass_in_flight', __( 'A pass for this record is already being created.', 'epasscard' ) );
 		}
+
+		/*
+		 * Cross-request lock: two requests for the same record (a payment webhook and the
+		 * thank-you page, a cron run and an admin click) must not both create a pass.
+		 * Null means the database has no named locks; the unique key still prevents a second row.
+		 */
+		$lock = EPC_DB::acquire_pass_lock( $module_slug, $source_id, self::pass_lock_timeout() );
+		if ( false === $lock ) {
+			return new WP_Error( 'epc_pass_in_flight', __( 'A pass for this record is already being created.', 'epasscard' ) );
+		}
+
+		// Another request may have created the pass while this one waited for the lock.
+		$current      = EPC_DB::get_pass( $module_slug, $source_id );
+		$replaced_uid = is_array( $meta ) ? (string) ( $meta['replaced_pass_uid'] ?? '' ) : '';
+		if ( $current && '' !== (string) $current->pass_uid && (string) $current->pass_uid !== $replaced_uid ) {
+			if ( true === $lock ) {
+				EPC_DB::release_pass_lock( $module_slug, $source_id );
+			}
+			if ( 'create' === $mode ) {
+				return new WP_Error( 'epc_pass_exists', __( 'A pass already exists for this record. Use Update or Sync instead.', 'epasscard' ) );
+			}
+			// Send this request's values to the pass the other request created.
+			return self::run_sync_pass( $module, $source_id, $entity_id, $user_id, $mapping, $source_values, 'update' );
+		}
+
 		self::$in_flight[ $guard ] = true;
 
-		if ( class_exists( 'EPC_Api_Log' ) ) {
-			EPC_Api_Log::set_request_context( $module_slug . ':create_pass' );
-		}
+		try {
+			if ( class_exists( 'EPC_Api_Log' ) ) {
+				EPC_Api_Log::set_request_context( $module_slug . ':create_pass' );
+			}
 
-		$result = EPC_Api_Client::create_pass( $template_uid, $fields );
-		unset( self::$in_flight[ $guard ] );
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}
-		self::$sent_hash[ $guard ] = md5( (string) wp_json_encode( $fields ) );
+			$result = EPC_Api_Client::create_pass( $template_uid, $fields );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			self::$sent_hash[ $guard ] = md5( (string) wp_json_encode( $fields ) );
 
-		$row = array(
-			'module'       => $module,
-			'source_id'    => $source_id,
-			'entity_id'    => $entity_id,
-			'user_id'      => $user_id,
-			'pass_uid'     => $result['passUid'],
-			'pass_link'    => $result['passLink'],
-			'template_uid' => $template_uid,
-			'status'       => 'active',
-		);
-		if ( is_array( $meta ) ) {
-			unset( $meta['revoke_pending'] );
-			$row['meta'] = $meta;
+			$row = array(
+				'module'       => $module,
+				'source_id'    => $source_id,
+				'entity_id'    => $entity_id,
+				'user_id'      => $user_id,
+				'pass_uid'     => $result['passUid'],
+				'pass_link'    => $result['passLink'],
+				'template_uid' => $template_uid,
+				'status'       => 'active',
+			);
+			if ( is_array( $meta ) ) {
+				unset( $meta['revoke_pending'] );
+				$row['meta'] = $meta;
+			}
+			EPC_DB::upsert_pass( $row );
+		} finally {
+			unset( self::$in_flight[ $guard ] );
+			if ( true === $lock ) {
+				EPC_DB::release_pass_lock( $module_slug, $source_id );
+			}
 		}
-		EPC_DB::upsert_pass( $row );
 
 		$pass_row = EPC_DB::get_pass( $module_slug, $source_id );
 		self::fire_pass_synced_hooks( $module_slug, $source_id, $pass_row, $mode, true );
 
 		return true;
+	}
+
+	/**
+	 * Seconds a request waits for another request that is creating the same pass.
+	 *
+	 * @return int
+	 */
+	private static function pass_lock_timeout() {
+		/**
+		 * Filters how long (seconds) a pass creation waits for a concurrent one for the same record.
+		 *
+		 * @param int $seconds Default 15.
+		 */
+		return max( 0, (int) apply_filters( 'epc_pass_lock_timeout', 15 ) );
 	}
 
 	/**
