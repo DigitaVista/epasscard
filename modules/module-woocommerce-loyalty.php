@@ -693,7 +693,23 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
 		}
 
-		wp_send_json_success( array( 'message' => __( 'Loyalty reward issued.', 'epasscard' ) ) );
+		$code = EPC_Loyalty_Reward_Service::get_claim_coupon_code( $result );
+		if ( '' !== $code ) {
+			$message = sprintf(
+				/* translators: %s: coupon code */
+				__( 'Reward claimed. Your code is %s. Enter it at checkout to use it.', 'epasscard' ),
+				$code
+			);
+		} else {
+			$message = __( 'Reward claimed. It has been added to your account.', 'epasscard' );
+		}
+
+		wp_send_json_success(
+			array(
+				'message'     => $message,
+				'coupon_code' => $code,
+			)
+		);
 	}
 
 	/**

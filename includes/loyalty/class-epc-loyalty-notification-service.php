@@ -24,6 +24,20 @@ class EPC_Loyalty_Notification_Service {
 	private static $suppress = 0;
 
 	/**
+	 * Automatic rewards waiting for their coupon, keyed by claim id.
+	 *
+	 * @var array<int, array{0: object, 1: array<string, mixed>}>
+	 */
+	private static $pending_rewards = array();
+
+	/**
+	 * Whether flush_pending_rewards() is hooked to shutdown.
+	 *
+	 * @var bool
+	 */
+	private static $pending_hooked = false;
+
+	/**
 	 * Pause email and wallet push until restore().
 	 *
 	 * @return void
@@ -50,6 +64,7 @@ class EPC_Loyalty_Notification_Service {
 		add_action( 'epc_loyalty_balance_changed', array( __CLASS__, 'on_balance_changed' ), 30, 2 );
 		add_action( 'epc_loyalty_tier_reached', array( __CLASS__, 'on_tier_reached' ), 10, 3 );
 		add_action( 'epc_loyalty_reward_available', array( __CLASS__, 'on_reward_available' ), 10, 2 );
+		add_action( 'epc_loyalty_reward_issued', array( __CLASS__, 'on_reward_issued' ), 10, 2 );
 		add_action( 'epc_loyalty_pass_ready', array( __CLASS__, 'on_pass_ready' ), 10, 2 );
 	}
 
@@ -162,6 +177,24 @@ class EPC_Loyalty_Notification_Service {
 			return;
 		}
 
+		/*
+		 * Redemption bookkeeping is not news for the customer: points held at checkout
+		 * ("X points removed") and handed back when a payment fails ("You earned X") only
+		 * confused people. The wallet pass still shows the new balance.
+		 */
+		$entry_type = (string) ( $entry->entry_type ?? '' );
+		$notify     = 0 !== strpos( $entry_type, 'redemption_' );
+		/**
+		 * Whether a loyalty balance change sends the points earned/removed notification.
+		 *
+		 * @param bool   $notify  Default: false for redemption_* entries, true otherwise.
+		 * @param object $entry   Ledger entry.
+		 * @param object $account Loyalty account.
+		 */
+		if ( ! apply_filters( 'epc_loyalty_notify_balance_change', $notify, $entry, $account ) ) {
+			return;
+		}
+
 		$type = $delta > 0 ? 'points_earned' : 'points_reversed';
 		if ( 'point_expiry' === (string) ( $entry->entry_type ?? '' ) ) {
 			$type = 'points_reversed';
@@ -205,12 +238,73 @@ class EPC_Loyalty_Notification_Service {
 	 * @return void
 	 */
 	public static function on_reward_available( $claim, array $milestone ) {
-		self::send(
+		$claim_id = absint( $claim->id ?? 0 );
+
+		// Automatic rewards are issued right after this hook: wait for the coupon so the email
+		// can carry its code. If issuing fails, the email still goes out at shutdown, without one.
+		if ( $claim_id > 0 && 'automatic' === (string) ( $milestone['claim_mode'] ?? '' ) && 0 === self::$suppress ) {
+			self::$pending_rewards[ $claim_id ] = array( $claim, $milestone );
+			if ( ! self::$pending_hooked ) {
+				self::$pending_hooked = true;
+				add_action( 'shutdown', array( __CLASS__, 'flush_pending_rewards' ), 5 );
+			}
+			return;
+		}
+
+		self::send_reward_available( $claim, $milestone, '' );
+	}
+
+	/**
+	 * Send the reward email for an automatic reward once it has been issued.
+	 *
+	 * @param object               $claim     Issued claim.
+	 * @param array<string, mixed> $milestone Milestone.
+	 * @return void
+	 */
+	public static function on_reward_issued( $claim, $milestone = array() ) {
+		$claim_id = absint( $claim->id ?? 0 );
+		if ( ! isset( self::$pending_rewards[ $claim_id ] ) ) {
+			return; // Manual claim: the customer sees the code on screen and in My Account.
+		}
+		unset( self::$pending_rewards[ $claim_id ] );
+
+		self::send_reward_available(
+			$claim,
+			is_array( $milestone ) ? $milestone : array(),
+			EPC_Loyalty_Reward_Service::get_claim_coupon_code( $claim )
+		);
+	}
+
+	/**
+	 * Send reward emails whose automatic issuing did not complete in this request.
+	 *
+	 * @return void
+	 */
+	public static function flush_pending_rewards() {
+		$pending                = self::$pending_rewards;
+		self::$pending_rewards  = array();
+		self::$pending_hooked   = false;
+		foreach ( $pending as $item ) {
+			self::send_reward_available( $item[0], $item[1], '' );
+		}
+	}
+
+	/**
+	 * Send the reward_available notification.
+	 *
+	 * @param object               $claim     Claim.
+	 * @param array<string, mixed> $milestone Milestone.
+	 * @param string               $code      Coupon code, or '' when there is none yet.
+	 * @return bool
+	 */
+	private static function send_reward_available( $claim, array $milestone, $code ) {
+		return self::send(
 			'reward_available',
 			absint( $claim->user_id ?? 0 ),
 			array(
-				'reward'     => (string) ( $milestone['name'] ?? __( 'Loyalty reward', 'epasscard' ) ),
-				'expires_at' => ! empty( $claim->expires_at ) ? get_date_from_gmt( $claim->expires_at, get_option( 'date_format' ) ) : '',
+				'reward'      => (string) ( $milestone['name'] ?? __( 'Loyalty reward', 'epasscard' ) ),
+				'expires_at'  => ! empty( $claim->expires_at ) ? get_date_from_gmt( $claim->expires_at, get_option( 'date_format' ) ) : '',
+				'reward_code' => (string) $code,
 			)
 		);
 	}
@@ -326,6 +420,15 @@ class EPC_Loyalty_Notification_Service {
 			(string) ( $rule['push_message'] ?? $rule['message'] ?? '' ),
 			$tags
 		);
+		// Saved messages predate {reward_code}: add the code to the email so the customer can use it.
+		$reward_code = isset( $replacements['reward_code'] ) ? trim( (string) $replacements['reward_code'] ) : '';
+		if ( '' !== $reward_code && false === strpos( (string) ( $rule['email_message'] ?? $rule['message'] ?? '' ), '{reward_code}' ) ) {
+			$email_message .= "\n\n" . sprintf(
+				/* translators: %s: coupon code */
+				__( 'Your reward code: %s. Enter it at checkout to use your reward.', 'epasscard' ),
+				$reward_code
+			);
+		}
 		$sent = false;
 
 		if ( ! empty( $rule['email_enabled'] ) && '' !== trim( $subject ) && '' !== trim( $email_message ) ) {

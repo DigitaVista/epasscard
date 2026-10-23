@@ -54,6 +54,13 @@
 							'Reward claimed.',
 						'success'
 					);
+					if (response.data && response.data.coupon_code) {
+						// Keep the code on screen; it is also listed under "Your reward codes" after a reload.
+						$btn.replaceWith(
+							$('<code class="epc-loyalty-wallet__code-value"></code>').text(response.data.coupon_code)
+						);
+						return;
+					}
 					$item.fadeOut(200, function () {
 						$(this).remove();
 						if (!$('.epc-loyalty-wallet__claim').length) {

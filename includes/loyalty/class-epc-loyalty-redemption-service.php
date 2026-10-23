@@ -1286,6 +1286,9 @@ class EPC_Loyalty_Redemption_Service {
 		$total    = 0.0;
 
 		foreach ( WC()->cart->get_cart() as $cart_item ) {
+			if ( EPC_Loyalty_Reward_Service::is_reward_cart_item( $cart_item ) ) {
+				continue; // Free reward product: never worth points.
+			}
 			$product      = isset( $cart_item['data'] ) && is_object( $cart_item['data'] ) ? $cart_item['data'] : null;
 			$product_id   = absint( $cart_item['product_id'] ?? 0 );
 			$variation_id = absint( $cart_item['variation_id'] ?? 0 );

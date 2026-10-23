@@ -47,6 +47,47 @@ class EPC_Loyalty_Reward_Service {
 		add_action( 'woocommerce_applied_coupon', array( __CLASS__, 'on_coupon_applied' ) );
 		add_action( 'woocommerce_removed_coupon', array( __CLASS__, 'on_coupon_removed' ) );
 		add_action( 'woocommerce_before_calculate_totals', array( __CLASS__, 'price_free_reward_products' ) );
+		add_filter( 'woocommerce_cart_item_quantity', array( __CLASS__, 'lock_reward_item_quantity_html' ), 20, 3 );
+		add_filter( 'woocommerce_store_api_product_quantity_editable', array( __CLASS__, 'lock_reward_item_quantity_editable' ), 20, 3 );
+	}
+
+	/**
+	 * Whether a cart line is a free-product loyalty reward.
+	 *
+	 * @param mixed $cart_item Cart item array.
+	 * @return bool
+	 */
+	public static function is_reward_cart_item( $cart_item ) {
+		return is_array( $cart_item ) && absint( isset( $cart_item['_epc_loyalty_claim_id'] ) ? $cart_item['_epc_loyalty_claim_id'] : 0 ) > 0;
+	}
+
+	/**
+	 * Classic cart: show the reward line's quantity as a fixed "1".
+	 *
+	 * @param string $quantity_html Quantity input HTML.
+	 * @param string $cart_item_key Cart item key.
+	 * @param array  $cart_item     Cart item.
+	 * @return string
+	 */
+	public static function lock_reward_item_quantity_html( $quantity_html, $cart_item_key = '', $cart_item = array() ) {
+		if ( ! self::is_reward_cart_item( $cart_item ) ) {
+			return $quantity_html;
+		}
+
+		return sprintf( '1 <input type="hidden" name="cart[%s][qty]" value="1" />', esc_attr( (string) $cart_item_key ) );
+	}
+
+	/**
+	 * Block cart: the reward line's quantity cannot be changed.
+	 *
+	 * @param bool        $editable  Whether the quantity is editable.
+	 * @param \WC_Product $product   Product.
+	 * @param array|null  $cart_item Cart item.
+	 * @return bool
+	 */
+	public static function lock_reward_item_quantity_editable( $editable, $product = null, $cart_item = null ) {
+		unset( $product );
+		return self::is_reward_cart_item( $cart_item ) ? false : $editable;
 	}
 
 	/**
@@ -676,6 +717,9 @@ class EPC_Loyalty_Reward_Service {
 	/**
 	 * Keep tagged reward products free only while their claim coupon is applied.
 	 *
+	 * Exactly one unit per claim is free: a reward line raised above quantity 1 is put back to 1,
+	 * and any further line for the same claim keeps its normal price.
+	 *
 	 * @param \WC_Cart $cart Cart.
 	 * @return void
 	 */
@@ -685,10 +729,20 @@ class EPC_Loyalty_Reward_Service {
 		}
 
 		$applied = array_map( 'wc_format_coupon_code', $cart->get_applied_coupons() );
-		foreach ( $cart->get_cart() as $cart_item ) {
+		$priced  = array();
+		foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
 			$coupon_code = wc_format_coupon_code( (string) ( $cart_item['_epc_loyalty_coupon_code'] ?? '' ) );
 			if ( '' === $coupon_code || ! in_array( $coupon_code, $applied, true ) || empty( $cart_item['data'] ) ) {
 				continue;
+			}
+			$claim_id = absint( $cart_item['_epc_loyalty_claim_id'] ?? 0 );
+			if ( $claim_id <= 0 || isset( $priced[ $claim_id ] ) ) {
+				continue;
+			}
+			$priced[ $claim_id ] = true;
+
+			if ( (int) ( $cart_item['quantity'] ?? 1 ) !== 1 && method_exists( $cart, 'set_quantity' ) ) {
+				$cart->set_quantity( $cart_item_key, 1, false );
 			}
 			if ( is_object( $cart_item['data'] ) && method_exists( $cart_item['data'], 'set_price' ) ) {
 				$cart_item['data']->set_price( 0 );
@@ -827,6 +881,74 @@ class EPC_Loyalty_Reward_Service {
 			)
 		);
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Rewards a customer has already received as a coupon code, newest first.
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $limit   Maximum rows.
+	 * @return array<int, array{claim_id: int, name: string, type: string, code: string, state: string, expires_at: string}>
+	 *         state is ready, used or expired.
+	 */
+	public static function get_issued_rewards( $user_id, $limit = 20 ) {
+		global $wpdb;
+		$table = EPC_DB::loyalty_claims_table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer reward-code list.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE user_id = %d AND status = 'issued' AND reward_type <> 'bonus_points'
+				ORDER BY claimed_at DESC, id DESC LIMIT %d",
+				$table,
+				absint( $user_id ),
+				max( 1, absint( $limit ) )
+			)
+		);
+
+		$out = array();
+		foreach ( is_array( $rows ) ? $rows : array() as $claim ) {
+			$code = self::get_claim_coupon_code( $claim );
+			if ( '' === $code ) {
+				continue;
+			}
+			$meta      = self::decode_meta( $claim );
+			$milestone = isset( $meta['milestone'] ) && is_array( $meta['milestone'] ) ? $meta['milestone'] : array();
+			$state     = 'ready';
+
+			if ( class_exists( 'WC_Coupon' ) ) {
+				$coupon = new WC_Coupon( $code );
+				if ( $coupon->get_id() ) {
+					$limit_uses = (int) $coupon->get_usage_limit();
+					if ( $limit_uses > 0 && (int) $coupon->get_usage_count() >= $limit_uses ) {
+						$state = 'used';
+					}
+				}
+			}
+			if ( 'ready' === $state && ! empty( $claim->expires_at ) && strtotime( $claim->expires_at . ' UTC' ) <= time() ) {
+				$state = 'expired';
+			}
+
+			$out[] = array(
+				'claim_id'   => (int) $claim->id,
+				'name'       => sanitize_text_field( (string) ( isset( $milestone['name'] ) ? $milestone['name'] : $claim->reward_type ) ),
+				'type'       => (string) $claim->reward_type,
+				'code'       => $code,
+				'state'      => $state,
+				'expires_at' => (string) $claim->expires_at,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Coupon code stored on an issued claim ('' when the reward has none).
+	 *
+	 * @param object $claim Claim row.
+	 * @return string
+	 */
+	public static function get_claim_coupon_code( $claim ) {
+		$meta = is_object( $claim ) ? self::decode_meta( $claim ) : array();
+		return isset( $meta['issued']['coupon_code'] ) ? sanitize_text_field( (string) $meta['issued']['coupon_code'] ) : '';
 	}
 
 	/**

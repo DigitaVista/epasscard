@@ -674,7 +674,7 @@ $epc_loyalty_render_rule = static function ( array $rule, $lock_id, $open = fals
 
 				<div class="epc-tabs__panel" role="tabpanel" id="epc-panel-loyalty-notify" aria-labelledby="epc-tab-loyalty-notify" hidden>
 					<p class="description">
-						<?php esc_html_e( 'Configure email and wallet push separately for each event. Push only works after the customer has already added the pass to Apple Wallet or Google Wallet. Available tags: {customer_name}, {points}, {balance}, {tier}, {reward}, {pass_link}, {expires_at}, {reason}', 'epasscard' ); ?>
+						<?php esc_html_e( 'Configure email and wallet push separately for each event. Push only works after the customer has already added the pass to Apple Wallet or Google Wallet. Available tags: {customer_name}, {points}, {balance}, {tier}, {reward}, {reward_code}, {pass_link}, {expires_at}, {reason}', 'epasscard' ); ?>
 					</p>
 					<div class="epc-loyalty-notify-list" data-epc-notifications>
 						<?php foreach ( $notification_types as $type => $type_label ) : ?>

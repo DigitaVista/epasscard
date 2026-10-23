@@ -218,13 +218,15 @@
 	background: var(--epc-lw-accent);
 }
 
-.epc-loyalty-wallet__claim-list {
+.epc-loyalty-wallet__claim-list,
+.epc-loyalty-wallet__code-list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 }
 
-.epc-loyalty-wallet__claim {
+.epc-loyalty-wallet__claim,
+.epc-loyalty-wallet__code {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -233,15 +235,38 @@
 	border-bottom: 1px solid var(--epc-lw-line);
 }
 
-.epc-loyalty-wallet__claim:last-child {
+.epc-loyalty-wallet__claim:last-child,
+.epc-loyalty-wallet__code:last-child {
 	border-bottom: 0;
 	padding-bottom: 0;
 }
 
-.epc-loyalty-wallet__claim small {
+.epc-loyalty-wallet__claim small,
+.epc-loyalty-wallet__code small {
 	display: block;
 	margin-top: 0.2em;
 	color: var(--epc-lw-muted);
+}
+
+.epc-loyalty-wallet__hint {
+	margin: 0 0 0.5em;
+	color: var(--epc-lw-muted);
+}
+
+.epc-loyalty-wallet__code-value {
+	padding: 0.3em 0.6em;
+	border: 1px dashed var(--epc-lw-line);
+	border-radius: 6px;
+	font-size: 0.95em;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	user-select: all;
+}
+
+.epc-loyalty-wallet__code.is-used .epc-loyalty-wallet__code-value,
+.epc-loyalty-wallet__code.is-expired .epc-loyalty-wallet__code-value {
+	opacity: 0.55;
+	text-decoration: line-through;
 }
 
 .epc-loyalty-wallet__claim-status {

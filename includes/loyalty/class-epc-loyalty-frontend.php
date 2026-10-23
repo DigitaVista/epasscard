@@ -257,6 +257,9 @@ class EPC_Loyalty_Frontend {
 		}
 
 		$summary = EPC_Loyalty_Customer_Service::get_customer_summary( $account );
+		if ( is_array( $summary ) ) {
+			$summary['issued_rewards'] = EPC_Loyalty_Reward_Service::get_issued_rewards( $user_id );
+		}
 		$ledger  = EPC_Loyalty_Ledger_Service::query_for_user(
 			$user_id,
 			array(

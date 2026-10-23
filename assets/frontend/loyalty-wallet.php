@@ -19,6 +19,7 @@ $ledger     = isset( $ledger ) && is_array( $ledger ) ? $ledger : array( 'items'
 $redemption = isset( $redemption ) && is_array( $redemption ) ? $redemption : array();
 $design     = isset( $design ) && is_array( $design ) ? $design : array();
 $claims     = isset( $summary['claims'] ) && is_array( $summary['claims'] ) ? $summary['claims'] : array();
+$issued     = isset( $summary['issued_rewards'] ) && is_array( $summary['issued_rewards'] ) ? $summary['issued_rewards'] : array();
 $colors     = isset( $design['colors'] ) && is_array( $design['colors'] ) ? $design['colors'] : array();
 
 $card_bg = sanitize_hex_color( (string) ( $colors['background'] ?? '' ) );
@@ -250,6 +251,44 @@ $card_style = sprintf(
 			<p class="epc-loyalty-wallet__claim-status" aria-live="polite"></p>
 		<?php endif; ?>
 	</section>
+
+	<?php if ( ! empty( $issued ) ) : ?>
+		<section class="epc-loyalty-wallet__panel epc-loyalty-wallet__codes">
+			<h3><?php esc_html_e( 'Your reward codes', 'epasscard' ); ?></h3>
+			<p class="epc-loyalty-wallet__hint"><?php esc_html_e( 'Enter a code in the coupon field at checkout to use the reward.', 'epasscard' ); ?></p>
+			<ul class="epc-loyalty-wallet__code-list">
+				<?php foreach ( $issued as $reward ) : ?>
+					<?php
+					$reward_state = isset( $reward['state'] ) ? (string) $reward['state'] : 'ready';
+					$state_labels = array(
+						'ready'   => __( 'Ready to use', 'epasscard' ),
+						'used'    => __( 'Used', 'epasscard' ),
+						'expired' => __( 'Expired', 'epasscard' ),
+					);
+					?>
+					<li class="epc-loyalty-wallet__code is-<?php echo esc_attr( $reward_state ); ?>">
+						<div>
+							<strong><?php echo esc_html( (string) ( $reward['name'] ?? '' ) ); ?></strong>
+							<small>
+								<?php echo esc_html( isset( $state_labels[ $reward_state ] ) ? $state_labels[ $reward_state ] : $reward_state ); ?>
+								<?php if ( 'ready' === $reward_state && ! empty( $reward['expires_at'] ) ) : ?>
+									&middot;
+									<?php
+									printf(
+										/* translators: %s: expiry date */
+										esc_html__( 'Expires %s', 'epasscard' ),
+										esc_html( get_date_from_gmt( (string) $reward['expires_at'], get_option( 'date_format' ) ) )
+									);
+									?>
+								<?php endif; ?>
+							</small>
+						</div>
+						<code class="epc-loyalty-wallet__code-value"><?php echo esc_html( (string) ( $reward['code'] ?? '' ) ); ?></code>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+		</section>
+	<?php endif; ?>
 
 	<section class="epc-loyalty-wallet__panel epc-loyalty-wallet__history" id="epc-loyalty-history">
 		<h3><?php esc_html_e( 'Points history', 'epasscard' ); ?></h3>
