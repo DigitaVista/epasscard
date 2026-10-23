@@ -238,37 +238,56 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
-	public function process_scheduled_notifications() {
-		$rules  = $this->get_notification_rules();
-		$passes = EPC_DB::get_active_passes_for_module( $this->get_slug() );
+	public function uses_batched_notifications() {
+		return true;
+	}
 
-		foreach ( $passes as $pass_row ) {
-			$data = $this->get_attendee_data( (int) $pass_row->source_id );
-			if ( ! $data ) {
-				continue;
-			}
+	/**
+	 * The daily check also revokes passes for refunded tickets, so it runs even with reminders off.
+	 *
+	 * @param array<string, array<string, mixed>> $rules Notification rules.
+	 * @return bool
+	 */
+	public function has_scheduled_notification_work( array $rules ) {
+		unset( $rules );
+		return true;
+	}
 
-			// Safety net: a refund that no hook reported (WooCommerce tickets, legacy PayPal, or a
-			// missed Tickets Commerce update) is caught here, at most one daily run later.
-			if ( 'deleted' === $this->normalize_attendee_status( $data ) && 'revoke' === $this->get_status_rule( 'deleted' ) ) {
-				EPC_Pass_Service::revoke_pass( $this->get_slug(), (int) $pass_row->source_id );
-				continue;
-			}
-
-			$event_id = isset( $data['event_id'] ) ? absint( $data['event_id'] ) : 0;
-			$start_ts = $this->get_event_start_timestamp( $event_id );
-			if ( $start_ts <= 0 ) {
-				continue;
-			}
-
-			EPC_Pass_Notifications::maybe_send_for_event(
-				$pass_row,
-				'before_event_start',
-				$rules['before_event_start'] ?? array(),
-				$start_ts,
-				$this->build_push_replacements_for_pass( $pass_row )
-			);
+	/**
+	 * Daily check for one active pass: send the reminder when it is due.
+	 *
+	 * @param object                              $pass_row Active pass row.
+	 * @param array<string, array<string, mixed>> $rules    Notification rules.
+	 * @return void
+	 */
+	public function process_scheduled_notification_for_pass( $pass_row, array $rules ) {
+		$data = $this->get_attendee_data( (int) $pass_row->source_id );
+		if ( ! $data ) {
+			return;
 		}
+
+		// Safety net: a refund that no hook reported (WooCommerce tickets, legacy PayPal, or a
+		// missed Tickets Commerce update) is caught here, at most one daily run later.
+		if ( 'deleted' === $this->normalize_attendee_status( $data ) && 'revoke' === $this->get_status_rule( 'deleted' ) ) {
+			EPC_Pass_Service::revoke_pass( $this->get_slug(), (int) $pass_row->source_id );
+			return;
+		}
+
+		$event_id = isset( $data['event_id'] ) ? absint( $data['event_id'] ) : 0;
+		$start_ts = $this->get_event_start_timestamp( $event_id );
+		if ( $start_ts <= 0 ) {
+			return;
+		}
+
+		EPC_Pass_Notifications::maybe_send_for_event(
+			$pass_row,
+			'before_event_start',
+			$rules['before_event_start'] ?? array(),
+			$start_ts,
+			function () use ( $pass_row ) {
+				return $this->build_push_replacements_for_pass( $pass_row );
+			}
+		);
 	}
 
 	/**

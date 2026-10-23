@@ -192,35 +192,42 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 	}
 
 	/**
-	 * Process scheduled push notifications for Paid Memberships Pro.
+	 * @inheritDoc
+	 */
+	public function uses_batched_notifications() {
+		return true;
+	}
+
+	/**
+	 * Daily check for one active pass: send the reminder when it is due.
 	 *
+	 * @param object                              $pass_row Active pass row.
+	 * @param array<string, array<string, mixed>> $rules    Notification rules.
 	 * @return void
 	 */
-	public function process_scheduled_notifications() {
-		$rules  = $this->get_notification_rules();
-		$passes = EPC_DB::get_active_passes_for_module( $this->get_slug() );
-
-		foreach ( $passes as $pass_row ) {
-			$row = $this->get_membership_row_by_id( (int) $pass_row->source_id );
-			if ( ! $row || 'active' !== (string) $row->status ) {
-				continue;
-			}
-
-			$expiry_ts = $this->get_enddate_timestamp( isset( $row->enddate ) ? (string) $row->enddate : '' );
-			if ( $expiry_ts <= 0 ) {
-				continue;
-			}
-
-			$replacements = $this->build_push_replacements_for_pass( $pass_row );
-
-			EPC_Pass_Notifications::maybe_send_for_event(
-				$pass_row,
-				'before_level_expire',
-				$rules['before_level_expire'] ?? array(),
-				$expiry_ts,
-				$replacements
-			);
+	public function process_scheduled_notification_for_pass( $pass_row, array $rules ) {
+		$row = $this->get_membership_row_by_id( (int) $pass_row->source_id );
+		if ( ! $row || 'active' !== (string) $row->status ) {
+			return;
 		}
+
+		$expiry_ts = $this->get_enddate_timestamp( isset( $row->enddate ) ? (string) $row->enddate : '' );
+		if ( $expiry_ts <= 0 ) {
+			return;
+		}
+
+		// Built only when the push is due (it reads the member and level).
+		$replacements = function () use ( $pass_row ) {
+			return $this->build_push_replacements_for_pass( $pass_row );
+		};
+
+		EPC_Pass_Notifications::maybe_send_for_event(
+			$pass_row,
+			'before_level_expire',
+			$rules['before_level_expire'] ?? array(),
+			$expiry_ts,
+			$replacements
+		);
 	}
 
 	/**

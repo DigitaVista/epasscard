@@ -32,12 +32,13 @@ class EPC_Module_Settings {
 	 * @return array<int, string>
 	 */
 	public static function get_enabled_slugs() {
-		$saved    = self::get_saved_slugs();
-		$registry = EPC_Module_Loader::get_registry();
-		$enabled  = array();
+		$saved   = self::get_saved_slugs();
+		$enabled = array();
 
+		// Loads only the saved modules' files, not every integration.
 		foreach ( $saved as $slug ) {
-			if ( isset( $registry[ $slug ] ) && $registry[ $slug ]->is_available() ) {
+			$module = EPC_Module_Loader::get_module_instance( $slug );
+			if ( $module && $module->is_available() ) {
 				$enabled[] = $slug;
 			}
 		}

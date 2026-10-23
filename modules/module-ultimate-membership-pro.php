@@ -190,40 +190,47 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 	}
 
 	/**
-	 * Process scheduled push notifications for Ultimate Membership Pro.
+	 * @inheritDoc
+	 */
+	public function uses_batched_notifications() {
+		return true;
+	}
+
+	/**
+	 * Daily check for one active pass: send the reminder when it is due.
 	 *
+	 * @param object                              $pass_row Active pass row.
+	 * @param array<string, array<string, mixed>> $rules    Notification rules.
 	 * @return void
 	 */
-	public function process_scheduled_notifications() {
-		$rules  = $this->get_notification_rules();
-		$passes = EPC_DB::get_active_passes_for_module( $this->get_slug() );
-
-		foreach ( $passes as $pass_row ) {
-			$row = $this->get_user_level_row_by_id( (int) $pass_row->source_id );
-			if ( ! $row ) {
-				continue;
-			}
-
-			$status = $this->get_user_level_status( (int) $row->user_id, (int) $row->level_id, $row );
-			if ( 'active' !== $status ) {
-				continue;
-			}
-
-			$expiry_ts = $this->get_ump_expiry_timestamp( isset( $row->expire_time ) ? (string) $row->expire_time : '' );
-			if ( $expiry_ts <= 0 ) {
-				continue;
-			}
-
-			$replacements = $this->build_push_replacements_for_pass( $pass_row );
-
-			EPC_Pass_Notifications::maybe_send_for_event(
-				$pass_row,
-				'before_level_expire',
-				$rules['before_level_expire'] ?? array(),
-				$expiry_ts,
-				$replacements
-			);
+	public function process_scheduled_notification_for_pass( $pass_row, array $rules ) {
+		$row = $this->get_user_level_row_by_id( (int) $pass_row->source_id );
+		if ( ! $row ) {
+			return;
 		}
+
+		$status = $this->get_user_level_status( (int) $row->user_id, (int) $row->level_id, $row );
+		if ( 'active' !== $status ) {
+			return;
+		}
+
+		$expiry_ts = $this->get_ump_expiry_timestamp( isset( $row->expire_time ) ? (string) $row->expire_time : '' );
+		if ( $expiry_ts <= 0 ) {
+			return;
+		}
+
+		// Built only when the push is due (it reads the member and level).
+		$replacements = function () use ( $pass_row ) {
+			return $this->build_push_replacements_for_pass( $pass_row );
+		};
+
+		EPC_Pass_Notifications::maybe_send_for_event(
+			$pass_row,
+			'before_level_expire',
+			$rules['before_level_expire'] ?? array(),
+			$expiry_ts,
+			$replacements
+		);
 	}
 
 	/**

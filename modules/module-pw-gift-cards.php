@@ -199,34 +199,42 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
-	public function process_scheduled_notifications() {
-		$rules  = $this->get_notification_rules();
-		$passes = EPC_DB::get_active_passes_for_module( $this->get_slug() );
+	public function uses_batched_notifications() {
+		return true;
+	}
 
-		foreach ( $passes as $pass_row ) {
-			$card = $this->get_card( (int) $pass_row->source_id );
-			if ( ! $card ) {
-				continue;
-			}
-
-			$exp = $card->get_expiration_date();
-			if ( empty( $exp ) ) {
-				continue;
-			}
-
-			$expire_ts = strtotime( (string) $exp );
-			if ( ! $expire_ts ) {
-				continue;
-			}
-
-			EPC_Pass_Notifications::maybe_send_for_event(
-				$pass_row,
-				'before_card_expire',
-				$rules['before_card_expire'] ?? array(),
-				(int) $expire_ts,
-				$this->build_push_replacements_for_pass( $pass_row )
-			);
+	/**
+	 * Daily check for one active pass: send the reminder when it is due.
+	 *
+	 * @param object                              $pass_row Active pass row.
+	 * @param array<string, array<string, mixed>> $rules    Notification rules.
+	 * @return void
+	 */
+	public function process_scheduled_notification_for_pass( $pass_row, array $rules ) {
+		$card = $this->get_card( (int) $pass_row->source_id );
+		if ( ! $card ) {
+			return;
 		}
+
+		$exp = $card->get_expiration_date();
+		if ( empty( $exp ) ) {
+			return;
+		}
+
+		$expire_ts = strtotime( (string) $exp );
+		if ( ! $expire_ts ) {
+			return;
+		}
+
+		EPC_Pass_Notifications::maybe_send_for_event(
+			$pass_row,
+			'before_card_expire',
+			$rules['before_card_expire'] ?? array(),
+			(int) $expire_ts,
+			function () use ( $pass_row ) {
+				return $this->build_push_replacements_for_pass( $pass_row );
+			}
+		);
 	}
 
 	/**

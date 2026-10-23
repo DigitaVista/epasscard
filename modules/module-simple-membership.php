@@ -202,35 +202,42 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 	}
 
 	/**
-	 * Process scheduled push notifications for Simple Membership.
+	 * @inheritDoc
+	 */
+	public function uses_batched_notifications() {
+		return true;
+	}
+
+	/**
+	 * Daily check for one active pass: send the reminder when it is due.
 	 *
+	 * @param object                              $pass_row Active pass row.
+	 * @param array<string, array<string, mixed>> $rules    Notification rules.
 	 * @return void
 	 */
-	public function process_scheduled_notifications() {
-		$rules  = $this->get_notification_rules();
-		$passes = EPC_DB::get_active_passes_for_module( $this->get_slug() );
-
-		foreach ( $passes as $pass_row ) {
-			$member = $this->get_member_by_id( (int) $pass_row->source_id );
-			if ( ! $member || 'active' !== $this->normalize_status( isset( $member->account_state ) ? (string) $member->account_state : '' ) ) {
-				continue;
-			}
-
-			$expiry_ts = $this->get_member_expiry_timestamp( $member );
-			if ( $expiry_ts <= 0 ) {
-				continue;
-			}
-
-			$replacements = $this->build_push_replacements_for_pass( $pass_row );
-
-			EPC_Pass_Notifications::maybe_send_for_event(
-				$pass_row,
-				'before_level_expire',
-				$rules['before_level_expire'] ?? array(),
-				$expiry_ts,
-				$replacements
-			);
+	public function process_scheduled_notification_for_pass( $pass_row, array $rules ) {
+		$member = $this->get_member_by_id( (int) $pass_row->source_id );
+		if ( ! $member || 'active' !== $this->normalize_status( isset( $member->account_state ) ? (string) $member->account_state : '' ) ) {
+			return;
 		}
+
+		$expiry_ts = $this->get_member_expiry_timestamp( $member );
+		if ( $expiry_ts <= 0 ) {
+			return;
+		}
+
+		// Built only when the push is due (it reads the member and level).
+		$replacements = function () use ( $pass_row ) {
+			return $this->build_push_replacements_for_pass( $pass_row );
+		};
+
+		EPC_Pass_Notifications::maybe_send_for_event(
+			$pass_row,
+			'before_level_expire',
+			$rules['before_level_expire'] ?? array(),
+			$expiry_ts,
+			$replacements
+		);
 	}
 
 	/**

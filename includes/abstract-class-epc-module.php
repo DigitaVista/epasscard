@@ -1084,7 +1084,8 @@ abstract class EPC_Module {
 	public function save_mapping( $entity_id, array $mapping ) {
 		$all = $this->get_mappings();
 		$all[ (string) absint( $entity_id ) ] = $mapping;
-		update_option( $this->get_mappings_option_key(), $all );
+		// Not autoloaded: mappings are read only when a pass is issued or updated, and on admin screens.
+		update_option( $this->get_mappings_option_key(), $all, false );
 	}
 
 	/**
@@ -1792,6 +1793,72 @@ abstract class EPC_Module {
 	 */
 	public function get_default_notification_rules() {
 		return array();
+	}
+
+	/**
+	 * Whether the daily notification job checks this module's passes one at a time
+	 * through process_scheduled_notification_for_pass() (in batches, with a time budget).
+	 *
+	 * @return bool
+	 */
+	public function uses_batched_notifications() {
+		return false;
+	}
+
+	/**
+	 * Daily notification work for one active pass (override with uses_batched_notifications()).
+	 *
+	 * @param object                              $pass_row Active pass row.
+	 * @param array<string, array<string, mixed>> $rules    get_notification_rules().
+	 * @return void
+	 */
+	public function process_scheduled_notification_for_pass( $pass_row, array $rules ) {
+		unset( $pass_row, $rules );
+	}
+
+	/**
+	 * Whether the daily job has work for this module: at least one reminder is switched on.
+	 *
+	 * Override when the daily pass check also does other work.
+	 *
+	 * @param array<string, array<string, mixed>> $rules get_notification_rules().
+	 * @return bool
+	 */
+	public function has_scheduled_notification_work( array $rules ) {
+		foreach ( $rules as $rule ) {
+			if ( is_array( $rule ) && ! empty( $rule['enabled'] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Check every active pass of this module now, without a time budget.
+	 *
+	 * The daily job uses EPC_Pass_Notifications::run(), which works in batches and resumes
+	 * after a time budget. This method is kept for code that called it directly.
+	 *
+	 * @return void
+	 */
+	public function process_scheduled_notifications() {
+		if ( ! $this->uses_batched_notifications() ) {
+			return;
+		}
+
+		$rules = $this->get_notification_rules();
+		if ( ! $this->has_scheduled_notification_work( $rules ) ) {
+			return;
+		}
+
+		$after_id = 0;
+		do {
+			$passes = EPC_DB::get_active_passes_for_module( $this->get_slug(), $after_id, 200 );
+			foreach ( $passes as $pass_row ) {
+				$this->process_scheduled_notification_for_pass( $pass_row, $rules );
+				$after_id = (int) $pass_row->id;
+			}
+		} while ( 200 === count( $passes ) );
 	}
 
 	/**

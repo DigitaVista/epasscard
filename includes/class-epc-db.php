@@ -166,6 +166,9 @@ class EPC_DB {
 				// The Halloween 2026 notice was removed in plugin 1.2.0; drop its dismissal flag.
 				delete_option( 'epasscard_halloween_deal_notice' );
 			}
+			if ( version_compare( $installed, '1.5.0', '<' ) ) {
+				self::stop_autoloading_mappings();
+			}
 			if ( ! $unique_ok ) {
 				// Retry on the next load (a duplicate slipped in between the merge and the ALTER),
 				// at most 5 times so a database that refuses the index is not retried forever.
@@ -224,6 +227,35 @@ class EPC_DB {
 		$wpdb->suppress_errors( $suppress );
 
 		return false !== $result;
+	}
+
+	/**
+	 * Stop loading template mappings (epc_mappings_*) on every request.
+	 *
+	 * They are read only when a pass is issued or updated, or on EpassCard admin screens.
+	 * New saves already use autoload off (EPC_Module::save_mapping()); this switches rows
+	 * written by 1.1.x. Idempotent.
+	 *
+	 * @return void
+	 */
+	public static function stop_autoloading_mappings() {
+		global $wpdb;
+
+		if ( ! function_exists( 'wp_set_option_autoload_values' ) ) {
+			return; // WordPress < 6.4 (EpassCard requires 6.5).
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time migration lookup.
+		$names = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+				$wpdb->esc_like( 'epc_mappings_' ) . '%'
+			)
+		);
+
+		if ( ! empty( $names ) ) {
+			wp_set_option_autoload_values( array_fill_keys( array_map( 'strval', $names ), false ) );
+		}
 	}
 
 	/**
@@ -973,10 +1005,15 @@ class EPC_DB {
 	/**
 	 * Active passes for a module.
 	 *
-	 * @param string $module Module slug.
+	 * Without $limit: every active pass, newest update first (1.1.x behaviour).
+	 * With $limit: up to $limit passes with id > $after_id, by id ascending.
+	 *
+	 * @param string $module   Module slug.
+	 * @param int    $after_id Return passes after this id (batched mode).
+	 * @param int    $limit    Batch size; 0 = no limit.
 	 * @return array<int, object>
 	 */
-	public static function get_active_passes_for_module( $module ) {
+	public static function get_active_passes_for_module( $module, $after_id = 0, $limit = 0 ) {
 		global $wpdb;
 
 		$module = sanitize_key( (string) $module );
@@ -985,6 +1022,22 @@ class EPC_DB {
 		}
 
 		$table = self::table_name();
+
+		// Batched read for the daily notification job: ascending id after a cursor.
+		if ( absint( $limit ) > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table read.
+			$items = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM %i WHERE module = %s AND status = %s AND pass_uid <> '' AND id > %d ORDER BY id ASC LIMIT %d",
+					$table,
+					$module,
+					'active',
+					absint( $after_id ),
+					absint( $limit )
+				)
+			);
+			return is_array( $items ) ? $items : array();
+		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table read.
 		$items = $wpdb->get_results(
 			$wpdb->prepare(

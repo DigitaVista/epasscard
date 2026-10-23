@@ -97,8 +97,6 @@ class EPC_User_Pass_Sync {
 			return;
 		}
 
-		$registry = EPC_Module_Loader::get_registry();
-
 		foreach ( $passes as $pass ) {
 			if ( empty( $pass->module ) || empty( $pass->source_id ) ) {
 				continue;
@@ -108,7 +106,7 @@ class EPC_User_Pass_Sync {
 				continue;
 			}
 
-			$module = $registry[ (string) $pass->module ] ?? null;
+			$module = EPC_Module_Loader::get_module_instance( (string) $pass->module );
 			if ( ! $module instanceof EPC_Module || ! $module->is_available() ) {
 				continue;
 			}

@@ -228,34 +228,42 @@ class EPC_Module_Events_Manager extends EPC_Module {
 	/**
 	 * @inheritDoc
 	 */
-	public function process_scheduled_notifications() {
-		$rules  = $this->get_notification_rules();
-		$passes = EPC_DB::get_active_passes_for_module( $this->get_slug() );
+	public function uses_batched_notifications() {
+		return true;
+	}
 
-		foreach ( $passes as $pass_row ) {
-			$booking = $this->get_booking( (int) $pass_row->source_id );
-			if ( ! $booking ) {
-				continue;
-			}
-
-			$event = $booking->get_event();
-			$start = $this->get_event_datetime( $event, 'start' );
-			if ( ! $start ) {
-				continue;
-			}
-
-			// Before 1.2.0 the start time was appended to event_start, which already holds the
-			// full date and time; strtotime() failed and the reminder was never sent.
-			$start_ts = $start->getTimestamp();
-
-			EPC_Pass_Notifications::maybe_send_for_event(
-				$pass_row,
-				'before_event_start',
-				$rules['before_event_start'] ?? array(),
-				(int) $start_ts,
-				$this->build_push_replacements_for_pass( $pass_row )
-			);
+	/**
+	 * Daily check for one active pass: send the reminder when it is due.
+	 *
+	 * @param object                              $pass_row Active pass row.
+	 * @param array<string, array<string, mixed>> $rules    Notification rules.
+	 * @return void
+	 */
+	public function process_scheduled_notification_for_pass( $pass_row, array $rules ) {
+		$booking = $this->get_booking( (int) $pass_row->source_id );
+		if ( ! $booking ) {
+			return;
 		}
+
+		$event = $booking->get_event();
+		$start = $this->get_event_datetime( $event, 'start' );
+		if ( ! $start ) {
+			return;
+		}
+
+		// Before 1.2.0 the start time was appended to event_start, which already holds the
+		// full date and time; strtotime() failed and the reminder was never sent.
+		$start_ts = $start->getTimestamp();
+
+		EPC_Pass_Notifications::maybe_send_for_event(
+			$pass_row,
+			'before_event_start',
+			$rules['before_event_start'] ?? array(),
+			(int) $start_ts,
+			function () use ( $pass_row ) {
+				return $this->build_push_replacements_for_pass( $pass_row );
+			}
+		);
 	}
 
 	/**

@@ -15,11 +15,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Module_Loader {
 
 	/**
-	 * Instantiated module registry (not necessarily initialized).
+	 * Module instances created so far, by slug (one instance per slug per request).
 	 *
-	 * @var array<string, EPC_Module>|null
+	 * @var array<string, EPC_Module>
 	 */
-	private static $registry = null;
+	private static $instances = array();
+
+	/**
+	 * Slugs whose file or class could not be loaded.
+	 *
+	 * @var array<string, bool>
+	 */
+	private static $missing = array();
+
+	/**
+	 * Whether every module file has been loaded (get_registry() was called).
+	 *
+	 * @var bool
+	 */
+	private static $registry_complete = false;
 
 	/**
 	 * Module file definitions.
@@ -50,31 +64,88 @@ class EPC_Module_Loader {
 	 * @return array<string, EPC_Module>
 	 */
 	public static function get_registry() {
-		if ( null !== self::$registry ) {
-			return self::$registry;
+		$registry = array();
+
+		foreach ( array_keys( self::get_module_files() ) as $slug ) {
+			$module = self::get_module_instance( $slug );
+			if ( $module ) {
+				$registry[ $slug ] = $module;
+			}
 		}
 
-		self::$registry = array();
+		self::$registry_complete = true;
 
-		foreach ( self::get_module_files() as $slug => $file ) {
-			$path = apply_filters( 'epc_module_path', EPC_PLUGIN_DIR . 'modules/' . $file, $slug, $file );
-			if ( ! is_string( $path ) || ! file_exists( $path ) ) {
-				continue;
-			}
+		return $registry;
+	}
 
-			require_once $path;
-
-			$class = self::class_for_slug( $slug );
-			if ( ! $class || ! class_exists( $class ) ) {
-				continue;
-			}
-
-			/** @var EPC_Module $module */
-			$module                    = new $class();
-			self::$registry[ $slug ] = $module;
+	/**
+	 * One module instance, loading only that module's file.
+	 *
+	 * Everyday requests use this so integrations that are not enabled are never loaded
+	 * (about 1.2 MB less memory per request on hosts without an opcode cache). Screens that
+	 * list every integration call get_registry().
+	 *
+	 * @param string $slug Module slug.
+	 * @return EPC_Module|null
+	 */
+	public static function get_module_instance( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( '' === $slug || isset( self::$missing[ $slug ] ) ) {
+			return null;
+		}
+		if ( isset( self::$instances[ $slug ] ) ) {
+			return self::$instances[ $slug ];
 		}
 
-		return self::$registry;
+		$files = self::get_module_files();
+		if ( ! isset( $files[ $slug ] ) ) {
+			self::$missing[ $slug ] = true;
+			return null;
+		}
+
+		$file = $files[ $slug ];
+		$path = apply_filters( 'epc_module_path', EPC_PLUGIN_DIR . 'modules/' . $file, $slug, $file );
+		if ( ! is_string( $path ) || ! file_exists( $path ) ) {
+			self::$missing[ $slug ] = true;
+			return null;
+		}
+
+		require_once $path;
+
+		$class = self::class_for_slug( $slug );
+		if ( ! $class || ! class_exists( $class ) ) {
+			self::$missing[ $slug ] = true;
+			return null;
+		}
+
+		/** @var EPC_Module $module */
+		$module                   = new $class();
+		self::$instances[ $slug ] = $module;
+
+		return $module;
+	}
+
+	/**
+	 * Enabled modules whose host plugin is active, loading only their files.
+	 *
+	 * @return array<string, EPC_Module>
+	 */
+	public static function get_enabled_modules() {
+		$enabled      = array();
+		$enabled_slugs = EPC_Module_Settings::get_enabled_slugs();
+
+		// Keep the module-file order (it sets the order of EpassCard's admin submenu items).
+		foreach ( array_keys( self::get_module_files() ) as $slug ) {
+			if ( ! in_array( $slug, $enabled_slugs, true ) ) {
+				continue;
+			}
+			$module = self::get_module_instance( $slug );
+			if ( $module ) {
+				$enabled[ $slug ] = $module;
+			}
+		}
+
+		return $enabled;
 	}
 
 	/**
@@ -85,16 +156,21 @@ class EPC_Module_Loader {
 	public static function load_modules() {
 		$loaded = array();
 
-		foreach ( self::get_registry() as $slug => $module ) {
-			if ( ! EPC_Module_Settings::is_enabled( $slug ) ) {
-				continue;
-			}
-
+		foreach ( self::get_enabled_modules() as $slug => $module ) {
 			$module->init();
 			$loaded[ $slug ] = $module;
 		}
 
 		return $loaded;
+	}
+
+	/**
+	 * Whether every module file has been loaded in this request (for tests and diagnostics).
+	 *
+	 * @return bool
+	 */
+	public static function is_registry_loaded() {
+		return self::$registry_complete;
 	}
 
 	/**

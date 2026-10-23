@@ -65,11 +65,11 @@ final class EPC_Plugin {
 	private $modules = array();
 
 	/**
-	 * All registered module instances (enabled or not).
+	 * All registered module instances (enabled or not), loaded on first use.
 	 *
-	 * @var array<string, EPC_Module>
+	 * @var array<string, EPC_Module>|null
 	 */
-	private $all_modules = array();
+	private $all_modules = null;
 
 	/**
 	 * Get singleton.
@@ -118,8 +118,7 @@ final class EPC_Plugin {
 		EPC_Setup_Help_Notice::init();
 		EPC_Setup_Wizard::init();
 
-		$this->all_modules = EPC_Module_Loader::get_registry();
-		$this->modules     = EPC_Module_Loader::load_modules();
+		$this->modules = EPC_Module_Loader::load_modules();
 	}
 
 	/**
@@ -147,6 +146,10 @@ final class EPC_Plugin {
 	 * @return array<string, EPC_Module>
 	 */
 	public function get_all_modules() {
+		// Loaded on first use: only screens that list every integration need all module files.
+		if ( null === $this->all_modules ) {
+			$this->all_modules = EPC_Module_Loader::get_registry();
+		}
 		return $this->all_modules;
 	}
 }

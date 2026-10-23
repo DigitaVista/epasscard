@@ -394,8 +394,7 @@ class EPC_Frontend {
 			return $mod;
 		}
 
-		$all = $plugin->get_all_modules();
-		return isset( $all[ $slug ] ) && $all[ $slug ] instanceof EPC_Module ? $all[ $slug ] : null;
+		return EPC_Module_Loader::get_module_instance( $slug );
 	}
 
 	/**
