@@ -1028,7 +1028,7 @@ class EPC_Template_Starter {
 	 *
 	 * @param EPC_Module                         $module   Module.
 	 * @param array<int, array<string, mixed>>   $entities Entities.
-	 * @param array<string, array<string,mixed>> $mappings Saved mappings.
+	 * @param array<int|string, array<string,mixed>> $mappings Saved mappings (EPC_Module::get_mappings()).
 	 * @return void
 	 */
 	public static function render_card( $module, array $entities, array $mappings ) {

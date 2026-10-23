@@ -20,3 +20,9 @@ docs/.htaccess
 *.md
 # Claude working folder - never shipped
 claude-brain
+# Code-quality tooling and tests - never shipped
+tests
+.qa-tools
+build
+phpcs.xml.dist
+phpstan.neon.dist

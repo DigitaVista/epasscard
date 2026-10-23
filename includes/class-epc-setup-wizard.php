@@ -2458,7 +2458,10 @@ class EPC_Setup_Wizard {
 		ob_start();
 		imagepng( $image );
 		$png = ob_get_clean();
-		imagedestroy( $image );
+		if ( PHP_VERSION_ID < 80000 ) {
+			// phpcs:ignore PHPCompatibility.FunctionUse.RemovedFunctions.imagedestroyDeprecated -- Only runs on PHP < 8.0, where it frees memory.
+			imagedestroy( $image );
+		}
 
 		if ( ! is_string( $png ) || '' === $png ) {
 			return '';
@@ -2496,7 +2499,10 @@ class EPC_Setup_Wizard {
 			$bg = imagecolorallocate( $im, 30, 27, 75 );
 			imagefilledrectangle( $im, 0, 0, 1125, 432, $bg );
 			imagepng( $im, $path );
-			imagedestroy( $im );
+			if ( PHP_VERSION_ID < 80000 ) {
+				// phpcs:ignore PHPCompatibility.FunctionUse.RemovedFunctions.imagedestroyDeprecated -- Only runs on PHP < 8.0 (no-op since 8.0, deprecated in 8.5).
+				imagedestroy( $im );
+			}
 		}
 
 		return trailingslashit( (string) $uploads['baseurl'] ) . 'epasscard/wizard-strip.png';

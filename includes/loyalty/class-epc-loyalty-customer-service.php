@@ -644,7 +644,8 @@ class EPC_Loyalty_Customer_Service {
 			wp_die( esc_html__( 'Unable to start the loyalty customer export.', 'epasscard' ) );
 		}
 
-		fputcsv( $output, array_map( array( __CLASS__, 'csv_safe_cell' ), array_values( $columns ) ) );
+		// Pass the separator, enclosure and escape explicitly (current PHP defaults): PHP 8.4 deprecates relying on the escape default.
+		fputcsv( $output, array_map( array( __CLASS__, 'csv_safe_cell' ), array_values( $columns ) ), ',', '"', '\\' );
 
 		$page     = 1;
 		$per_page = 200;
@@ -671,7 +672,7 @@ class EPC_Loyalty_Customer_Service {
 				foreach ( array_keys( $columns ) as $key ) {
 					$line[] = self::csv_safe_cell( isset( $summary[ $key ] ) ? (string) $summary[ $key ] : '' );
 				}
-				fputcsv( $output, $line );
+				fputcsv( $output, $line, ',', '"', '\\' );
 				++$exported;
 				if ( $exported >= $max_rows ) {
 					break 2;

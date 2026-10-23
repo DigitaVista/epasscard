@@ -217,13 +217,14 @@ class EPC_DB {
 
 		self::merge_duplicate_passes();
 
-		$sql = isset( $names['module_source'] )
-			? 'ALTER TABLE %i DROP INDEX module_source, ADD UNIQUE KEY module_source_unique (module, source_id)'
-			: 'ALTER TABLE %i ADD UNIQUE KEY module_source_unique (module, source_id)';
-
 		$suppress = $wpdb->suppress_errors( true );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- One-time index migration; $sql is a fixed string.
-		$result = $wpdb->query( $wpdb->prepare( $sql, $table ) );
+		if ( isset( $names['module_source'] ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time index migration.
+			$result = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX module_source, ADD UNIQUE KEY module_source_unique (module, source_id)', $table ) );
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time index migration.
+			$result = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD UNIQUE KEY module_source_unique (module, source_id)', $table ) );
+		}
 		$wpdb->suppress_errors( $suppress );
 
 		return false !== $result;

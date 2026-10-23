@@ -1055,7 +1055,9 @@ abstract class EPC_Module {
 	/**
 	 * Get all saved mappings keyed by entity id.
 	 *
-	 * @return array<string, array<string, mixed>>
+	 * Keys are saved as numeric strings, which PHP stores as integer keys.
+	 *
+	 * @return array<int|string, array<string, mixed>>
 	 */
 	public function get_mappings() {
 		$saved = get_option( $this->get_mappings_option_key(), array() );

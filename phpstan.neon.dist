@@ -1,0 +1,28 @@
+# PHPStan for EpassCard. Install the tools first: tests/qa/install-tools.sh
+#   php .qa-tools/phpstan/phpstan.phar analyse --memory-limit=1G
+#
+# Level 1 passes with no findings. Level 2+ needs stubs for the host plugins
+# (MemberPress, Events Manager, ...) and type work; raise it step by step.
+parameters:
+  level: 1
+  phpVersion: 70200
+  paths:
+    - epasscard.php
+    - uninstall.php
+    - includes
+    - modules
+  # Admin/front-end templates are left out: they use variables set by the method
+  # that includes them, which PHPStan cannot see when it reads the file alone.
+  scanFiles:
+    - .qa-tools/wordpress-stubs/wordpress-stubs.php
+    - .qa-tools/woocommerce-stubs/woocommerce-stubs.php
+  scanDirectories:
+    - vendor/appsero
+  bootstrapFiles:
+    - tests/qa/phpstan-bootstrap.php
+  ignoreErrors:
+    # WordPress core admin files are required at runtime from ABSPATH.
+    - identifier: requireOnce.fileNotFound
+    # Classes from optional host plugins (no public stubs available).
+    - message: '#^(Instantiated )?[Cc]lass (Mepr[A-Za-z_]*|WC_Subscription[A-Za-z_]*|EM_[A-Za-z_]+|PW_Gift_Card[A-Za-z_]*|YITH_[A-Za-z_]+) not found\.$#'
+    - message: '#^Call to static method [A-Za-z_]+\(\) on an unknown class (Mepr[A-Za-z_]*|WC_Subscription[A-Za-z_]*|EM_[A-Za-z_]+|PW_Gift_Card[A-Za-z_]*|YITH_[A-Za-z_]+)\.$#'

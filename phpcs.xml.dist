@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<ruleset name="EpassCard">
+	<description>
+		Checks that block a merge: PHP 7.2+ compatibility, and the WordPress security,
+		database, i18n, prefixing and WordPress.org rules (WPCS). Formatting and
+		doc-comment style are not part of this gate; run the full standard locally with
+		.qa-tools/phpcs/bin/phpcs --standard=WordPress .
+		Install the tools first: tests/qa/install-tools.sh
+	</description>
+
+	<file>.</file>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/.qa-tools/*</exclude-pattern>
+	<exclude-pattern>*/build/*</exclude-pattern>
+	<exclude-pattern>*/docs/*</exclude-pattern>
+	<exclude-pattern>*/plan/*</exclude-pattern>
+	<exclude-pattern>*/claude-brain/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg value="sp"/>
+	<!-- Warnings are shown but do not fail the run; errors do. -->
+	<config name="ignore_warnings_on_exit" value="1"/>
+
+	<config name="testVersion" value="7.2-"/>
+	<config name="minimum_wp_version" value="6.5"/>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.Security"/>
+	<rule ref="WordPress.DB"/>
+	<rule ref="WordPress.DateTime"/>
+	<rule ref="WordPress.PHP.DiscouragedPHPFunctions"/>
+	<rule ref="WordPress.PHP.RestrictedPHPFunctions"/>
+	<rule ref="WordPress.PHP.DevelopmentFunctions"/>
+	<rule ref="WordPress.PHP.DontExtract"/>
+	<rule ref="WordPress.PHP.IniSet"/>
+	<rule ref="WordPress.WP.AlternativeFunctions"/>
+	<rule ref="WordPress.WP.DiscouragedFunctions"/>
+	<rule ref="WordPress.WP.DeprecatedFunctions"/>
+	<rule ref="WordPress.WP.DeprecatedClasses"/>
+	<rule ref="WordPress.WP.DeprecatedParameters"/>
+	<rule ref="WordPress.WP.EnqueuedResources"/>
+	<rule ref="WordPress.WP.CronInterval"/>
+	<rule ref="WordPress.WP.PostsPerPage"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="epasscard"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<!-- WooCommerce and Events Manager capabilities. -->
+				<element value="manage_woocommerce"/>
+				<element value="manage_bookings"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+	Admin and front-end templates are always included from inside a class method
+	(directly or via another template), so their variables are local, not globals.
+	-->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<!-- "epc_" (with underscore) meets WPCS's 4-character minimum and covers EPC_* classes and epc_* functions/hooks. -->
+				<element value="epc_"/>
+				<element value="epasscard"/>
+			</property>
+		</properties>
+		<exclude-pattern>*/admin/views/*</exclude-pattern>
+		<exclude-pattern>*/assets/frontend/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>*/admin/views/*</exclude-pattern>
+		<exclude-pattern>*/assets/frontend/*</exclude-pattern>
+	</rule>
+</ruleset>

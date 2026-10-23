@@ -15,3 +15,7 @@ epasscard-epasscard-php-*.md
 
 # Claude working folder (plans, analysis, outputs) - never committed
 claude-brain/
+
+# Code-quality tools installed by tests/qa/install-tools.sh, and CI build output
+.qa-tools/
+build/

@@ -13,9 +13,9 @@ if ( class_exists( 'EPC_Catalog_Client', false ) ) {
 	return;
 }
 
-$hub_client = WP_PLUGIN_DIR . '/webcartisan-plugin-hub/includes/class-catalog-client.php'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-if ( file_exists( $hub_client ) ) {
-	require_once $hub_client;
+$epc_hub_client = WP_PLUGIN_DIR . '/webcartisan-plugin-hub/includes/class-catalog-client.php';
+if ( file_exists( $epc_hub_client ) ) {
+	require_once $epc_hub_client;
 	return;
 }
 
