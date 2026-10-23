@@ -164,7 +164,19 @@ add_filter(
  */
 function epc_test_fixture_setup() {
 	$slug = epc_test_module_slug();
-	add_option( 'epc_test_fixture_' . $slug, array( 'settings' => get_option( 'epc_connection_settings', null ) ), '', false );
+	add_option(
+		'epc_test_fixture_' . $slug,
+		array(
+			'settings' => get_option( 'epc_connection_settings', null ),
+			'enabled'  => get_option( 'epc_enabled_modules', null ),
+		),
+		'',
+		false
+	);
+	$enabled   = get_option( 'epc_enabled_modules', array() );
+	$enabled   = is_array( $enabled ) ? $enabled : array();
+	$enabled[] = $slug;
+	update_option( 'epc_enabled_modules', array_values( array_unique( $enabled ) ) );
 	if ( '' === EPC_Connection::get_api_key() ) {
 		$settings                      = EPC_Connection::get_settings();
 		$settings['api_key_encrypted'] = EPC_Encryption::encrypt( 'epc-test-key' );
@@ -187,7 +199,7 @@ function epc_test_fixture_setup() {
 
 /**
  * Remove what the fixture and the tests created: the test integration's cards, mapping and
- * failure records, the test users, and the dummy key.
+ * failure records, the test users, the dummy key and the enabled-integration change.
  *
  * @return void
  */
@@ -209,6 +221,13 @@ function epc_test_fixture_teardown() {
 		wp_delete_user( (int) $user_id );
 	}
 
+	if ( is_array( $saved ) && array_key_exists( 'enabled', $saved ) ) {
+		if ( null === $saved['enabled'] ) {
+			delete_option( 'epc_enabled_modules' );
+		} else {
+			update_option( 'epc_enabled_modules', $saved['enabled'] );
+		}
+	}
 	if ( is_array( $saved ) && array_key_exists( 'settings', $saved ) ) {
 		if ( null === $saved['settings'] ) {
 			delete_option( 'epc_connection_settings' );

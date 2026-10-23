@@ -627,10 +627,12 @@ class EPC_Pass_Service {
 	 */
 	public static function revoke_pass( $module, $source_id, $attempt = 0 ) {
 		$existing = EPC_DB::get_pass( $module, $source_id );
-		if ( ! $existing || empty( $existing->pass_uid ) ) {
-			return;
-		}
-		if ( 'revoked' === (string) $existing->status ) {
+		if ( ! $existing || empty( $existing->pass_uid ) || 'revoked' === (string) $existing->status ) {
+			// Nothing live to revoke. A create or update that failed earlier for this record is
+			// moot now (the record should not have a card), so a retry must not issue one.
+			if ( class_exists( 'EPC_Pass_Issues' ) ) {
+				EPC_Pass_Issues::clear( $module, $source_id );
+			}
 			return;
 		}
 

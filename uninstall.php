@@ -31,6 +31,7 @@ function epasscard_uninstall_cron_hooks() {
 		'epc_loyalty_sync_pass',
 		'epc_resync_revoked_passes',
 		'epc_retry_pass_revoke',
+		'epc_retry_failed_batch',
 	);
 }
 
@@ -47,6 +48,7 @@ function epasscard_uninstall_clear_jobs() {
 	// Action Scheduler jobs (loaded when WooCommerce is active).
 	if ( function_exists( 'as_unschedule_all_actions' ) ) {
 		as_unschedule_all_actions( '', array(), 'epasscard-loyalty' );
+		as_unschedule_all_actions( '', array(), 'epasscard' );
 	}
 }
 
@@ -90,6 +92,7 @@ function epasscard_uninstall_site() {
 		'epc_api_log_redaction_version',
 		'epc_api_log_redaction_cursor',
 		'epc_first_real_pass_at',
+		'epc_retry_failed_job',
 		// Integration pass-behavior rules.
 		'epc_events_manager_status_rules',
 		'epc_memberpress_status_rules',
@@ -137,7 +140,7 @@ function epasscard_uninstall_site() {
 
 	// Short-lived caches.
 	delete_transient( 'epc_setup_wizard_redirect' );
-	foreach ( array( 'epc\_catalog\_%', 'epc\_starter\_lock\_%' ) as $pattern ) {
+	foreach ( array( 'epc\_catalog\_%', 'epc\_starter\_lock\_%', 'epc\_retry\_failed\_notice\_%' ) as $pattern ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin uninstall.
 		$found = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", '\_transient\_' . $pattern ) );
 		foreach ( is_array( $found ) ? $found : array() as $option ) {

@@ -42,4 +42,21 @@ EPC_TEST_MODULE=$slug $WP eval "require_once '$HERE/fixtures/test-integration.ph
 rm -f "$log"
 if [ "$cards" = "4" ] && [ "$events" = "1" ]; then echo "PASS 4 parallel first cards: 4 cards, 1 went-live event"; else echo "FAIL parallel first cards: expected 4 cards and 1 event, got $cards cards and $events events"; status=1; fi
 
+echo "== Retry failed cards"
+$WP eval-file "$HERE/test-retry-failed.php" || status=1
+
+echo "== Retry failed cards: three runners at once process each record once"
+slug="epc-retry-$RANDOM"
+EPC_TEST_MODULE=$slug EPC_RETRY_STEP=setup $WP eval-file "$HERE/test-retry-failed-race.php" || status=1
+at=$(( $(date +%s) + 3 ))
+pids=""
+for i in 1 2 3; do
+	EPC_TEST_MODULE=$slug EPC_RETRY_STEP=work EPC_RACE_AT=$at EPC_FAKE_DELAY_MS=200 $WP eval-file "$HERE/test-retry-failed-race.php" &
+	pids="$pids $!"
+done
+for p in $pids; do wait "$p" || status=1; done
+got=$(EPC_TEST_MODULE=$slug EPC_RETRY_STEP=check $WP eval-file "$HERE/test-retry-failed-race.php")
+EPC_TEST_MODULE=$slug $WP eval "require_once '$HERE/fixtures/test-integration.php'; EPC_Retry_Failed::cancel(); delete_option( EPC_Retry_Failed::OPTION ); epc_test_fixture_teardown();"
+if [ "$got" = "10 10 10 done" ]; then echo "PASS 3 parallel runners: 10 cards, each record processed once"; else echo "FAIL parallel runners: expected '10 10 10 done', got '$got'"; status=1; fi
+
 exit $status

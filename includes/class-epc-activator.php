@@ -56,11 +56,13 @@ class EPC_Activator {
 		require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-notifications.php';
 		require_once EPC_PLUGIN_DIR . 'includes/loyalty/class-epc-loyalty-reward-service.php';
 		require_once EPC_PLUGIN_DIR . 'includes/loyalty/class-epc-loyalty-order-sync-service.php';
+		require_once EPC_PLUGIN_DIR . 'includes/class-epc-retry-failed.php';
 		EPC_Connection::clear_cron();
 		EPC_Api_Log::clear_cron();
 		EPC_Pass_Notifications::clear_cron();
 		EPC_Loyalty_Reward_Service::clear_cron();
 		EPC_Loyalty_Order_Sync_Service::clear_cron();
+		EPC_Retry_Failed::clear_cron();
 
 		/*
 		 * Queued per-user pass syncs. They carry the user id as an argument, which

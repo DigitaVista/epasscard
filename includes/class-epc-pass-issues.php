@@ -357,6 +357,11 @@ class EPC_Pass_Issues {
 
 		$issues = self::all();
 		if ( empty( $issues ) ) {
+			// Everything fixed by a bulk retry: say so on EpassCard screens (for a day).
+			$job = class_exists( 'EPC_Retry_Failed' ) ? EPC_Retry_Failed::get_job() : array();
+			if ( $is_epc && ! empty( $job['finished_at'] ) && (int) $job['finished_at'] > time() - DAY_IN_SECONDS ) {
+				echo '<div class="notice notice-success epc-pass-issues-notice"><p>' . esc_html( EPC_Retry_Failed::summary( $job ) ) . '</p></div>';
+			}
 			return;
 		}
 
@@ -380,6 +385,11 @@ class EPC_Pass_Issues {
 				<?php esc_html_e( 'Review and retry them:', 'epasscard' ); ?>
 				<?php echo wp_kses( implode( ' · ', $links ), array( 'a' => array( 'href' => true ) ) ); ?>
 			</p>
+			<?php
+			if ( class_exists( 'EPC_Retry_Failed' ) ) {
+				echo wp_kses( EPC_Retry_Failed::render_controls(), EPC_Retry_Failed::allowed_html() );
+			}
+			?>
 		</div>
 		<?php
 	}
@@ -399,6 +409,11 @@ class EPC_Pass_Issues {
 		<div id="epc-section-pass-issues" class="epc-pass-issues">
 			<h3><?php esc_html_e( 'Pass actions that need attention', 'epasscard' ); ?></h3>
 			<p class="description"><?php esc_html_e( 'These records failed when EpassCard was asked to create, update or expire their pass. Fix the cause (usually the field mapping), then retry. Full request details are in API Logs.', 'epasscard' ); ?></p>
+			<?php
+			if ( class_exists( 'EPC_Retry_Failed' ) ) {
+				echo wp_kses( EPC_Retry_Failed::render_controls( $module->get_slug() ), EPC_Retry_Failed::allowed_html() );
+			}
+			?>
 			<table class="widefat striped">
 				<thead>
 					<tr>
