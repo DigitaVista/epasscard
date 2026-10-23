@@ -936,7 +936,8 @@ abstract class EPC_Module {
 			'source_id'    => $source_id,
 			'pass_uid'     => $has_pass ? (string) $existing->pass_uid : '',
 			'status'       => $has_pass ? (string) $existing->status : '',
-			'status_label' => $has_pass ? ucfirst( (string) $existing->status ) : '',
+			'status_label' => $has_pass ? EPC_Pass_Status::get_display_status( $existing )['label'] : '',
+			'status_html'  => $has_pass ? EPC_Pass_Status::render_status_html( $existing ) : '',
 			'updated_at'   => $has_pass ? (string) $existing->updated_at : '',
 		);
 
@@ -953,6 +954,12 @@ abstract class EPC_Module {
 	 */
 	private function pass_lifecycle_success_payload( $source_id, $existing, $next_action ) {
 		$activate = 'activate' === $next_action;
+		$label    = $activate ? __( 'Revoked', 'epasscard' ) : __( 'Active', 'epasscard' );
+		$html     = esc_html( $label );
+		if ( is_object( $existing ) ) {
+			$label = EPC_Pass_Status::get_display_status( $existing )['label'];
+			$html  = EPC_Pass_Status::render_status_html( $existing );
+		}
 
 		return array(
 			'message'      => $activate
@@ -966,7 +973,8 @@ abstract class EPC_Module {
 			'source_id'    => $source_id,
 			'pass_uid'     => $existing ? (string) $existing->pass_uid : '',
 			'status'       => $activate ? 'revoked' : 'active',
-			'status_label' => $activate ? __( 'Revoked', 'epasscard' ) : __( 'Active', 'epasscard' ),
+			'status_label' => $label,
+			'status_html'  => $html,
 			'updated_at'   => $existing ? (string) $existing->updated_at : '',
 		);
 	}
@@ -1314,21 +1322,9 @@ abstract class EPC_Module {
 		$entities = $this->get_filtered_mappable_entities();
 		$mappings = $this->get_mappings();
 
-		$pass_totals = EPC_DB::query_passes(
-			array(
-				'module'     => $this->get_slug(),
-				'count_only' => true,
-				'per_page'   => 1,
-			)
-		);
-		$active_totals = EPC_DB::query_passes(
-			array(
-				'module'     => $this->get_slug(),
-				'status'     => 'active',
-				'count_only' => true,
-				'per_page'   => 1,
-			)
-		);
+		// Test cards are listed below but left out of these totals.
+		$pass_total   = EPC_DB::count_real_passes( $this->get_slug() );
+		$active_total = EPC_DB::count_real_passes( $this->get_slug(), 'active' );
 
 		EPC_Admin_Shell::render_open(
 			array(
@@ -1350,7 +1346,7 @@ abstract class EPC_Module {
 						<?php echo esc_html( $this->get_page_intro() ); ?>
 					</p>
 				</div>
-				<?php $this->render_module_overview( $entities, $mappings, (int) $pass_totals['total'], (int) $active_totals['total'] ); ?>
+				<?php $this->render_module_overview( $entities, $mappings, $pass_total, $active_total ); ?>
 			</div>
 
 			<?php if ( ! EPC_Connection::is_connected() ) : ?>
@@ -2508,7 +2504,7 @@ class EPC_Module_List_Table extends WP_List_Table {
 				}
 				return '<a href="' . esc_url( $link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'View pass', 'epasscard' ) . '</a>';
 			case 'status':
-				return esc_html( ucfirst( (string) $item->status ) );
+				return EPC_Pass_Status::render_status_html( $item );
 			case 'updated_at':
 				return esc_html( (string) $item->updated_at );
 			case 'actions':

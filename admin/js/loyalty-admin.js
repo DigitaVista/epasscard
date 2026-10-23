@@ -487,7 +487,7 @@
 			[ 'Tier', customer.tier || '—' ],
 			[ 'Next reward', customer.next_reward || '—' ],
 			[ 'Unclaimed', String( customer.unclaimed_rewards || 0 ) ],
-			[ 'Pass', customer.pass_status || 'none' ]
+			[ 'Pass', customer.pass_status_label || customer.pass_status || 'none' ]
 		];
 
 		var html = '<dl>';

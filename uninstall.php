@@ -89,6 +89,7 @@ function epasscard_uninstall_site() {
 		'epc_api_log_retention_days',
 		'epc_api_log_redaction_version',
 		'epc_api_log_redaction_cursor',
+		'epc_first_real_pass_at',
 		// Integration pass-behavior rules.
 		'epc_events_manager_status_rules',
 		'epc_memberpress_status_rules',

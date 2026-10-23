@@ -22,4 +22,24 @@ wait $p2 || status=1
 got=$($WP eval "\$a = EPC_Loyalty_Account_Service::get( $user ); echo (int) \$a->points_balance, ' ', (int) \$a->lifetime_points;")
 if [ "$got" = "100 100" ]; then echo "PASS 2 x 50 parallel writes: balance 100, lifetime 100"; else echo "FAIL parallel writes: expected '100 100', got '$got'"; status=1; fi
 
+echo "== Card statuses and test cards"
+$WP eval-file "$HERE/test-pass-status.php" || status=1
+
+echo "== First real card: four processes at once fire one event"
+slug="epc-race-$RANDOM"
+log="$(mktemp)"
+EPC_TEST_MODULE=$slug $WP eval "require_once '$HERE/fixtures/test-integration.php'; epc_test_fixture_setup();"
+at=$(( $(date +%s) + 3 ))
+pids=""
+for i in 1 2 3 4; do
+	EPC_TEST_MODULE=$slug EPC_RACE_AT=$at EPC_RACE_LOG="$log" EPC_FAKE_DELAY_MS=300 $WP eval-file "$HERE/test-pass-status-race.php" &
+	pids="$pids $!"
+done
+for p in $pids; do wait "$p" || status=1; done
+cards=$(EPC_TEST_MODULE=$slug $WP eval "global \$wpdb; echo (int) \$wpdb->get_var( \$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE module = %s', EPC_DB::table_name(), '$slug' ) );")
+events=$(wc -l < "$log" | tr -d ' ')
+EPC_TEST_MODULE=$slug $WP eval "require_once '$HERE/fixtures/test-integration.php'; epc_test_fixture_teardown();"
+rm -f "$log"
+if [ "$cards" = "4" ] && [ "$events" = "1" ]; then echo "PASS 4 parallel first cards: 4 cards, 1 went-live event"; else echo "FAIL parallel first cards: expected 4 cards and 1 event, got $cards cards and $events events"; status=1; fi
+
 exit $status

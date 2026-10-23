@@ -58,6 +58,7 @@ class EPC_DB {
 			meta longtext NULL,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			is_test tinyint(1) NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			UNIQUE KEY module_source_unique (module, source_id),
 			KEY user_id (user_id),
@@ -169,6 +170,7 @@ class EPC_DB {
 			if ( version_compare( $installed, '1.5.0', '<' ) ) {
 				self::stop_autoloading_mappings();
 			}
+			// 1.6.0: the is_test column is added by install() above (dbDelta); existing rows read 0.
 			if ( ! $unique_ok ) {
 				// Retry on the next load (a duplicate slipped in between the merge and the ALTER),
 				// at most 5 times so a database that refuses the index is not retried forever.
@@ -595,10 +597,23 @@ class EPC_DB {
 			'pass_link'     => esc_url_raw( (string) ( $data['pass_link'] ?? '' ) ),
 			'template_uid'  => sanitize_text_field( (string) ( $data['template_uid'] ?? '' ) ),
 			'status'        => sanitize_key( (string) ( $data['status'] ?? 'active' ) ),
-			'meta'          => isset( $data['meta'] ) ? wp_json_encode( $data['meta'] ) : null,
 		);
 
-		$formats = array( '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s' );
+		$formats = array( '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s' );
+
+		// Test flag (DB 1.6.0): written only when given or inside a test-card call, so an
+		// ordinary update never clears it.
+		if ( array_key_exists( 'is_test', $data ) ) {
+			$row['is_test'] = empty( $data['is_test'] ) ? 0 : 1;
+			$formats[]      = '%d';
+		} elseif ( class_exists( 'EPC_Pass_Status' ) && EPC_Pass_Status::is_test_context() ) {
+			$row['is_test'] = 1;
+			$formats[]      = '%d';
+		}
+
+		// Meta stays last: update_pass_row() drops the last column when no meta was given.
+		$row['meta'] = isset( $data['meta'] ) ? wp_json_encode( $data['meta'] ) : null;
+		$formats[]   = '%s';
 
 		if ( $existing ) {
 			return self::update_pass_row( (int) $existing, $row, $formats, array_key_exists( 'meta', $data ) );
@@ -1050,6 +1065,108 @@ class EPC_DB {
 		);
 
 		return is_array( $items ) ? $items : array();
+	}
+
+	/**
+	 * Mark or unmark a pass row as a test card.
+	 *
+	 * @param string     $module    Module slug.
+	 * @param int|string $source_id Source id.
+	 * @param bool       $is_test   Test card or not.
+	 * @return bool True when a row was found and saved.
+	 */
+	public static function set_pass_test_flag( $module, $source_id, $is_test ) {
+		global $wpdb;
+
+		$module    = sanitize_key( (string) $module );
+		$source_id = self::sanitize_source_id( $source_id );
+		if ( '' === $module || '' === $source_id ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table write.
+		$updated = $wpdb->update(
+			self::table_name(),
+			array( 'is_test' => $is_test ? 1 : 0 ),
+			array(
+				'module'    => $module,
+				'source_id' => $source_id,
+			),
+			array( '%d' ),
+			array( '%s', '%s' )
+		);
+
+		return false !== $updated;
+	}
+
+	/**
+	 * Count a module's issued passes, leaving test cards out.
+	 *
+	 * @param string $module Module slug.
+	 * @param string $status Stored status to match ('active', 'revoked'), or '' for any.
+	 * @return int
+	 */
+	public static function count_real_passes( $module, $status = '' ) {
+		global $wpdb;
+
+		$module = sanitize_key( (string) $module );
+		$status = sanitize_key( (string) $status );
+		if ( '' === $module ) {
+			return 0;
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table count; must be fresh.
+		if ( '' === $status ) {
+			$count = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM %i WHERE module = %s AND is_test = 0",
+					self::table_name(),
+					$module
+				)
+			);
+		} else {
+			$count = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM %i WHERE module = %s AND status = %s AND is_test = 0",
+					self::table_name(),
+					$module,
+					$status
+				)
+			);
+		}
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return (int) $count;
+	}
+
+	/**
+	 * Number of real (non-test) passes of the given modules with a row id below $id.
+	 *
+	 * Revoked passes count: they were real cards once.
+	 *
+	 * @param array<int, string> $modules Module slugs.
+	 * @param int                $id      Row id.
+	 * @return int
+	 */
+	public static function count_real_passes_before( array $modules, $id ) {
+		global $wpdb;
+
+		$modules = array_values( array_filter( array_map( 'sanitize_key', array_map( 'strval', $modules ) ) ) );
+		if ( empty( $modules ) ) {
+			return 0;
+		}
+
+		$args = array_merge( array( self::table_name() ), $modules, array( absint( $id ) ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table count; must be fresh.
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM %i WHERE module IN (" . implode( ', ', array_fill( 0, count( $modules ), '%s' ) ) . ") AND is_test = 0 AND pass_uid <> '' AND id < %d",
+				$args
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return (int) $count;
 	}
 
 	/**

@@ -651,7 +651,18 @@ class EPC_Loyalty_Pass_Design_Service {
 			return new WP_Error( 'epc_loyalty_module_inactive', __( 'Enable the WooCommerce Loyalty module to issue a test pass.', 'epasscard' ) );
 		}
 
-		return $module->sync_by_source_id( $user_id, 'sync' );
+		// The admin's own card is a test card: kept out of counts and the first-real-card event.
+		$result = EPC_Pass_Status::run_as_test(
+			static function () use ( $module, $user_id ) {
+				return $module->sync_by_source_id( $user_id, 'sync' );
+			}
+		);
+		if ( true === $result ) {
+			// Also flags a card that existed before and was only refreshed now.
+			EPC_DB::set_pass_test_flag( $module->get_slug(), $user_id, true );
+		}
+
+		return $result;
 	}
 
 	/**

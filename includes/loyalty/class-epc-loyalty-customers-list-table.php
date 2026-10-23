@@ -159,11 +159,12 @@ class EPC_Loyalty_Customers_List_Table extends WP_List_Table {
 				return esc_html( $label ) . ( '' !== $prog ? '<br /><small>' . esc_html( $prog ) . '</small>' : '' );
 			case 'pass':
 				$status = (string) $item['pass_status'];
+				$label  = isset( $item['pass_status_label'] ) ? (string) $item['pass_status_label'] : ( 'none' === $status ? __( 'None', 'epasscard' ) : ucfirst( $status ) );
 				$link   = (string) $item['pass_link'];
 				if ( '' !== $link ) {
-					return '<a href="' . esc_url( $link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( ucfirst( $status ) ) . '</a>';
+					return '<a href="' . esc_url( $link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $label ) . '</a>';
 				}
-				return esc_html( 'none' === $status ? __( 'None', 'epasscard' ) : ucfirst( $status ) );
+				return esc_html( $label );
 			case 'last_activity':
 				return esc_html( (string) $item['last_activity'] );
 			case 'actions':

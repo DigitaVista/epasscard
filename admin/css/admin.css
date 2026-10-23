@@ -989,3 +989,26 @@
 		max-width: 340px;
 	}
 }
+
+/* Card statuses (EPC_Pass_Status). */
+.epc-pass-status--update_failed,
+.epc-pass-status--revoke_pending {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.epc-pass-status[title] {
+	cursor: help;
+	border-bottom: 1px dotted currentColor;
+}
+
+.epc-pass-test-badge {
+	display: inline-block;
+	margin-left: 4px;
+	padding: 0 6px;
+	border-radius: 8px;
+	background: #fcf0e3;
+	color: #8a4b00;
+	font-size: 11px;
+	font-weight: 500;
+}

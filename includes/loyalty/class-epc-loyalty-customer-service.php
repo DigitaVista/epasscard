@@ -444,6 +444,7 @@ class EPC_Loyalty_Customer_Service {
 		$pass       = EPC_DB::get_pass( 'woocommerce-loyalty', $user_id );
 		$pass_link  = ( $pass && ! empty( $pass->pass_link ) ) ? (string) $pass->pass_link : '';
 		$pass_status = ( $pass && ! empty( $pass->status ) ) ? (string) $pass->status : 'none';
+		$pass_label  = $pass ? EPC_Pass_Status::get_display_status( $pass ) : null;
 
 		$next_reward = '';
 		$progress    = '';
@@ -469,6 +470,7 @@ class EPC_Loyalty_Customer_Service {
 			'unclaimed_rewards' => count( $claims ),
 			'claims'            => $claims,
 			'pass_status'       => $pass_status,
+			'pass_status_label' => $pass_label ? $pass_label['label'] . ( $pass_label['is_test'] ? ' (' . __( 'Test', 'epasscard' ) . ')' : '' ) : __( 'None', 'epasscard' ),
 			'pass_link'         => $pass_link,
 			'pass_uid'          => $pass && ! empty( $pass->pass_uid ) ? (string) $pass->pass_uid : '',
 			'last_activity'     => (string) ( $account->updated_at ?? '' ),

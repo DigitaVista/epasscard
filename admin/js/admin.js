@@ -382,7 +382,10 @@
 					'</a>'
 			);
 		}
-		if (data.status_label || data.status) {
+		if (data.status_html) {
+			// Built and escaped by EPC_Pass_Status::render_status_html() on the server.
+			$row.find('td.column-status').html(data.status_html);
+		} else if (data.status_label || data.status) {
 			$row.find('td.column-status').text(data.status_label || data.status);
 		}
 		if (data.updated_at) {
