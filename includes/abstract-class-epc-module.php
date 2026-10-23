@@ -1356,7 +1356,7 @@ abstract class EPC_Module {
 						printf(
 							/* translators: %s: settings page link */
 							esc_html__( 'Connect your EpassCard account first on the %s page.', 'epasscard' ),
-							'<a href="' . esc_url( admin_url( 'admin.php?page=epasscard' ) ) . '">' . esc_html__( 'Connection', 'epasscard' ) . '</a>'
+							'<a href="' . esc_url( EPC_Admin_App::url( 'settings', array( 'tab' => 'account' ) ) ) . '">' . esc_html__( 'Account & plan', 'epasscard' ) . '</a>'
 						);
 						?>
 					</p>

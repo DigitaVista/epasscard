@@ -23,7 +23,13 @@
 			var section = link.getAttribute( 'data-epc-section' );
 			var href = link.getAttribute( 'href' ) || '';
 			var matches = href.indexOf( '#' + hash ) !== -1;
-			link.classList.toggle( 'is-active', matches || section === hash.replace( 'epc-section-', '' ) );
+			var active = matches || section === hash.replace( 'epc-section-', '' );
+			link.classList.toggle( 'is-active', active );
+			if ( active ) {
+				link.setAttribute( 'aria-current', 'page' );
+			} else {
+				link.removeAttribute( 'aria-current' );
+			}
 		} );
 	}
 

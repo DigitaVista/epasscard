@@ -93,6 +93,8 @@ function epasscard_uninstall_site() {
 		'epc_api_log_redaction_cursor',
 		'epc_first_real_pass_at',
 		'epc_retry_failed_job',
+		'epc_setup',
+		'epc_test_cards',
 		// Integration pass-behavior rules.
 		'epc_events_manager_status_rules',
 		'epc_memberpress_status_rules',
@@ -140,7 +142,7 @@ function epasscard_uninstall_site() {
 
 	// Short-lived caches.
 	delete_transient( 'epc_setup_wizard_redirect' );
-	foreach ( array( 'epc\_catalog\_%', 'epc\_starter\_lock\_%', 'epc\_retry\_failed\_notice\_%' ) as $pattern ) {
+	foreach ( array( 'epc\_catalog\_%', 'epc\_starter\_lock\_%', 'epc\_retry\_failed\_notice\_%', 'epc\_try\_error\_%' ) as $pattern ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin uninstall.
 		$found = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", '\_transient\_' . $pattern ) );
 		foreach ( is_array( $found ) ? $found : array() as $option ) {

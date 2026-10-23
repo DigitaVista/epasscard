@@ -64,6 +64,21 @@ class EPC_Admin_Shell {
 	}
 
 	/**
+	 * Whether the current screen is an integration's own page (epc-{module slug}).
+	 *
+	 * @return bool
+	 */
+	public static function is_module_page() {
+		$page = EPC_Admin_App::current_page();
+		foreach ( array_keys( EPC_Module_Loader::get_module_files() ) as $slug ) {
+			if ( 'epc-' . $slug === $page ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Enqueue shell assets.
 	 *
 	 * @param string $hook Hook suffix.
@@ -74,25 +89,21 @@ class EPC_Admin_Shell {
 			return;
 		}
 
-		wp_enqueue_style(
-			'epc-fonts',
-			'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap',
-			array(),
-			EPC_VERSION
-		);
-
-		wp_enqueue_style(
-			'epc-material-symbols',
-			'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap',
-			array(),
-			EPC_VERSION
-		);
+		// Icon font for the integration pages only (the 1.2 screens use no icons). Disclosed in readme.txt.
+		if ( self::is_module_page() ) {
+			wp_enqueue_style(
+				'epc-material-symbols',
+				'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap',
+				array(),
+				EPC_VERSION
+			);
+		}
 
 		$shell_path = EPC_PLUGIN_DIR . 'admin/css/admin-shell.css';
 		wp_enqueue_style(
 			'epc-admin-shell',
 			EPC_PLUGIN_URL . 'admin/css/admin-shell.css',
-			array( 'epc-fonts' ),
+			array(),
 			file_exists( $shell_path ) ? (string) filemtime( $shell_path ) : EPC_VERSION
 		);
 
@@ -139,22 +150,35 @@ class EPC_Admin_Shell {
 	}
 
 	/**
-	 * Open app shell markup.
+	 * Open app shell markup: the EpassCard top bar (sections, plan meter, help), then an
+	 * optional sub-navigation column and the page content.
 	 *
-	 * @param array<string, mixed> $args Shell arguments.
+	 * @param array<string, mixed> $args {
+	 *     @type string     $context        connection|module|api-log|setup-wizard|app.
+	 *     @type string     $title          Page title (screen-reader heading and sub-navigation label).
+	 *     @type string     $subtitle       Kept for older callers; not shown.
+	 *     @type EPC_Module $module         Module, for integration pages.
+	 *     @type string     $active_section Active sub-navigation item.
+	 *     @type string     $section        Top-bar section to highlight (defaults from the page).
+	 *     @type array      $subnav         Sub-navigation items (id, label, url). Older contexts build their own.
+	 * }
 	 * @return void
 	 */
 	public static function render_open( array $args = array() ) {
 		$defaults = array(
-			'context'       => 'connection',
-			'title'         => __( 'EpassCard', 'epasscard' ),
-			'subtitle'      => '',
-			'module'        => null,
-			'active_section'=> '',
+			'context'        => 'connection',
+			'title'          => __( 'EpassCard', 'epasscard' ),
+			'subtitle'       => '',
+			'module'         => null,
+			'active_section' => '',
+			'section'        => '',
+			'subnav'         => null,
 		);
 
-		$args = wp_parse_args( $args, $defaults );
-		$nav  = self::build_nav_items( $args );
+		$args    = wp_parse_args( $args, $defaults );
+		$section = '' !== (string) $args['section'] ? (string) $args['section'] : EPC_Admin_App::section_for_page( EPC_Admin_App::current_page() );
+		$subnav  = is_array( $args['subnav'] ) ? $args['subnav'] : self::legacy_subnav( $args );
+		$meter   = class_exists( 'EPC_Plan' ) && current_user_can( 'manage_options' ) ? EPC_Plan::get_meter() : array();
 
 		?>
 		<div class="wrap epc-wrap">
@@ -162,55 +186,62 @@ class EPC_Admin_Shell {
 			<hr class="wp-header-end" />
 		<div class="epc-app-root">
 		<div class="epc-app" data-epc-context="<?php echo esc_attr( (string) $args['context'] ); ?>">
-			<aside class="epc-app__sidebar" aria-label="<?php esc_attr_e( 'EpassCard navigation', 'epasscard' ); ?>">
-				<div class="epc-app__brand">
-					<img
-						class="epc-app__brand-logo"
-						src="<?php echo esc_url( EPC_PLUGIN_URL . 'admin/images/epasscard-logo.webp' ); ?>"
-						alt="<?php esc_attr_e( 'EpassCard', 'epasscard' ); ?>"
-						width="200"
-						height="67"
-					/>
-					<p class="epc-app__brand-version"><?php echo esc_html( sprintf( /* translators: %s: plugin version */ __( 'v%s', 'epasscard' ), EPC_VERSION ) ); ?></p>
-				</div>
-
-				<nav class="epc-app__nav epc-app__nav--primary">
-					<?php foreach ( $nav['primary'] as $item ) : ?>
-						<?php self::render_nav_item( $item, $args['active_section'] ); ?>
+			<div class="epc-topbar">
+				<a class="epc-topbar__logo" href="<?php echo esc_url( EPC_Admin_App::url( 'home' ) ); ?>">
+					<img src="<?php echo esc_url( EPC_PLUGIN_URL . 'admin/images/epasscard-logo.webp' ); ?>" alt="<?php esc_attr_e( 'EpassCard home', 'epasscard' ); ?>" width="96" height="32" />
+				</a>
+				<nav class="epc-topbar__nav" aria-label="<?php esc_attr_e( 'EpassCard sections', 'epasscard' ); ?>">
+					<?php foreach ( EPC_Admin_App::sections() as $id => $item ) : ?>
+						<a href="<?php echo esc_url( $item['url'] ); ?>"<?php echo $id === $section ? ' aria-current="page" class="is-active"' : ''; ?>><?php echo esc_html( $item['label'] ); ?></a>
 					<?php endforeach; ?>
 				</nav>
-
-				<?php if ( ! empty( $nav['secondary'] ) ) : ?>
-					<nav class="epc-app__nav epc-app__nav--secondary">
-						<?php foreach ( $nav['secondary'] as $item ) : ?>
-							<?php self::render_nav_item( $item, $args['active_section'] ); ?>
+				<div class="epc-topbar__right">
+					<?php if ( ! empty( $meter ) ) : ?>
+						<?php self::render_meter( $meter ); ?>
+					<?php endif; ?>
+					<a class="epc-topbar__link" href="<?php echo esc_url( self::docs_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Help', 'epasscard' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span></a>
+				</div>
+			</div>
+			<div class="epc-app__body<?php echo empty( $subnav ) ? '' : ' has-subnav'; ?>">
+				<?php if ( ! empty( $subnav ) ) : ?>
+					<nav class="epc-subnav" aria-label="<?php echo esc_attr( (string) $args['title'] ); ?>">
+						<?php foreach ( $subnav as $item ) : ?>
+							<?php self::render_nav_item( $item, (string) $args['active_section'] ); ?>
 						<?php endforeach; ?>
 					</nav>
 				<?php endif; ?>
-
-				<div class="epc-app__sidebar-footer">
-					<?php EPC_Setup_Help::render_sidebar_card(); ?>
-					<a class="epc-app__support-btn" href="https://epasscard.com/" target="_blank" rel="noopener noreferrer">
-						<?php esc_html_e( 'Support', 'epasscard' ); ?>
-					</a>
-				</div>
-			</aside>
-
-			<div class="epc-app__main">
-				<header class="epc-app__topbar">
-					<div class="epc-app__topbar-title">
-						<h2><?php echo esc_html( (string) $args['title'] ); ?></h2>
-						<?php if ( '' !== (string) $args['subtitle'] ) : ?>
-							<p><?php echo esc_html( (string) $args['subtitle'] ); ?></p>
-						<?php endif; ?>
-					</div>
-					<nav class="epc-app__topbar-links" aria-label="<?php esc_attr_e( 'Help links', 'epasscard' ); ?>">
-						<a href="<?php echo esc_url( self::docs_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Docs', 'epasscard' ); ?></a>
-						<a href="https://epasscard.com/contact-us/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Help Center', 'epasscard' ); ?></a>
-						<a href="https://wordpress.org/support/plugin/epasscard/reviews/#new-post" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Feedback', 'epasscard' ); ?></a>
-					</nav>
-				</header>
 				<div class="epc-app__content">
+		<?php
+	}
+
+	/**
+	 * The plan pill in the top bar.
+	 *
+	 * @param array<string, mixed> $meter EPC_Plan::get_meter().
+	 * @return void
+	 */
+	private static function render_meter( array $meter ) {
+		$limit = (int) $meter['limit'];
+		$used  = (int) $meter['used'];
+		$class = 'epc-meter' . ( ! empty( $meter['warn'] ) ? ' is-warning' : '' );
+		$title = __( 'Active cards issued from this site, not counting test cards. Cards made on other sites or in the EpassCard app are not included.', 'epasscard' );
+		?>
+		<a class="<?php echo esc_attr( $class ); ?>" href="<?php echo esc_url( EPC_Admin_App::url( 'settings', array( 'tab' => 'account' ) ) ); ?>" title="<?php echo esc_attr( $title ); ?>">
+			<?php if ( '' !== (string) $meter['plan'] ) : ?>
+				<span class="epc-meter__plan"><?php echo esc_html( (string) $meter['plan'] ); ?></span>
+			<?php endif; ?>
+			<span class="epc-meter__cards">
+				<?php
+				if ( $limit > 0 ) {
+					/* translators: 1: cards used, 2: card limit of the plan */
+					echo esc_html( sprintf( __( 'Cards %1$s / %2$s', 'epasscard' ), number_format_i18n( $used ), number_format_i18n( $limit ) ) );
+				} else {
+					/* translators: %s: cards used */
+					echo esc_html( sprintf( __( 'Cards %s', 'epasscard' ), number_format_i18n( $used ) ) );
+				}
+				?>
+			</span>
+		</a>
 		<?php
 	}
 
@@ -227,6 +258,24 @@ class EPC_Admin_Shell {
 		</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Sub-navigation for the older screens (integration pages, API log).
+	 *
+	 * @param array<string, mixed> $args Shell args.
+	 * @return array<int, array<string, string>>
+	 */
+	private static function legacy_subnav( array $args ) {
+		$context = (string) $args['context'];
+		if ( 'module' === $context && $args['module'] instanceof EPC_Module ) {
+			$nav = self::build_nav_items( $args );
+			return $nav['primary'];
+		}
+		if ( 'api-log' === $context ) {
+			return EPC_Admin_Settings::subnav_items();
+		}
+		return array();
 	}
 
 	/**
@@ -308,108 +357,14 @@ class EPC_Admin_Shell {
 
 			return array(
 				'primary'   => $primary,
-				'secondary' => self::secondary_nav_items(),
+				'secondary' => array(),
 			);
 		}
-
-		if ( 'api-log' === $context ) {
-			return array(
-				'primary'   => array(
-					array(
-						'id'    => 'api-log',
-						'label' => __( 'API Logs', 'epasscard' ),
-						'url'   => admin_url( 'admin.php?page=epc-api-log' ),
-						'icon'  => 'code',
-					),
-				),
-				'secondary' => self::secondary_nav_items( true ),
-			);
-		}
-
-		$connection_url = admin_url( 'admin.php?page=epasscard' );
-		$primary        = array(
-			array(
-				'id'    => 'overview',
-				'label' => __( 'Overview', 'epasscard' ),
-				'url'   => $connection_url . '#epc-section-overview',
-				'icon'  => 'dashboard',
-			),
-			array(
-				'id'    => 'connect',
-				'label' => __( 'Connection', 'epasscard' ),
-				'url'   => $connection_url . '#epc-section-connect',
-				'icon'  => 'link',
-			),
-			array(
-				'id'    => 'integrations',
-				'label' => __( 'Integrations', 'epasscard' ),
-				'url'   => $connection_url . '#epc-section-integrations',
-				'icon'  => 'extension',
-			),
-		);
-
-		if ( EPC_Connection::is_connected() ) {
-			$primary[] = array(
-				'id'    => 'email',
-				'label' => __( 'Pass Email', 'epasscard' ),
-				'url'   => $connection_url . '#epc-section-email',
-				'icon'  => 'mail',
-			);
-		}
-
-		$primary[] = array(
-			'id'    => 'data',
-			'label' => __( 'Data', 'epasscard' ),
-			'url'   => $connection_url . '#epc-section-data',
-			'icon'  => 'database',
-		);
-
-		$primary[] = array(
-			'id'    => 'our-products',
-			'label' => __( 'Our Products', 'epasscard' ),
-			'url'   => $connection_url . '#epc-section-our-products',
-			'icon'  => 'storefront',
-		);
 
 		return array(
-			'primary'   => $primary,
-			'secondary' => self::secondary_nav_items(),
+			'primary'   => array(),
+			'secondary' => array(),
 		);
-	}
-
-	/**
-	 * Footer navigation links.
-	 *
-	 * @param bool $on_api_log Whether API log is the current page.
-	 * @return array<int, array<string, string>>
-	 */
-	private static function secondary_nav_items( $on_api_log = false ) {
-		$items = array();
-
-		$items[] = array(
-			'id'    => 'setup-wizard',
-			'label' => __( 'Setup Wizard', 'epasscard' ),
-			'url'   => admin_url( 'admin.php?page=epc-setup-wizard' ),
-			'icon'  => 'rocket_launch',
-		);
-
-		if ( ! $on_api_log ) {
-			$items[] = array(
-				'id'    => 'api-log',
-				'label' => __( 'API Logs', 'epasscard' ),
-				'url'   => admin_url( 'admin.php?page=epc-api-log' ),
-				'icon'  => 'code',
-			);
-		}
-
-		$items[] = array(
-			'id'    => 'settings',
-			'label' => __( 'Settings', 'epasscard' ),
-			'url'   => admin_url( 'admin.php?page=epasscard' ),
-			'icon'  => 'settings',
-		);
-
-		return $items;
 	}
 
 	/**
@@ -423,8 +378,7 @@ class EPC_Admin_Shell {
 		$is_active = '' !== $active_section && $active_section === ( $item['id'] ?? '' );
 		$classes   = 'epc-app__nav-link' . ( $is_active ? ' is-active' : '' );
 		?>
-		<a class="<?php echo esc_attr( $classes ); ?>" href="<?php echo esc_url( (string) $item['url'] ); ?>" data-epc-section="<?php echo esc_attr( (string) ( $item['id'] ?? '' ) ); ?>">
-			<span class="epc-icon" aria-hidden="true"><?php echo esc_html( (string) ( $item['icon'] ?? 'circle' ) ); ?></span>
+		<a class="<?php echo esc_attr( $classes ); ?>"<?php echo $is_active ? ' aria-current="page"' : ''; ?> href="<?php echo esc_url( (string) $item['url'] ); ?>" data-epc-section="<?php echo esc_attr( (string) ( $item['id'] ?? '' ) ); ?>">
 			<span><?php echo esc_html( (string) ( $item['label'] ?? '' ) ); ?></span>
 		</a>
 		<?php

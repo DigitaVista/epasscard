@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin menu and Connection page.
+ * API log page and the connection / settings AJAX handlers.
  *
  * @package EpassCard
  */
@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Registers top-level EpassCard menu.
+ * API log page and AJAX handlers for connecting, integrations and data settings.
  */
 class EPC_Admin_Menu {
 
@@ -39,30 +39,12 @@ class EPC_Admin_Menu {
 	}
 
 	/**
-	 * Register menu.
+	 * Register the API log page. The sections (Home, Cards, Design, Settings) are registered
+	 * by EPC_Admin_App; the API log is reached from Settings.
 	 *
 	 * @return void
 	 */
 	public static function register_menu() {
-		add_menu_page(
-			__( 'EpassCard', 'epasscard' ),
-			__( 'EpassCard', 'epasscard' ),
-			'manage_options',
-			'epasscard',
-			array( __CLASS__, 'render_connection_page' ),
-			EPC_PLUGIN_URL . 'admin/images/epass-icon.webp',
-			58
-		);
-
-		add_submenu_page(
-			'epasscard',
-			__( 'Connection', 'epasscard' ),
-			__( 'Connection', 'epasscard' ),
-			'manage_options',
-			'epasscard',
-			array( __CLASS__, 'render_connection_page' )
-		);
-
 		add_submenu_page(
 			'epasscard',
 			__( 'API Log', 'epasscard' ),
@@ -74,7 +56,7 @@ class EPC_Admin_Menu {
 	}
 
 	/**
-	 * Whether the current screen is the Connection settings page.
+	 * Whether the current screen shows the connect forms or account settings (Home, Settings).
 	 *
 	 * @return bool
 	 */
@@ -86,7 +68,7 @@ class EPC_Admin_Menu {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection; capability enforced by menu callbacks.
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
 
-		return 'epasscard' === $page;
+		return in_array( $page, array( 'epasscard', 'epc-settings' ), true );
 	}
 
 	/**
@@ -152,30 +134,6 @@ class EPC_Admin_Menu {
 				),
 			)
 		);
-	}
-
-	/**
-	 * Render Connection settings page.
-	 *
-	 * @return void
-	 */
-	public static function render_connection_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to access this page.', 'epasscard' ) );
-		}
-
-		$connected = EPC_Connection::is_connected();
-		$expiry    = EPC_Connection::get_expiry_display();
-		$settings  = EPC_Connection::get_settings();
-		$email     = isset( $settings['connected_email'] ) ? (string) $settings['connected_email'] : '';
-		$package   = EPC_Connection::get_package_details();
-		$modules   = EPC_Module_Loader::get_registry();
-		$enabled   = EPC_Module_Settings::get_enabled_slugs();
-		$email_settings = EPC_Pass_Email::get_settings();
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only notice query arg for admin UI flash message.
-		$notice         = isset( $_GET['epc_notice'] ) ? sanitize_key( wp_unslash( (string) $_GET['epc_notice'] ) ) : '';
-
-		include EPC_PLUGIN_DIR . 'admin/views/connection.php';
 	}
 
 	/**

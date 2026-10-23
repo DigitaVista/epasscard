@@ -47,6 +47,17 @@ require_once EPC_PLUGIN_DIR . 'includes/class-epc-frontend.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-notifications.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-user-pass-sync.php';
 require_once EPC_PLUGIN_DIR . 'includes/epc-dependencies.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-app.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-plan.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-onboarding.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-card-preview.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-test-cards.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-home.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-setup.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-try.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-cards.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-design.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-settings.php';
 
 /**
  * Singleton plugin class.
@@ -118,6 +129,10 @@ final class EPC_Plugin {
 		EPC_Retry_Failed::init();
 		EPC_Template_Starter::init();
 
+		EPC_Admin_App::init();
+		EPC_Admin_Home::init();
+		EPC_Admin_Setup::init();
+		EPC_Admin_Try::init();
 		EPC_Admin_Menu::init();
 		EPC_Admin_Shell::init();
 		EPC_Setup_Help_Notice::init();

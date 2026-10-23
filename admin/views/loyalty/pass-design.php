@@ -53,7 +53,7 @@ $strip_field   = $strip_inline ? '' : $strip_url;
 				printf(
 					/* translators: %s: Connection admin link. */
 					esc_html__( 'Connect EpassCard on the %s page before saving a loyalty pass design.', 'epasscard' ),
-					'<a href="' . esc_url( admin_url( 'admin.php?page=epasscard' ) ) . '">' . esc_html__( 'Connection', 'epasscard' ) . '</a>'
+					'<a href="' . esc_url( EPC_Admin_App::url( 'settings', array( 'tab' => 'account' ) ) ) . '">' . esc_html__( 'Account & plan', 'epasscard' ) . '</a>'
 				);
 				?>
 			</p>

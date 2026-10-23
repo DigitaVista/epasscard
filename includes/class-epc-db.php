@@ -1140,6 +1140,41 @@ class EPC_DB {
 	}
 
 	/**
+	 * Count real (non-test) issued passes of every integration.
+	 *
+	 * @param string $status Stored status ('active', 'revoked'), or '' for any.
+	 * @return int
+	 */
+	public static function count_all_real_passes( $status = '' ) {
+		global $wpdb;
+
+		$status = sanitize_key( (string) $status );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table count; must be fresh.
+		if ( '' === $status ) {
+			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE is_test = 0 AND pass_uid <> ''", self::table_name() ) );
+		} else {
+			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status = %s AND is_test = 0 AND pass_uid <> ''", self::table_name(), $status ) );
+		}
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return (int) $count;
+	}
+
+	/**
+	 * Real (non-test) passes created in the last N days, for every integration.
+	 *
+	 * Compared with the database clock, which also fills created_at.
+	 *
+	 * @param int $days Days.
+	 * @return int
+	 */
+	public static function count_real_passes_last_days( $days ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table count; must be fresh.
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE is_test = 0 AND pass_uid <> '' AND created_at >= NOW() - INTERVAL %d DAY", self::table_name(), max( 1, absint( $days ) ) ) );
+	}
+
+	/**
 	 * Number of real (non-test) passes of the given modules with a row id below $id.
 	 *
 	 * Revoked passes count: they were real cards once.

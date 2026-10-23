@@ -42,6 +42,9 @@ EPC_TEST_MODULE=$slug $WP eval "require_once '$HERE/fixtures/test-integration.ph
 rm -f "$log"
 if [ "$cards" = "4" ] && [ "$events" = "1" ]; then echo "PASS 4 parallel first cards: 4 cards, 1 went-live event"; else echo "FAIL parallel first cards: expected 4 cards and 1 event, got $cards cards and $events events"; status=1; fi
 
+echo "== Home checklist and Try it"
+$WP eval-file "$HERE/test-onboarding.php" || status=1
+
 echo "== Retry failed cards"
 $WP eval-file "$HERE/test-retry-failed.php" || status=1
 

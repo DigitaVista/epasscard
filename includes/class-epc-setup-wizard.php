@@ -99,7 +99,8 @@ class EPC_Setup_Wizard {
 			return;
 		}
 
-		wp_safe_redirect( self::url() );
+		// 1.2: the Home checklist replaces the wizard.
+		wp_safe_redirect( EPC_Admin_App::url( 'home' ) );
 		exit;
 	}
 
@@ -283,12 +284,13 @@ class EPC_Setup_Wizard {
 	 * @return void
 	 */
 	public static function guard_wizard_screen() {
-		if ( ! self::is_wizard_screen() ) {
+		if ( ! self::is_wizard_screen() || wp_doing_ajax() ) {
 			return;
 		}
 
-		add_filter( 'wp_redirect', array( __CLASS__, 'block_non_wizard_redirect' ), 100000 );
-		add_filter( 'wp_safe_redirect', array( __CLASS__, 'block_non_wizard_redirect' ), 100000 );
+		// 1.2: the wizard screen is retired; old links and bookmarks open the Home checklist.
+		wp_safe_redirect( EPC_Admin_App::url( 'home' ) );
+		exit;
 	}
 
 	/**
@@ -341,29 +343,26 @@ class EPC_Setup_Wizard {
 	 * @return void
 	 */
 	public static function render_resume_notice() {
-		if ( ! current_user_can( 'manage_options' ) || ! self::should_run() ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( ! $screen ) {
+		if ( ! $screen || ! in_array( $screen->base, array( 'dashboard', 'plugins' ), true ) ) {
+			// EpassCard screens show the checklist on Home.
 			return;
 		}
 
-		if ( self::PAGE_SLUG === $screen->id || false !== strpos( (string) $screen->id, self::PAGE_SLUG ) ) {
-			return;
-		}
-
-		$allowed = array( 'dashboard', 'plugins', 'toplevel_page_epasscard' );
-		if ( ! in_array( $screen->base, $allowed, true ) && false === strpos( $screen->id, 'epasscard' ) && false === strpos( $screen->id, 'epc-' ) ) {
+		// Shown while the merchant still has a step to do; waiting for the first customer needs nothing from them.
+		if ( ! in_array( EPC_Onboarding::current_step(), array( 'connect', 'job', 'design' ), true ) ) {
 			return;
 		}
 
 		printf(
 			'<div class="notice notice-info"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a></p></div>',
 			esc_html__( 'EpassCard setup is not finished.', 'epasscard' ),
-			esc_html__( 'A short wizard will connect your account, enable an integration, and create a test wallet pass.', 'epasscard' ),
-			esc_url( self::url() ),
+			esc_html__( 'Connect your account, choose what to give your customers and design the card.', 'epasscard' ),
+			esc_url( EPC_Admin_App::url( 'home' ) ),
 			esc_html__( 'Continue setup', 'epasscard' )
 		);
 	}
