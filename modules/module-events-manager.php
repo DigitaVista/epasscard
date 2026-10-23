@@ -308,14 +308,14 @@ class EPC_Module_Events_Manager extends EPC_Module {
 			}
 
 			$event = $booking->get_event();
-			if ( ! $event || empty( $event->event_start ) ) {
+			$start = $this->get_event_datetime( $event, 'start' );
+			if ( ! $start ) {
 				continue;
 			}
 
-			$start_ts = strtotime( (string) $event->event_start . ( ! empty( $event->event_start_time ) ? ' ' . $event->event_start_time : '' ) );
-			if ( ! $start_ts ) {
-				continue;
-			}
+			// Before 1.2.0 the start time was appended to event_start, which already holds the
+			// full date and time; strtotime() failed and the reminder was never sent.
+			$start_ts = $start->getTimestamp();
 
 			EPC_Pass_Notifications::maybe_send_for_event(
 				$pass_row,
@@ -904,13 +904,7 @@ class EPC_Module_Events_Manager extends EPC_Module {
 			}
 		}
 
-		$event_end_raw = '';
-		if ( $event ) {
-			$event_end_raw = trim( (string) ( $event->event_end_date ?? $event->event_end ?? '' ) );
-			if ( $event_end_raw && ! empty( $event->event_end_time ) ) {
-				$event_end_raw .= ' ' . $event->event_end_time;
-			}
-		}
+		$event_end = $this->get_event_datetime( $event, 'end' );
 
 		$values = array(
 			'user_display_name' => $display,
@@ -927,7 +921,7 @@ class EPC_Module_Events_Manager extends EPC_Module {
 			'event_name'        => $event ? (string) $event->event_name : $this->get_entity_label( $event_id ),
 			'event_start'       => $this->format_em_event_datetime( $event, 'start' ),
 			'event_end'         => $this->format_em_event_datetime( $event, 'end' ),
-			'expire_date'       => epc_format_pass_expiry_datetime( $event_end_raw ),
+			'expire_date'       => epc_format_pass_expiry_timestamp( $event_end ? $event_end->getTimestamp() : 0 ),
 			'location_name'     => $location_name,
 			'booking_comment'   => isset( $booking->booking_comment ) ? (string) $booking->booking_comment : '',
 		);
@@ -967,25 +961,84 @@ class EPC_Module_Events_Manager extends EPC_Module {
 	 * @return string
 	 */
 	private function format_em_event_datetime( $event, $which = 'start' ) {
+		$dt = $this->get_event_datetime( $event, $which );
+		if ( ! $dt ) {
+			return '';
+		}
+
+		// Show the event's own wall-clock time (10:00 in Dhaka stays 10:00), not a shifted one.
+		return wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $dt->getTimestamp(), $dt->getTimezone() );
+	}
+
+	/**
+	 * Event start or end as a timezone-aware date.
+	 *
+	 * Order of sources:
+	 * 1. EM_Event::start() / end() (Events Manager 5.9+), which already carry the event timezone.
+	 * 2. event_start / event_end: full datetimes Events Manager stores in UTC.
+	 * 3. event_start_date + event_start_time: wall-clock time in the event's timezone.
+	 *
+	 * Before 1.2.0 the wall-clock time was parsed as UTC and then shown in the site timezone,
+	 * shifting it by the site's UTC offset (an event at 10:00 in Dhaka showed 16:00).
+	 *
+	 * @param mixed  $event Event object.
+	 * @param string $which start|end.
+	 * @return DateTimeImmutable|null
+	 */
+	private function get_event_datetime( $event, $which = 'start' ) {
 		if ( ! is_object( $event ) ) {
-			return '';
+			return null;
+		}
+		$which = 'end' === $which ? 'end' : 'start';
+
+		if ( method_exists( $event, $which ) ) {
+			$em = $event->$which();
+			if ( $em instanceof DateTimeInterface && $em->getTimestamp() > 0 ) {
+				return ( new DateTimeImmutable( '@' . $em->getTimestamp() ) )->setTimezone( $em->getTimezone() );
+			}
 		}
 
-		if ( 'end' === $which ) {
-			$date = isset( $event->event_end_date ) ? (string) $event->event_end_date : ( isset( $event->event_end ) ? (string) $event->event_end : '' );
-			$time = isset( $event->event_end_time ) ? (string) $event->event_end_time : '';
-		} else {
-			$date = isset( $event->event_start_date ) ? (string) $event->event_start_date : ( isset( $event->event_start ) ? (string) $event->event_start : '' );
-			$time = isset( $event->event_start_time ) ? (string) $event->event_start_time : '';
+		$tz  = $this->get_event_timezone( $event );
+		$utc = trim( (string) ( 'end' === $which ? ( $event->event_end ?? '' ) : ( $event->event_start ?? '' ) ) );
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/', $utc ) ) {
+			$dt = date_create_immutable( $utc, new DateTimeZone( 'UTC' ) );
+			if ( $dt ) {
+				return $dt->setTimezone( $tz );
+			}
 		}
 
-		$date = trim( $date );
-		if ( '' === $date ) {
-			return '';
+		$date = trim( (string) ( 'end' === $which ? ( $event->event_end_date ?? '' ) : ( $event->event_start_date ?? '' ) ) );
+		$time = trim( (string) ( 'end' === $which ? ( $event->event_end_time ?? '' ) : ( $event->event_start_time ?? '' ) ) );
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+			$dt = date_create_immutable( $date . ' ' . ( '' !== $time ? $time : ( 'end' === $which ? '23:59:59' : '00:00:00' ) ), $tz );
+			if ( $dt ) {
+				return $dt;
+			}
 		}
 
-		$raw = trim( $date . ( $time ? ' ' . $time : '' ) );
-		$ts  = strtotime( $raw );
-		return $ts ? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts ) : $raw;
+		return null;
+	}
+
+	/**
+	 * The event's timezone (Events Manager stores e.g. "Asia/Dhaka" or "UTC+6"), else the site's.
+	 *
+	 * @param object $event Event object.
+	 * @return DateTimeZone
+	 */
+	private function get_event_timezone( $event ) {
+		$name = trim( (string) ( $event->event_timezone ?? '' ) );
+		if ( preg_match( '/^UTC([+-])(\d{1,2})(?:[.:](\d{1,2}))?$/i', $name, $m ) ) {
+			$minutes = isset( $m[3] ) && '' !== $m[3] ? ( strlen( $m[3] ) === 1 ? (int) $m[3] * 6 : (int) $m[3] ) : 0;
+			$name    = sprintf( '%s%02d:%02d', $m[1], (int) $m[2], $minutes );
+		}
+		if ( '' !== $name ) {
+			try {
+				return new DateTimeZone( $name );
+			} catch ( Exception $e ) {
+				unset( $e ); // Unknown name: fall back to the site timezone.
+			}
+		}
+
+		return wp_timezone();
 	}
 }
