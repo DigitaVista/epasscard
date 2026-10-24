@@ -1335,6 +1335,29 @@ fieldset.epc-panel {
 	width: 32%;
 }
 
+/* ---------- Home: review invitation ---------- */
+
+.epc-review {
+	margin-bottom: 20px;
+}
+
+.epc-review[hidden] {
+	display: none;
+}
+
+.epc-review__actions .button:not(.button-link) {
+	display: inline-flex;
+	align-items: center;
+	min-height: 36px;
+}
+
+.epc-review__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 16px;
+}
+
 /* ---------- Setup: rules to confirm ---------- */
 
 .epc-setup-rules {

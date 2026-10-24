@@ -241,6 +241,17 @@
 		}
 	} );
 
+	// "Write a review" opens WordPress.org in a new tab; the invitation is answered, so hide it.
+	document.addEventListener( 'submit', function ( event ) {
+		var form = event.target instanceof Element ? event.target.closest( '[data-epc-review-write]' ) : null;
+		var box = form ? form.closest( '[data-epc-review]' ) : null;
+		if ( box ) {
+			window.setTimeout( function () {
+				box.hidden = true;
+			}, 0 );
+		}
+	} );
+
 	// "Check customers" can take a few seconds: say so on the button.
 	document.addEventListener( 'submit', function ( event ) {
 		var form = event.target instanceof Element ? event.target.closest( '[data-epc-existing-check]' ) : null;

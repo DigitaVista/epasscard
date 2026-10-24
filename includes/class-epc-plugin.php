@@ -55,6 +55,7 @@ require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-onboarding.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-card-preview.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-test-cards.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-home.php';
+require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-review-prompt.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-setup.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-try.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-cards.php';
@@ -135,6 +136,7 @@ final class EPC_Plugin {
 
 		EPC_Admin_App::init();
 		EPC_Admin_Home::init();
+		EPC_Review_Prompt::init();
 		EPC_Admin_Setup::init();
 		EPC_Admin_Try::init();
 		EPC_Admin_Design::init();

@@ -37,6 +37,8 @@ $epc_setup_module = EPC_Onboarding::get_state()['module'];
 		<p class="epc-page-head__lead"><?php esc_html_e( 'New customers get a card automatically. This page shows what needs you.', 'epasscard' ); ?></p>
 	</div>
 
+	<?php EPC_Review_Prompt::render(); ?>
+
 	<?php if ( ! empty( $epc_failed_by_module ) ) : ?>
 		<section class="epc-attention" aria-labelledby="epc-attention-title">
 			<h3 id="epc-attention-title" class="epc-attention__title">

@@ -1303,6 +1303,20 @@ class EPC_DB {
 	}
 
 	/**
+	 * Whether a real (non-test) card was created at least N days ago (database clock, which
+	 * also fills created_at).
+	 *
+	 * @param int $days Days.
+	 * @return bool
+	 */
+	public static function has_real_pass_older_than_days( $days ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table read; must be fresh.
+		$id = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE is_test = 0 AND pass_uid <> '' AND created_at <= NOW() - INTERVAL %d DAY LIMIT 1", self::table_name(), max( 1, absint( $days ) ) ) );
+		return null !== $id;
+	}
+
+	/**
 	 * Real (non-test) passes created in the last N days, for every integration.
 	 *
 	 * Compared with the database clock, which also fills created_at.
