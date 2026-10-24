@@ -1385,7 +1385,7 @@ abstract class EPC_Module {
 				</div>
 				<?php
 				if ( 'woocommerce-loyalty' === $this->get_slug() && current_user_can( 'manage_options' ) ) {
-					EPC_Help::render( 'customers' );
+					EPC_Help::render( 'customers', array( 'level' => 2 ) );
 				}
 				?>
 				<?php $this->render_module_overview( $entities, $mappings, $pass_total, $active_total ); ?>

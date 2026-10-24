@@ -203,10 +203,10 @@ class EPC_Admin_Design {
 				<div class="epc-designs">
 					<?php foreach ( $modules as $slug => $module ) : ?>
 						<?php $copy = EPC_Jobs::get_copy( EPC_Jobs::get_job_for_module( $slug ) ); ?>
-						<section class="epc-panel epc-designs__item" aria-labelledby="<?php echo esc_attr( 'epc-design-' . $slug ); ?>">
+						<section class="epc-panel epc-designs__item" aria-labelledby="<?php echo esc_attr( 'epc-design-' . $slug . ' epc-design-' . $slug . '-plugin' ); ?>">
 							<div class="epc-panel__head">
 								<h3 id="<?php echo esc_attr( 'epc-design-' . $slug ); ?>" class="epc-panel__title"><?php echo esc_html( $copy['title'] ); ?></h3>
-								<span class="epc-panel__meta"><?php echo esc_html( $module->get_label() ); ?></span>
+								<span id="<?php echo esc_attr( 'epc-design-' . $slug . '-plugin' ); ?>" class="epc-panel__meta"><?php echo esc_html( $module->get_label() ); ?></span>
 							</div>
 							<?php if ( EPC_Jobs::has_design( $module ) ) : ?>
 								<?php EPC_Card_Preview::render( $slug ); ?>
@@ -214,10 +214,10 @@ class EPC_Admin_Design {
 									<strong><?php esc_html_e( 'Applies to:', 'epasscard' ); ?></strong>
 									<?php echo esc_html( self::applies_to( $module ) ); ?>
 								</p>
-								<p><a class="button button-secondary" href="<?php echo esc_url( self::url_for_module( $slug ) ); ?>"><?php esc_html_e( 'Edit design', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( $copy['title'] ); ?></span></a></p>
+								<p><a class="button button-secondary" href="<?php echo esc_url( self::url_for_module( $slug ) ); ?>"><?php esc_html_e( 'Edit design', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( $copy['title'] . ', ' . $module->get_label() ); ?></span></a></p>
 							<?php else : ?>
 								<p><?php esc_html_e( 'No design yet. Customers get no card until there is one.', 'epasscard' ); ?></p>
-								<p><a class="button button-primary" href="<?php echo esc_url( self::url_for_module( $slug ) ); ?>"><?php esc_html_e( 'Create the design', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( $copy['title'] ); ?></span></a></p>
+								<p><a class="button button-primary" href="<?php echo esc_url( self::url_for_module( $slug ) ); ?>"><?php esc_html_e( 'Create the design', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( $copy['title'] . ', ' . $module->get_label() ); ?></span></a></p>
 							<?php endif; ?>
 						</section>
 					<?php endforeach; ?>

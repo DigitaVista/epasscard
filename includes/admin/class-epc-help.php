@@ -295,6 +295,7 @@ class EPC_Help {
 	 *     @type bool   $failure Open even when hidden: the section shows a failure.
 	 *     @type string $heading Panel heading (default "How this works").
 	 *     @type string $layout  inline (above a screen) or aside (a side column).
+	 *     @type int    $level   Heading level, 2 or 3 (default 3: under the screen's h2).
 	 * }
 	 * @return void
 	 */
@@ -309,6 +310,7 @@ class EPC_Help {
 				'failure' => false,
 				'heading' => __( 'How this works', 'epasscard' ),
 				'layout'  => 'inline',
+				'level'   => 3,
 			)
 		);
 		$state   = self::state( get_current_user_id() );
@@ -316,6 +318,7 @@ class EPC_Help {
 		$id      = 'epc-help-' . $topic_id;
 		$heading = (string) $args['heading'];
 		$layout  = 'aside' === $args['layout'] ? 'aside' : 'inline';
+		$tag     = 2 === (int) $args['level'] ? 'h2' : 'h3';
 		?>
 		<div class="<?php echo esc_attr( 'epc-help epc-help--' . $layout ); ?>" data-epc-help="<?php echo esc_attr( $topic_id ); ?>">
 			<form class="epc-help__toggle" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"<?php echo $open ? ' hidden' : ''; ?>>
@@ -330,7 +333,7 @@ class EPC_Help {
 			</form>
 			<section id="<?php echo esc_attr( $id ); ?>" class="epc-help__panel" aria-labelledby="<?php echo esc_attr( $id . '-title' ); ?>"<?php echo $open ? '' : ' hidden'; ?>>
 				<div class="epc-help__head">
-					<h3 id="<?php echo esc_attr( $id . '-title' ); ?>" class="epc-help__title"><?php echo esc_html( $heading ); ?></h3>
+					<<?php echo esc_attr( $tag ); ?> id="<?php echo esc_attr( $id . '-title' ); ?>" class="epc-help__title"><?php echo esc_html( $heading ); ?></<?php echo esc_attr( $tag ); ?>>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<input type="hidden" name="action" value="epc_help" />
 						<input type="hidden" name="topic" value="<?php echo esc_attr( $topic_id ); ?>" />

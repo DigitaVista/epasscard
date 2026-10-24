@@ -584,13 +584,13 @@ body.epc-admin-ui .epc-tabs__tab.is-active {
 
 .epc-app .epc-status-badge--active {
 	background: rgba(16, 185, 129, 0.1);
-	color: var(--epc-success);
+	color: var(--epc-ok-text, #047857);
 	border-color: rgba(16, 185, 129, 0.2);
 }
 
 .epc-app .epc-status-badge--pending {
 	background: rgba(245, 158, 11, 0.1);
-	color: var(--epc-warning);
+	color: var(--epc-warn-text, #92400e);
 	border-color: rgba(245, 158, 11, 0.2);
 }
 
