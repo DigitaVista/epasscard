@@ -36,6 +36,8 @@ require_once EPC_PLUGIN_DIR . 'includes/class-epc-setup-help.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-setup-help-notice.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-setup-wizard.php';
 require_once EPC_PLUGIN_DIR . 'includes/abstract-class-epc-module.php';
+require_once EPC_PLUGIN_DIR . 'includes/class-epc-wc-product-cards.php';
+require_once EPC_PLUGIN_DIR . 'modules/abstract-module-woocommerce-product-cards.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-service.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-issues.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-jobs.php';

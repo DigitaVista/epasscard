@@ -54,6 +54,9 @@ class EPC_Module_Loader {
 				'events-manager'            => 'module-events-manager.php',
 				'pw-gift-cards'             => 'module-pw-gift-cards.php',
 				'yith-gift-cards'           => 'module-yith-gift-cards.php',
+				'woocommerce-tickets'       => 'module-woocommerce-tickets.php',
+				'woocommerce-vouchers'      => 'module-woocommerce-vouchers.php',
+				'woocommerce-product-cards' => 'module-woocommerce-product-cards.php',
 			)
 		);
 	}
@@ -193,6 +196,9 @@ class EPC_Module_Loader {
 				'events-manager'            => 'EPC_Module_Events_Manager',
 				'pw-gift-cards'             => 'EPC_Module_PW_Gift_Cards',
 				'yith-gift-cards'           => 'EPC_Module_YITH_Gift_Cards',
+				'woocommerce-tickets'       => 'EPC_Module_WooCommerce_Tickets',
+				'woocommerce-vouchers'      => 'EPC_Module_WooCommerce_Vouchers',
+				'woocommerce-product-cards' => 'EPC_Module_WooCommerce_Product_Cards',
 			)
 		);
 

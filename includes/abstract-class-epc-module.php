@@ -312,6 +312,28 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * Where a card without a WordPress account goes (guest buyers), for the card email.
+	 *
+	 * @param string|int $source_id Source record id.
+	 * @return array{email: string, name: string}|null Null when the record has no such address.
+	 */
+	public function get_guest_recipient( $source_id ) {
+		unset( $source_id );
+		return null;
+	}
+
+	/**
+	 * Name and email to show for a card that belongs to no WordPress account.
+	 *
+	 * @param string|int $source_id Source record id.
+	 * @return array{name: string, email: string}|null
+	 */
+	public function get_record_customer( $source_id ) {
+		unset( $source_id );
+		return null;
+	}
+
+	/**
 	 * Sort key for "newest first": a larger key is a more recent record.
 	 *
 	 * @param string|int $source_id Source record id.

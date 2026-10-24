@@ -85,6 +85,18 @@ EpassCard ships with built-in integration modules. Each extends the same workflo
 - **Users list** (`ihc_manage` → Users): Pass actions column.
 - **Push reminders:** Before level expires (EpassCard daily cron + **Days before** setting).
 
+## WooCommerce tickets, vouchers and product cards
+
+**Turn on:** Settings → Integrations (one integration per kind of card: tickets, vouchers, product cards). Needs only WooCommerce.
+
+- **Product setup:** Products → edit → General → tick **Wallet card**, choose **Ticket**, **Voucher** or **Card**. Tickets take an event date and time and a venue; vouchers an optional last valid day.
+- **One card per unit bought:** quantity 3 gives 3 cards, each with its own code.
+- **When:** Processing and Completed create the cards; Cancelled, Refunded and Failed void them (changeable per order status). A partial refund leaves the cards as they are.
+- **Guests:** a guest order's cards are emailed to the billing email.
+- **Order screen:** a **Wallet cards** box lists the order's cards with their actions. Order emails list the card links when that option is on (Settings → Emails).
+- **Design:** each kind has its own design under Design.
+- **Push reminders:** tickets before the event starts; vouchers before the last valid day.
+
 ## Enabling / disabling
 
 Integrations are toggled on the **Connection** page. Disabled modules do not load hooks or appear in the admin menu.

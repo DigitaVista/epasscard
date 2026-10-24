@@ -750,6 +750,12 @@ class EPC_Setup_Wizard {
 				'icon'        => 'card_giftcard',
 				'modules'     => array( 'pw-gift-cards', 'yith-gift-cards' ),
 			),
+			'products'   => array(
+				'label'       => __( 'Tickets and vouchers you sell', 'epasscard' ),
+				'description' => __( 'Sell a ticket, voucher or pass as a WooCommerce product; each buyer gets a wallet card.', 'epasscard' ),
+				'icon'        => 'sell',
+				'modules'     => array( 'woocommerce-tickets', 'woocommerce-vouchers', 'woocommerce-product-cards' ),
+			),
 		);
 	}
 

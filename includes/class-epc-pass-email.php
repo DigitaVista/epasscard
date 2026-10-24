@@ -199,6 +199,17 @@ class EPC_Pass_Email {
 			$to = sanitize_email( (string) $user->user_email );
 		}
 
+		// No account (a guest order): the address the integration has for the record.
+		if ( '' === $to && ! $user && ! empty( $pass_row->module ) && isset( $pass_row->source_id ) && function_exists( 'epc_plugin' ) ) {
+			$module = epc_plugin()->get_module( (string) $pass_row->module );
+			$guest  = $module instanceof EPC_Module ? $module->get_guest_recipient( (string) $pass_row->source_id ) : null;
+			if ( is_array( $guest ) && is_email( (string) ( $guest['email'] ?? '' ) ) ) {
+				$to                      = sanitize_email( (string) $guest['email'] );
+				$args['recipient_name']  = (string) ( $guest['name'] ?? '' );
+				$args['recipient_email'] = $to;
+			}
+		}
+
 		/**
 		 * Filter the pass link email recipient (e.g. send a gift card pass to the gift recipient instead of the buyer).
 		 *

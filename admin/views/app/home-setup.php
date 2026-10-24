@@ -30,6 +30,7 @@ $epc_first_card = array(
 	'membership' => __( 'The next member who joins a plan that has this design gets a card.', 'epasscard' ),
 	'events'     => __( 'The next attendee who registers or books gets a ticket.', 'epasscard' ),
 	'gift-cards' => __( 'The next gift card that is created (sold, or added by you) gets a wallet card.', 'epasscard' ),
+	'products'   => __( 'The next paid order for a product with a wallet card gives the buyer one card for each one bought.', 'epasscard' ),
 );
 
 ?>

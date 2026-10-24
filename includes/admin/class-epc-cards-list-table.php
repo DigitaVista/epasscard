@@ -165,6 +165,10 @@ class EPC_Cards_List_Table extends WP_List_Table {
 				if ( $user ) {
 					return '<strong>' . esc_html( $user->display_name ) . '</strong><br /><span class="description">' . esc_html( $user->user_email ) . '</span>';
 				}
+				$guest = (int) $item->user_id > 0 ? null : $module->get_record_customer( (string) $item->source_id );
+				if ( is_array( $guest ) && '' !== trim( (string) ( $guest['name'] ?? '' ) . (string) ( $guest['email'] ?? '' ) ) ) {
+					return '<strong>' . esc_html( (string) $guest['name'] ) . '</strong> <span class="description">' . esc_html__( '(guest)', 'epasscard' ) . '</span><br /><span class="description">' . esc_html( (string) $guest['email'] ) . '</span>';
+				}
 				/* translators: %s: record id in the integration (booking, attendee, gift card) */
 				return esc_html( sprintf( __( 'Record %s', 'epasscard' ), (string) $item->source_id ) );
 			case 'card_type':

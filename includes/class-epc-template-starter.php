@@ -241,6 +241,53 @@ class EPC_Template_Starter {
 			),
 			'pw-gift-cards'             => self::gift_card_preset( 'recipient_email', 'from_name' ),
 			'yith-gift-cards'           => self::gift_card_preset( 'recipient_name', 'sender_name' ),
+			'woocommerce-tickets'       => self::event_preset(
+				array(
+					'date'   => 'event_start',
+					'event'  => 'product_name',
+					'ticket' => 'unit_label',
+					'venue'  => 'venue',
+					'id'     => 'card_code',
+				),
+				array(
+					self::field( 'Order', __( 'Order', 'epasscard' ), 'order_number', false, false, '1042' ),
+				),
+				__( 'Ticket', 'epasscard' ),
+				__( 'Ticket code', 'epasscard' ),
+				__( '1 of 2', 'epasscard' )
+			),
+			'woocommerce-vouchers'      => array(
+				'type'      => 'voucher',
+				'card_type' => 'Coupon',
+				'header'    => array( self::field( 'Valid until', __( 'Valid until', 'epasscard' ), 'valid_until', false, false, '2027-06-30' ) ),
+				'primary'   => array( self::field( 'Value', __( 'Value', 'epasscard' ), 'voucher_value', false, false, '$25.00' ) ),
+				'secondary' => array(
+					self::field( 'Name', __( 'Name', 'epasscard' ), 'user_full_name', false, false, 'Alex Rivera' ),
+					self::field( 'Voucher', __( 'Voucher', 'epasscard' ), 'product_name', false, false, __( 'Dinner for two', 'epasscard' ) ),
+				),
+				'auxiliary' => array(),
+				'back'      => array(
+					self::field( 'Order', __( 'Order', 'epasscard' ), 'order_number', false, false, '1042' ),
+					self::field( 'Email', __( 'Email', 'epasscard' ), 'user_email', false, false, 'alex@example.com' ),
+				),
+				'barcode'   => self::field( 'Voucher code', __( 'Voucher code', 'epasscard' ), 'card_code', true, true, 'K7M2Q9XR4T' ),
+			),
+			'woocommerce-product-cards' => array(
+				'type'      => 'card',
+				'card_type' => 'Generic',
+				'header'    => array( self::field( 'Item', __( 'Item', 'epasscard' ), 'unit_label', false, false, __( '1 of 1', 'epasscard' ) ) ),
+				'primary'   => array( self::field( 'Product', __( 'Product', 'epasscard' ), 'product_name', false, false, __( 'Day pass', 'epasscard' ) ) ),
+				'secondary' => array(
+					self::field( 'Name', __( 'Name', 'epasscard' ), 'user_full_name', false, false, 'Alex Rivera' ),
+					self::field( 'Order', __( 'Order', 'epasscard' ), 'order_number', false, false, '1042' ),
+				),
+				'auxiliary' => array(),
+				'back'      => array(
+					self::field( 'About', __( 'About', 'epasscard' ), 'product_short_description', false, false, __( 'Valid for one visit.', 'epasscard' ) ),
+					self::field( 'Email', __( 'Email', 'epasscard' ), 'user_email', false, false, 'alex@example.com' ),
+				),
+				'barcode'   => self::field( 'Card code', __( 'Card code', 'epasscard' ), 'card_code', true, true, 'K7M2Q9XR4T' ),
+			),
 		);
 
 		$preset = isset( $presets[ $slug ] ) ? $presets[ $slug ] : null;

@@ -222,15 +222,28 @@ class EPC_Admin_Setup {
 				<input type="hidden" name="job" value="<?php echo esc_attr( $job ); ?>" />
 				<?php wp_nonce_field( 'epc_setup_confirm' ); ?>
 
+				<?php
+				// One plugin, several kinds of card (WooCommerce tickets, vouchers, cards): choose the kind.
+				$one_plugin = 1 === count(
+					array_unique(
+						array_map(
+							static function ( $candidate ) {
+								return $candidate->get_dependency_label();
+							},
+							$available
+						)
+					)
+				);
+				?>
 				<?php if ( count( $available ) > 1 ) : ?>
 					<nav class="epc-panel" aria-labelledby="epc-setup-runs-on">
-						<h3 id="epc-setup-runs-on" class="epc-panel__title"><?php esc_html_e( 'Which plugin runs it?', 'epasscard' ); ?></h3>
-						<p class="description"><?php esc_html_e( 'More than one matching plugin is active. Pick the one your customers use.', 'epasscard' ); ?></p>
+						<h3 id="epc-setup-runs-on" class="epc-panel__title"><?php echo esc_html( $one_plugin ? __( 'Which kind of card?', 'epasscard' ) : __( 'Which plugin runs it?', 'epasscard' ) ); ?></h3>
+						<p class="description"><?php echo esc_html( $one_plugin ? __( 'Each kind has its own design. Start with one; turn on another later under Settings, Integrations.', 'epasscard' ) : __( 'More than one matching plugin is active. Pick the one your customers use.', 'epasscard' ) ); ?></p>
 						<ul class="epc-choices">
 							<?php foreach ( $available as $slug => $candidate ) : ?>
 								<li>
 									<a class="epc-choice<?php echo $selected === $slug ? ' is-selected' : ''; ?>" href="<?php echo esc_url( EPC_Admin_App::url( 'setup', array( 'job' => $job, 'module' => $slug ) ) ); ?>"<?php echo $selected === $slug ? ' aria-current="true"' : ''; ?>>
-										<?php echo esc_html( $candidate->get_dependency_label() ); ?>
+										<?php echo esc_html( $one_plugin ? $candidate->get_label() : $candidate->get_dependency_label() ); ?>
 									</a>
 								</li>
 							<?php endforeach; ?>
@@ -244,7 +257,7 @@ class EPC_Admin_Setup {
 					<dl class="epc-summary">
 						<dt><?php esc_html_e( 'Runs on', 'epasscard' ); ?></dt>
 						<dd>
-							<?php echo esc_html( $module->get_dependency_label() ); ?>
+							<?php echo esc_html( $one_plugin && count( $available ) > 1 ? $module->get_label() : $module->get_dependency_label() ); ?>
 							<?php if ( 'woocommerce-loyalty' !== $selected && '' !== $copy['items'] ) : ?>
 								·
 								<?php

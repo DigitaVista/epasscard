@@ -109,6 +109,9 @@ function epasscard_uninstall_site() {
 		'epc_ump_status_rules',
 		'epc_wcs_status_rules',
 		'epc_yith_gift_cards_status_rules',
+		'epc_woocommerce_tickets_status_rules',
+		'epc_woocommerce_vouchers_status_rules',
+		'epc_woocommerce_product_cards_status_rules',
 		// Loyalty.
 		'epc_loyalty_program',
 		'epc_loyalty_earning_rules',
@@ -143,6 +146,11 @@ function epasscard_uninstall_site() {
 
 	foreach ( array_unique( $options ) as $option ) {
 		delete_option( $option );
+	}
+
+	// "Wallet card" settings on WooCommerce products (the card codes on order lines stay, with the order).
+	foreach ( array( '_epc_wallet_card', '_epc_event_start', '_epc_event_venue', '_epc_voucher_valid_until' ) as $meta_key ) {
+		delete_post_meta_by_key( $meta_key );
 	}
 
 	// Short-lived caches.

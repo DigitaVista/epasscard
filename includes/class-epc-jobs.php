@@ -91,6 +91,14 @@ class EPC_Jobs {
 				'no_items' => __( 'No gift card products yet', 'epasscard' ),
 				'needs'    => __( 'Needs a gift card plugin', 'epasscard' ),
 			),
+			'products'   => array(
+				'title'    => __( 'Tickets and vouchers I sell', 'epasscard' ),
+				'pitch'    => __( 'Sell a ticket, voucher or pass as a WooCommerce product. Each one bought becomes a card in the buyer\'s wallet.', 'epasscard' ),
+				'goal'     => __( 'Get your product cards live', 'epasscard' ),
+				'items'    => __( 'products with a wallet card', 'epasscard' ),
+				'no_items' => __( 'No product has a wallet card yet', 'epasscard' ),
+				'needs'    => __( 'Needs WooCommerce', 'epasscard' ),
+			),
 		);
 
 		if ( isset( $copy[ $job ] ) ) {

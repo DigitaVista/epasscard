@@ -460,6 +460,9 @@ class EPC_Frontend {
 			'events-manager'            => __( 'Event ticket', 'epasscard' ),
 			'pw-gift-cards'             => __( 'Gift card', 'epasscard' ),
 			'yith-gift-cards'           => __( 'Gift card', 'epasscard' ),
+			'woocommerce-tickets'       => __( 'Ticket', 'epasscard' ),
+			'woocommerce-vouchers'      => __( 'Voucher', 'epasscard' ),
+			'woocommerce-product-cards' => __( 'Card', 'epasscard' ),
 		);
 
 		if ( isset( $map[ $slug ] ) ) {
