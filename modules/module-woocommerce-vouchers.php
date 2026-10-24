@@ -67,7 +67,8 @@ class EPC_Module_WooCommerce_Vouchers extends EPC_Module_WC_Product_Cards {
 			'valid_until'   => $end ? wp_date( (string) get_option( 'date_format' ), $end ) : __( 'No expiry', 'epasscard' ),
 		);
 		if ( $end ) {
-			// The card expires in the wallet after the last valid day.
+			// Used when a voided voucher is made live again: its wallet expiry is set to the end of
+			// the last valid day (a voucher is not expired automatically on that day).
 			$out['pass_expire_mysql'] = epc_pass_expire_mysql_timestamp( $end );
 		}
 		return $out;
