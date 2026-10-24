@@ -15,6 +15,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Api_Client {
 
 	/**
+	 * Sent as `reference` when the site connects (sign up, sign in, API key), so EpassCard
+	 * knows the account came from this plugin.
+	 */
+	const REFERENCE = 'wp-plugin';
+
+	/**
 	 * Filterable API base (no trailing slash).
 	 *
 	 * @return string
@@ -487,7 +493,10 @@ class EPC_Api_Client {
 
 		$result = self::post_json(
 			self::validate_url(),
-			array( 'apiKey' => $api_key ),
+			array(
+				'apiKey'    => $api_key,
+				'reference' => self::REFERENCE,
+			),
 			false
 		);
 
@@ -579,6 +588,7 @@ class EPC_Api_Client {
 				'expire_at'       => self::default_expire_at(),
 				'timezone'        => self::site_timezone(),
 				'allowed_domains' => self::site_domain(),
+				'reference'       => self::REFERENCE,
 			),
 			false
 		);
@@ -656,8 +666,9 @@ class EPC_Api_Client {
 		}
 
 		$payload = array(
-			'name'  => $name,
-			'email' => $email,
+			'name'      => $name,
+			'email'     => $email,
+			'reference' => self::REFERENCE,
 		);
 
 		if ( function_exists( 'set_time_limit' ) ) {

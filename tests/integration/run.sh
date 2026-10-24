@@ -40,6 +40,9 @@ $WP eval-file "$HERE/test-product-cards.php" || status=1
 echo "== Ultimate Member member cards"
 $WP eval-file "$HERE/test-ultimate-member.php" || status=1
 
+echo "== Connecting sends reference = wp-plugin"
+$WP eval-file "$HERE/test-connect-reference.php" || status=1
+
 echo "== WPLoyalty loyalty cards"
 $WP eval-file "$HERE/test-wployalty.php" || status=1
 
