@@ -472,9 +472,22 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	}
 
 	/**
-	 * Whether the current request is a loyalty dashboard or list screen.
+	 * Whether the current request is the loyalty design in the Design section.
 	 *
-	 * @param string $hook Current admin hook.
+	 * @return bool
+	 */
+	private function is_design_screen() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
+		$page   = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+		$module = isset( $_GET['module'] ) ? sanitize_key( wp_unslash( (string) $_GET['module'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		return 'epc-design' === $page && $this->get_slug() === $module;
+	}
+
+	/**
+	 * Whether the current screen is a loyalty screen (its own pages, or its design in the Design section).
+	 *
+	 * @param string $hook Hook suffix.
 	 * @return bool
 	 */
 	private function is_loyalty_admin_screen( $hook = '' ) {
@@ -486,7 +499,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
-		if ( in_array( $page, $pages, true ) ) {
+		if ( in_array( $page, $pages, true ) || $this->is_design_screen() ) {
 			return true;
 		}
 
@@ -513,7 +526,8 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		}
 
 		$is_dashboard = ( 'epasscard_page_epc-' . $this->get_slug() ) === $hook
-			|| ( isset( $_GET['page'] ) && 'epc-' . $this->get_slug() === sanitize_key( wp_unslash( (string) $_GET['page'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
+			|| ( isset( $_GET['page'] ) && 'epc-' . $this->get_slug() === sanitize_key( wp_unslash( (string) $_GET['page'] ) ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
+			|| $this->is_design_screen();
 		$style_deps   = array( 'epc-admin', 'dashicons' );
 		$script_deps  = array( 'jquery', 'epc-admin' );
 

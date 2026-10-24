@@ -1220,3 +1220,81 @@ fieldset.epc-panel {
 		padding-bottom: 8px;
 	}
 }
+
+/* ---------- Designer (Design section) ---------- */
+
+.epc-sd--inline .epc-sd__dialog {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.epc-sd--inline .epc-modal__body {
+	padding: 0;
+	overflow: visible;
+}
+
+.epc-sd--inline .epc-sd__preview {
+	position: sticky;
+	top: 100px;
+}
+
+.epc-sd--inline .epc-modal__footer {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	margin: 0 -18px -16px;
+	padding: 12px 18px;
+	border-top: 1px solid var(--epc-line);
+	border-radius: 0 0 var(--epc-r-lg) var(--epc-r-lg);
+	background: #fff;
+}
+
+.epc-sd--inline .epc-sd-status {
+	margin-right: auto;
+	font-size: 13px;
+}
+
+.epc-sd--inline .epc-sd-status.is-error {
+	color: var(--epc-bad-text);
+}
+
+.epc-applies__table th.num,
+.epc-applies__table td.num {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.epc-applies__table td .description {
+	display: block;
+	margin-top: 4px;
+}
+
+.epc-applies__default {
+	margin: 4px 0 0;
+}
+
+@media (max-width: 960px) {
+	.epc-sd--inline .epc-sd__body {
+		grid-template-columns: 1fr;
+	}
+
+	.epc-sd--inline .epc-sd__preview {
+		position: static;
+	}
+}
+
+/* The loyalty design form keeps its own page heading on the old screen; the Design section has one already. */
+.epc-design--editor .epc-loyalty-pass-design > .epc-page-header {
+	display: none;
+}
+
+/* WordPress's delete-link red (#d63638) is 3.9:1 on the grey button background; darker red reads at 4.5:1+. */
+.epc-app .button-link-delete {
+	color: #b32d2e;
+}

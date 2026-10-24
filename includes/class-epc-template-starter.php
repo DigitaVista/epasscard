@@ -995,6 +995,14 @@ class EPC_Template_Starter {
 				);
 			}
 			$created = true;
+
+			// From the Design section: items added later use this design too (EPC_Default_Design).
+			if ( ! empty( $_POST['set_default'] ) && class_exists( 'EPC_Default_Design' ) && null === EPC_Default_Design::get( $slug ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Checked at the top.
+				$new_record = self::get_saved( $slug );
+				if ( null !== $new_record ) {
+					EPC_Default_Design::set( $slug, $new_record );
+				}
+			}
 		}
 
 		$applied = self::apply_to_unmapped( $module );
@@ -1147,6 +1155,30 @@ class EPC_Template_Starter {
 	}
 
 	/**
+	 * The designer on its own page (Design section) instead of in a modal.
+	 *
+	 * @param EPC_Module $module   Module.
+	 * @param string     $redirect Where to go after a successful save ('' = reload).
+	 * @return void
+	 */
+	public static function render_inline( $module, $redirect = '' ) {
+		$preset = self::get_preset( $module->get_slug() );
+		if ( null === $preset ) {
+			return;
+		}
+		self::render_designer_modal(
+			$module,
+			$preset,
+			self::get_design( $module ),
+			null !== self::get_saved( $module->get_slug() ),
+			array(
+				'inline'   => true,
+				'redirect' => (string) $redirect,
+			)
+		);
+	}
+
+	/**
 	 * Preview layout data passed to the designer script.
 	 *
 	 * @param array<string, mixed> $preset Preset.
@@ -1183,13 +1215,16 @@ class EPC_Template_Starter {
 	 * @param array<string, mixed> $preset Preset.
 	 * @param array<string, mixed> $design Current design.
 	 * @param bool                 $exists Whether the template exists in EpassCard.
+	 * @param array<string, mixed> $args   inline (bool): render in the page, not as a modal;
+	 *                                     redirect (string): URL to open after a save.
 	 * @return void
 	 */
-	private static function render_designer_modal( $module, array $preset, array $design, $exists ) {
+	private static function render_designer_modal( $module, array $preset, array $design, $exists, array $args = array() ) {
 		if ( self::$modal_printed ) {
 			return;
 		}
 		self::$modal_printed = true;
+		$inline              = ! empty( $args['inline'] );
 
 		if ( function_exists( 'wp_enqueue_media' ) ) {
 			wp_enqueue_media();
@@ -1212,6 +1247,8 @@ class EPC_Template_Starter {
 			'design'   => $design,
 			'defaults' => self::default_design( $module, $preset ),
 			'preview'  => self::preview_config( $preset ),
+			'redirect' => isset( $args['redirect'] ) ? esc_url_raw( (string) $args['redirect'] ) : '',
+			'default'  => $inline,
 		);
 		$media_rows = array(
 			'logo'  => array(
@@ -1224,10 +1261,15 @@ class EPC_Template_Starter {
 			),
 		);
 		?>
+		<?php if ( $inline ) : ?>
+		<div id="epc-starter-designer" class="epc-sd epc-sd--inline" data-inline="1" data-config="<?php echo esc_attr( (string) wp_json_encode( $config ) ); ?>">
+			<div class="epc-sd__dialog">
+		<?php else : ?>
 		<div id="epc-starter-designer" class="epc-modal epc-sd" hidden data-config="<?php echo esc_attr( (string) wp_json_encode( $config ) ); ?>">
 			<div class="epc-modal__backdrop" data-epc-sd-close></div>
 			<div class="epc-modal__dialog epc-sd__dialog" role="dialog" aria-modal="true" aria-labelledby="epc-sd-title">
-				<header class="epc-modal__header">
+		<?php endif; ?>
+				<header class="epc-modal__header"<?php echo $inline ? ' hidden' : ''; ?>>
 					<h2 id="epc-sd-title">
 						<?php echo esc_html( $exists ? __( 'Edit pass design', 'epasscard' ) : __( 'Customize your pass design', 'epasscard' ) ); ?>
 					</h2>
@@ -1300,18 +1342,20 @@ class EPC_Template_Starter {
 						<p><button type="button" class="button-link epc-sd-reset"><?php esc_html_e( 'Reset to the default design', 'epasscard' ); ?></button></p>
 					</form>
 
-					<aside class="epc-sd__preview" aria-label="<?php esc_attr_e( 'Pass preview', 'epasscard' ); ?>">
+					<div class="epc-sd__preview" role="region" aria-label="<?php esc_attr_e( 'Pass preview', 'epasscard' ); ?>">
 						<div class="epc-sd__tabs" role="tablist">
 							<button type="button" role="tab" class="is-active" data-face="front" aria-selected="true"><?php esc_html_e( 'Front', 'epasscard' ); ?></button>
 							<button type="button" role="tab" data-face="back" aria-selected="false"><?php esc_html_e( 'Back', 'epasscard' ); ?></button>
 						</div>
 						<div class="epc-sd-pass" id="epc-sd-pass"></div>
 						<p class="description"><?php esc_html_e( 'Sample data. Apple Wallet and Google Wallet lay passes out slightly differently.', 'epasscard' ); ?></p>
-					</aside>
+					</div>
 				</div>
 				<footer class="epc-modal__footer epc-sd__footer">
 					<span class="epc-sd-status" aria-live="polite"></span>
-					<button type="button" class="button" data-epc-sd-close><?php esc_html_e( 'Cancel', 'epasscard' ); ?></button>
+					<?php if ( ! $inline ) : ?>
+						<button type="button" class="button" data-epc-sd-close><?php esc_html_e( 'Cancel', 'epasscard' ); ?></button>
+					<?php endif; ?>
 					<button type="button" class="button button-primary epc-sd-save" data-module="<?php echo esc_attr( $slug ); ?>">
 						<?php echo esc_html( $exists ? __( 'Save design', 'epasscard' ) : __( 'Create pass design', 'epasscard' ) ); ?>
 					</button>

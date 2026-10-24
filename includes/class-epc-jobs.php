@@ -177,7 +177,7 @@ class EPC_Jobs {
 				return true;
 			}
 		}
-		return false;
+		return class_exists( 'EPC_Default_Design' ) && null !== EPC_Default_Design::get( $module->get_slug() );
 	}
 
 	/**

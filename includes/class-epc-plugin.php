@@ -42,6 +42,7 @@ require_once EPC_PLUGIN_DIR . 'includes/class-epc-jobs.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-status.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-retry-failed.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-template-starter.php';
+require_once EPC_PLUGIN_DIR . 'includes/class-epc-default-design.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-email.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-frontend.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-notifications.php';
@@ -128,11 +129,13 @@ final class EPC_Plugin {
 		EPC_Pass_Status::init();
 		EPC_Retry_Failed::init();
 		EPC_Template_Starter::init();
+		EPC_Default_Design::init();
 
 		EPC_Admin_App::init();
 		EPC_Admin_Home::init();
 		EPC_Admin_Setup::init();
 		EPC_Admin_Try::init();
+		EPC_Admin_Design::init();
 		EPC_Admin_Menu::init();
 		EPC_Admin_Shell::init();
 		EPC_Setup_Help_Notice::init();

@@ -129,6 +129,7 @@ function epasscard_uninstall_site() {
 		'epc\_mappings\_%',
 		'epc\_%\_notification\_rules',
 		'epc\_starter\_template\_%',
+		'epc\_default\_mapping\_%',
 	);
 	foreach ( $patterns as $pattern ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin uninstall.

@@ -1140,6 +1140,29 @@ class EPC_DB {
 	}
 
 	/**
+	 * Active real (non-test) cards of a module per plan, event or product.
+	 *
+	 * @param string $module Module slug.
+	 * @return array<int, int> entity id => cards
+	 */
+	public static function count_active_real_passes_by_entity( $module ) {
+		global $wpdb;
+
+		$module = sanitize_key( (string) $module );
+		if ( '' === $module ) {
+			return array();
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table count; must be fresh.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT entity_id, COUNT(*) AS cards FROM %i WHERE module = %s AND status = 'active' AND is_test = 0 AND pass_uid <> '' GROUP BY entity_id", self::table_name(), $module ) );
+
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[ (int) $row->entity_id ] = (int) $row->cards;
+		}
+		return $out;
+	}
+
+	/**
 	 * Count real (non-test) issued passes of every integration.
 	 *
 	 * @param string $status Stored status ('active', 'revoked'), or '' for any.

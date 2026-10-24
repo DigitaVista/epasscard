@@ -1073,7 +1073,8 @@ abstract class EPC_Module {
 	}
 
 	/**
-	 * Get mapping for one entity.
+	 * Get mapping for one entity: its own mapping, else the integration's default design
+	 * (EPC_Default_Design), else an empty array.
 	 *
 	 * @param int $entity_id Entity id.
 	 * @return array<string, mixed>
@@ -1081,7 +1082,28 @@ abstract class EPC_Module {
 	public function get_mapping( $entity_id ) {
 		$all = $this->get_mappings();
 		$key = (string) absint( $entity_id );
+		if ( isset( $all[ $key ] ) && is_array( $all[ $key ] ) && ! empty( $all[ $key ]['template_uid'] ) ) {
+			return $all[ $key ];
+		}
+		if ( class_exists( 'EPC_Default_Design' ) ) {
+			$default = EPC_Default_Design::for_entity( $this->get_slug(), absint( $entity_id ) );
+			if ( ! empty( $default ) ) {
+				return $default;
+			}
+		}
 		return isset( $all[ $key ] ) && is_array( $all[ $key ] ) ? $all[ $key ] : array();
+	}
+
+	/**
+	 * Load the pass designer and pass-action scripts on a screen outside the integration's own
+	 * page (the Design section).
+	 *
+	 * @return void
+	 */
+	public function enqueue_designer_assets() {
+		if ( $this->is_available() && $this->current_user_can_manage_passes() ) {
+			$this->enqueue_pass_action_assets( false );
+		}
 	}
 
 	/**
@@ -1115,7 +1137,8 @@ abstract class EPC_Module {
 	 * @return void
 	 */
 	protected function enqueue_pass_action_assets( $include_mapping = false ) {
-		if ( wp_style_is( 'epc-admin', 'enqueued' ) ) {
+		// The script, not the style: EPC_Admin_Menu enqueues admin.css on every EpassCard screen.
+		if ( wp_script_is( 'epc-admin', 'enqueued' ) ) {
 			return;
 		}
 

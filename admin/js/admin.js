@@ -912,7 +912,9 @@
 		$('.epc-sd-save').prop('disabled', false);
 		sdRender();
 		$('#epc-starter-designer').removeAttr('hidden');
-		$('#epc-sd-template-name').trigger('focus');
+		if (!$('#epc-starter-designer').is('[data-inline]')) {
+			$('#epc-sd-template-name').trigger('focus');
+		}
 	}
 
 	function sdClose() {
@@ -953,8 +955,11 @@
 			e.preventDefault();
 			sdClose();
 		});
+		if ($('#epc-starter-designer').is('[data-inline]')) {
+			sdOpen();
+		}
 		$(document).on('keydown', function (e) {
-			if ((e.key === 'Escape' || e.keyCode === 27) && !$('#epc-starter-designer').is('[hidden]') && !$('.media-modal:visible').length) {
+			if ((e.key === 'Escape' || e.keyCode === 27) && !$('#epc-starter-designer').is('[hidden], [data-inline]') && !$('.media-modal:visible').length) {
 				sdClose();
 			}
 		});
@@ -1006,13 +1011,18 @@
 			ajaxPost('epc_starter_template', {
 				module: String(cfg.module || epcAdmin.module || ''),
 				op: 'save_design',
+				set_default: cfg['default'] ? 1 : 0,
 				design: JSON.stringify(sdCollect()),
 			})
 				.done(function (resp) {
 					if (resp && resp.success) {
 						$status.text((resp.data && resp.data.message) || '');
 						window.setTimeout(function () {
-							window.location.reload();
+							if (cfg.redirect) {
+								window.location.href = cfg.redirect;
+							} else {
+								window.location.reload();
+							}
 						}, 1200);
 						return;
 					}
