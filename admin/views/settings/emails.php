@@ -70,6 +70,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</form>
 
 		<p class="description" style="margin-top:16px;margin-bottom:0;">
-			<?php esc_html_e( 'Members can also view passes in My Account (WooCommerce), MemberPress account, or via the [epc_my_passes] shortcode.', 'epasscard' ); ?>
+			<?php esc_html_e( 'Members can also find their card in WooCommerce My Account, on the MemberPress and Paid Memberships Pro account pages, in the Simple Membership login box, or on any page with the [epc_my_passes] shortcode.', 'epasscard' ); ?>
 		</p>
 	</div>

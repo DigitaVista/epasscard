@@ -31,6 +31,9 @@ $WP eval-file "$HERE/test-loyalty-get-card.php" || status=1
 echo "== Gift cards: card email to the gift recipient"
 $WP eval-file "$HERE/test-gift-recipient.php" || status=1
 
+echo "== Account pages: Add to wallet (Paid Memberships Pro, Simple Membership)"
+$WP eval-file "$HERE/test-account-links.php" || status=1
+
 echo "== Card statuses and test cards"
 $WP eval-file "$HERE/test-pass-status.php" || status=1
 

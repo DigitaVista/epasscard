@@ -32,6 +32,11 @@ class EPC_Frontend {
 
 		add_action( 'mepr_account_nav', array( __CLASS__, 'mepr_account_nav_link' ) );
 		add_action( 'mepr_account_nav_content', array( __CLASS__, 'mepr_account_content' ), 10, 2 );
+
+		// Paid Memberships Pro account: "Add to wallet" next to Renew / Change / Cancel.
+		add_filter( 'pmpro_member_action_links', array( __CLASS__, 'pmpro_member_action_links' ), 10, 2 );
+		// Simple Membership: above the logged-in member box of [swpm_login_form].
+		add_action( 'swpm_before_loggedin_widget', array( __CLASS__, 'swpm_loggedin_card' ) );
 	}
 
 	/**
@@ -232,6 +237,45 @@ class EPC_Frontend {
 		echo '<div class="mepr-wallet-passes">';
 		self::render_passes_list( (int) $user->ID );
 		echo '</div>';
+	}
+
+	/**
+	 * Paid Memberships Pro account page: an "Add to wallet" action on a level the member has a
+	 * card for.
+	 *
+	 * @param array<string, string> $links    Action links (HTML).
+	 * @param int                   $level_id Membership level id.
+	 * @return array<string, string>
+	 */
+	public static function pmpro_member_action_links( $links, $level_id ) {
+		$links = is_array( $links ) ? $links : array();
+		if ( ! is_user_logged_in() || ! EPC_Module_Settings::is_enabled( 'paid-memberships-pro' ) ) {
+			return $links;
+		}
+		$card = EPC_DB::find_active_card( 'paid-memberships-pro', get_current_user_id(), absint( $level_id ) );
+		if ( ! $card ) {
+			return $links;
+		}
+		$class = function_exists( 'pmpro_get_element_class' ) ? pmpro_get_element_class( 'pmpro_card_action' ) : 'pmpro_card_action';
+		$link  = '<span class="' . esc_attr( $class ) . '"><a id="pmpro_actionlink-epasscard" href="' . esc_url( (string) $card->pass_link ) . '" target="_blank">' . esc_html__( 'Add to wallet', 'epasscard' ) . '</a></span>';
+		return array_merge( array( 'epasscard' => $link ), $links );
+	}
+
+	/**
+	 * Simple Membership logged-in box: the member's card.
+	 *
+	 * @return void
+	 */
+	public static function swpm_loggedin_card() {
+		if ( ! class_exists( 'SwpmAuth' ) || ! EPC_Module_Settings::is_enabled( 'simple-membership' ) ) {
+			return;
+		}
+		$member_id = absint( SwpmAuth::get_instance()->get( 'member_id' ) );
+		$card      = $member_id > 0 ? EPC_DB::find_active_card( 'simple-membership', 0, null, $member_id ) : null;
+		if ( ! $card ) {
+			return;
+		}
+		echo '<p class="epc-swpm-card"><a class="epc-swpm-card__link" href="' . esc_url( (string) $card->pass_link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Add your membership card to your wallet', 'epasscard' ) . '</a></p>';
 	}
 
 	/**

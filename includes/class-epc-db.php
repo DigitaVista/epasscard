@@ -706,6 +706,46 @@ class EPC_DB {
 	}
 
 	/**
+	 * The newest active, real card of an integration for a user, optionally for one entity
+	 * (plan, level) or one record.
+	 *
+	 * @param string          $module    Module slug.
+	 * @param int             $user_id   User id (0 to match by record only).
+	 * @param int|null        $entity_id Entity id, or null for any.
+	 * @param string|int|null $source_id Record id, or null for any.
+	 * @return object|null
+	 */
+	public static function find_active_card( $module, $user_id, $entity_id = null, $source_id = null ) {
+		global $wpdb;
+
+		$module  = sanitize_key( (string) $module );
+		$user_id = absint( $user_id );
+		if ( '' === $module || ( $user_id <= 0 && null === $source_id ) ) {
+			return null;
+		}
+
+		$sql  = "SELECT * FROM %i WHERE module = %s AND status = 'active' AND is_test = 0 AND pass_uid <> '' AND pass_link <> ''";
+		$args = array( self::table_name(), $module );
+		if ( $user_id > 0 ) {
+			$sql   .= ' AND user_id = %d';
+			$args[] = $user_id;
+		}
+		if ( null !== $entity_id ) {
+			$sql   .= ' AND entity_id = %d';
+			$args[] = absint( $entity_id );
+		}
+		if ( null !== $source_id ) {
+			$sql   .= ' AND source_id = %s';
+			$args[] = self::sanitize_source_id( $source_id );
+		}
+		$sql .= ' ORDER BY updated_at DESC LIMIT 1';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Custom table read; $sql is built from fixed fragments above.
+		$row = $wpdb->get_row( $wpdb->prepare( $sql, $args ) );
+		return $row ? $row : null;
+	}
+
+	/**
 	 * Which of these records already have a card (a row with a pass id, any status).
 	 *
 	 * @param string                  $module     Module slug.
