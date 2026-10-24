@@ -111,12 +111,29 @@ $card_style = sprintf(
 			</div>
 		</div>
 
+		<?php
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Result message after "Get my loyalty card".
+		$epc_card_result = isset( $_GET['epc_card'] ) ? sanitize_key( wp_unslash( (string) $_GET['epc_card'] ) ) : '';
+		?>
 		<?php if ( ! empty( $summary['pass_link'] ) ) : ?>
+			<?php if ( 'ready' === $epc_card_result ) : ?>
+				<p class="epc-loyalty-wallet__notice" role="status"><?php esc_html_e( 'Your loyalty card is ready. Add it to your wallet.', 'epasscard' ); ?></p>
+			<?php endif; ?>
 			<p class="epc-loyalty-wallet__pass">
 				<a class="epc-loyalty-wallet__pass-btn" href="<?php echo esc_url( (string) $summary['pass_link'] ); ?>" target="_blank" rel="noopener noreferrer">
 					<?php esc_html_e( 'Add loyalty pass to wallet', 'epasscard' ); ?>
 				</a>
 			</p>
+		<?php elseif ( EPC_Loyalty_Frontend::can_get_card( get_current_user_id() ) ) : ?>
+			<?php if ( 'error' === $epc_card_result ) : ?>
+				<p class="epc-loyalty-wallet__notice" role="alert"><?php esc_html_e( 'We could not create your card right now. Please try again later.', 'epasscard' ); ?></p>
+			<?php endif; ?>
+			<form class="epc-loyalty-wallet__pass" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="epc_loyalty_get_card" />
+				<?php wp_nonce_field( 'epc_loyalty_get_card' ); ?>
+				<button type="submit" class="epc-loyalty-wallet__pass-btn"><?php esc_html_e( 'Get my loyalty card', 'epasscard' ); ?></button>
+				<span class="epc-loyalty-wallet__pass-note"><?php esc_html_e( 'Your card shows your points and updates by itself.', 'epasscard' ); ?></span>
+			</form>
 		<?php endif; ?>
 	</section>
 

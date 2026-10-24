@@ -139,6 +139,19 @@
 	color: #fff !important;
 }
 
+.epc-loyalty-wallet__pass-note {
+	display: block;
+	margin-top: 0.5em;
+	font-size: 0.85em;
+	opacity: 0.85;
+}
+
+.epc-loyalty-wallet__notice {
+	margin: 0.75em 0 0;
+	font-size: 0.9em;
+	font-weight: 600;
+}
+
 .epc-loyalty-wallet__metrics {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));

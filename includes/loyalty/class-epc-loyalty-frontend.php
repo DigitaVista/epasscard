@@ -39,6 +39,7 @@ class EPC_Loyalty_Frontend {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'epc_enqueue_frontend_assets', array( __CLASS__, 'maybe_enqueue_shared_styles' ) );
 		add_action( 'woocommerce_thankyou', array( __CLASS__, 'render_thankyou_points' ), 5 );
+		add_action( 'admin_post_epc_loyalty_get_card', array( __CLASS__, 'handle_get_card' ) );
 	}
 
 	/**
@@ -308,5 +309,64 @@ class EPC_Loyalty_Frontend {
 			: array();
 
 		include EPC_PLUGIN_DIR . 'assets/frontend/loyalty-wallet.php';
+	}
+
+	/**
+	 * Whether a signed-in customer without a card can get one now (before earning points).
+	 *
+	 * True when the loyalty integration is on, connected and has a card design, and the
+	 * customer has no card yet. The card counts toward the store's EpassCard plan like any other.
+	 *
+	 * @param int $user_id Customer.
+	 * @return bool
+	 */
+	public static function can_get_card( $user_id ) {
+		$user_id = absint( $user_id );
+		if ( $user_id <= 0 || ! self::is_active() || ! EPC_Module_Settings::is_enabled( 'woocommerce-loyalty' ) || ! EPC_Api_Client::is_configured() ) {
+			return false;
+		}
+		$module = epc_plugin()->get_module( 'woocommerce-loyalty' );
+		if ( ! $module instanceof EPC_Module || empty( $module->get_mapping( 1 )['template_uid'] ) ) {
+			return false;
+		}
+		$row = EPC_DB::get_pass( 'woocommerce-loyalty', $user_id );
+		if ( $row && '' !== (string) $row->pass_uid ) {
+			return false;
+		}
+
+		/**
+		 * Filters whether a customer without points can ask for their loyalty card in My Account.
+		 *
+		 * @param bool $offer   Default true.
+		 * @param int  $user_id Customer.
+		 */
+		return (bool) apply_filters( 'epc_loyalty_offer_card_without_points', true, $user_id );
+	}
+
+	/**
+	 * Admin-post: "Get my loyalty card" from My Account.
+	 *
+	 * @return void
+	 */
+	public static function handle_get_card() {
+		$user_id = get_current_user_id();
+		if ( $user_id <= 0 ) {
+			wp_die( esc_html__( 'Please sign in to get your loyalty card.', 'epasscard' ) );
+		}
+		check_admin_referer( 'epc_loyalty_get_card' );
+
+		$result = 'error';
+		if ( self::can_get_card( $user_id ) ) {
+			$module = epc_plugin()->get_module( 'woocommerce-loyalty' );
+			$synced = $module->sync_by_source_id( $user_id, 'sync' );
+			$row    = EPC_DB::get_pass( 'woocommerce-loyalty', $user_id );
+			$result = ! is_wp_error( $synced ) && $row && '' !== (string) $row->pass_link ? 'ready' : 'error';
+		} elseif ( EPC_DB::get_pass( 'woocommerce-loyalty', $user_id ) ) {
+			$result = 'ready';
+		}
+
+		$back = function_exists( 'wc_get_account_endpoint_url' ) ? wc_get_account_endpoint_url( self::WC_ENDPOINT ) : home_url( '/' );
+		wp_safe_redirect( add_query_arg( 'epc_card', $result, $back ) );
+		exit;
 	}
 }

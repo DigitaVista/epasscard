@@ -25,6 +25,9 @@ if [ "$got" = "100 100" ]; then echo "PASS 2 x 50 parallel writes: balance 100, 
 echo "== Loyalty past-order sync: a cancel from another request stops it"
 $WP eval-file "$HERE/test-loyalty-sync-cancel.php" || status=1
 
+echo "== Loyalty: a customer without points gets the card from My Account"
+$WP eval-file "$HERE/test-loyalty-get-card.php" || status=1
+
 echo "== Card statuses and test cards"
 $WP eval-file "$HERE/test-pass-status.php" || status=1
 
