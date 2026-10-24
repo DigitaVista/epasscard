@@ -632,49 +632,6 @@
 			});
 	});
 
-	function fmt(tpl, a, b, c) {
-		return String(tpl).replace('%1$d', a).replace('%2$d', b).replace('%3$d', c);
-	}
-
-	$(document).on('click', '.epc-backfill-trigger', function (e) {
-		e.preventDefault();
-		var $btn = $(this);
-		var $status = $btn.nextAll('.epc-backfill-status').first();
-		var module = String($btn.data('module') || epcAdmin.module || '');
-		var entityId = $btn.data('entity-id');
-		if (epcAdmin.i18n.backfillConfirm && !window.confirm(epcAdmin.i18n.backfillConfirm)) {
-			return;
-		}
-		var totals = { created: 0, skipped: 0, failed: 0 };
-		$btn.prop('disabled', true);
-
-		function step(offset) {
-			$status.text(fmt(epcAdmin.i18n.backfillRunning || '%1$d / %2$d / %3$d', totals.created, totals.skipped, totals.failed));
-			ajaxPost('epc_backfill_' + module, { entity_id: entityId, offset: offset })
-				.done(function (resp) {
-					if (!resp || !resp.success) {
-						$btn.prop('disabled', false);
-						$status.text((resp && resp.data && resp.data.message) || epcAdmin.i18n.error);
-						return;
-					}
-					totals.created += resp.data.created || 0;
-					totals.skipped += resp.data.skipped || 0;
-					totals.failed += resp.data.failed || 0;
-					if (resp.data.done) {
-						$btn.prop('disabled', false);
-						$status.text(fmt(epcAdmin.i18n.backfillDone || 'Done: %1$d / %2$d / %3$d', totals.created, totals.skipped, totals.failed));
-						return;
-					}
-					step(resp.data.next_offset || 0);
-				})
-				.fail(function () {
-					$btn.prop('disabled', false);
-					$status.text(epcAdmin.i18n.error);
-				});
-		}
-		step(0);
-	});
-
 	// "Create pass design for me" / "Use it for the unmapped items".
 	$(document).on('click', '.epc-starter-action', function (e) {
 		e.preventDefault();

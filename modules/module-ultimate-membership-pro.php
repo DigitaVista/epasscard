@@ -1035,4 +1035,19 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		);
 		return array_map( 'absint', (array) $ids );
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Members whose level has not expired', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$row = $this->get_user_level_row_by_id( absint( $source_id ) );
+		return $row && isset( $row->user_id ) ? absint( $row->user_id ) : 0;
+	}
 }

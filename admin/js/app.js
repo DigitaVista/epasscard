@@ -1,5 +1,6 @@
 /**
- * EpassCard 1.2 screens: plugin install buttons (Setup), QR code and copy link (Try it).
+ * EpassCard 1.2 screens: plugin install buttons (Setup), QR code and copy link (Try it), progress of
+ * giving cards to existing customers (Cards).
  *
  * @package EpassCard
  */
@@ -153,6 +154,49 @@
 	}
 
 	/**
+	 * Cards → existing customers: follow a running run until it ends, then reload.
+	 *
+	 * @param {HTMLElement} box Element with data-epc-existing-run.
+	 */
+	function followExistingRun( box ) {
+		if ( box.getAttribute( 'data-status' ) !== 'running' || ! config.ajaxUrl || ! window.fetch ) {
+			return;
+		}
+		var text = box.querySelector( '[data-epc-existing-text]' );
+		var bar = box.querySelector( '[role="progressbar"]' );
+		var fill = bar ? bar.querySelector( 'span' ) : null;
+		var url = config.ajaxUrl + '?action=epc_existing_status&nonce=' + encodeURIComponent( box.getAttribute( 'data-nonce' ) || '' );
+
+		function poll() {
+			window.fetch( url, { credentials: 'same-origin' } )
+				.then( function ( response ) {
+					return response.json();
+				} )
+				.then( function ( body ) {
+					if ( ! body || ! body.success ) {
+						return;
+					}
+					if ( body.data.status !== 'running' ) {
+						window.location.reload();
+						return;
+					}
+					if ( text ) {
+						text.textContent = body.data.text;
+					}
+					if ( bar && fill ) {
+						bar.setAttribute( 'aria-valuenow', String( body.data.percent ) );
+						fill.style.width = body.data.percent + '%';
+					}
+					window.setTimeout( poll, 5000 );
+				} )
+				.catch( function () {
+					window.setTimeout( poll, 15000 );
+				} );
+		}
+		window.setTimeout( poll, 5000 );
+	}
+
+	/**
 	 * Open the <details> that holds the element the URL hash points to, and scroll to it.
 	 */
 	function openDetailsForHash() {
@@ -197,8 +241,19 @@
 		}
 	} );
 
+	// "Check customers" can take a few seconds: say so on the button.
+	document.addEventListener( 'submit', function ( event ) {
+		var form = event.target instanceof Element ? event.target.closest( '[data-epc-existing-check]' ) : null;
+		var button = form ? form.querySelector( '[data-checking]' ) : null;
+		if ( button ) {
+			button.textContent = button.getAttribute( 'data-checking' );
+			button.setAttribute( 'aria-disabled', 'true' );
+		}
+	} );
+
 	document.addEventListener( 'DOMContentLoaded', function () {
 		Array.prototype.forEach.call( document.querySelectorAll( '[data-epc-qr]' ), drawQr );
+		Array.prototype.forEach.call( document.querySelectorAll( '[data-epc-existing-run]' ), followExistingRun );
 
 		// A link to a section inside a closed "advanced" panel opens the panel.
 		openDetailsForHash();

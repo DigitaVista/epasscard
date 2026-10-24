@@ -359,6 +359,11 @@ fieldset.epc-panel {
 	color: var(--epc-ok-text);
 }
 
+.epc-pill.is-warning {
+	background: var(--epc-warn-soft);
+	color: var(--epc-warn-text);
+}
+
 .epc-inline-form {
 	display: inline;
 	margin: 0;
@@ -1330,8 +1335,187 @@ fieldset.epc-panel {
 	width: 32%;
 }
 
-.epc-cards__existing {
-	margin-top: 20px;
+/* ---------- Cards: give cards to existing customers ---------- */
+
+.epc-existing {
+	margin: 0 0 20px;
+}
+
+.epc-cards > .epc-existing:last-child {
+	margin: 20px 0 0;
+}
+
+.epc-existing__run-title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 8px;
+}
+
+.epc-existing__tiles {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+	margin: 14px 0;
+	padding: 0;
+	list-style: none;
+}
+
+.epc-existing__tile {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 10px 12px;
+	border: 1px solid var(--epc-line);
+	border-radius: 8px;
+	background: #fff;
+}
+
+.epc-existing__tile.is-good {
+	border-color: #a7f3d0;
+	background: var(--epc-ok-soft);
+}
+
+.epc-existing__tile.is-warning {
+	border-color: var(--epc-warn-line);
+	background: var(--epc-warn-soft);
+}
+
+.epc-existing__tile-label,
+.epc-existing__tile-note {
+	font-size: 12px;
+	color: var(--epc-muted);
+}
+
+.epc-existing__tile.is-good .epc-existing__tile-label {
+	color: var(--epc-ok-text);
+}
+
+.epc-existing__tile.is-warning .epc-existing__tile-label {
+	color: var(--epc-warn-text);
+}
+
+.epc-existing__tile-value {
+	font-family: var(--epc-font-display);
+	font-size: 22px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: var(--epc-text);
+}
+
+.epc-existing__details {
+	margin: 10px 0;
+}
+
+.epc-existing__details > summary {
+	cursor: pointer;
+	color: var(--epc-link);
+	font-weight: 600;
+}
+
+.epc-existing__details ul {
+	margin: 8px 0 0 18px;
+	list-style: disc;
+}
+
+.epc-existing__email dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 6px 14px;
+	margin: 10px 0;
+	padding: 12px 14px;
+	border: 1px solid var(--epc-line);
+	border-radius: 8px;
+	background: var(--epc-bg);
+}
+
+.epc-existing__email dt {
+	font-weight: 600;
+}
+
+.epc-existing__email dd {
+	margin: 0;
+	min-width: 0;
+}
+
+.epc-existing__body {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: inherit;
+	font-size: 13px;
+}
+
+.epc-existing__confirm {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px solid var(--epc-line);
+}
+
+.epc-existing__plan {
+	margin-top: 0;
+}
+
+.epc-existing__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin-top: 10px;
+}
+
+.epc-existing__inline-form {
+	display: inline;
+	margin: 0;
+}
+
+.epc-existing__actions .button:not(.button-link) {
+	display: inline-flex;
+	align-items: center;
+	min-height: 36px;
+}
+
+.epc-existing__bar {
+	height: 10px;
+	margin: 6px 0;
+	overflow: hidden;
+	border-radius: 999px;
+	background: var(--epc-line);
+}
+
+.epc-existing__bar span {
+	display: block;
+	height: 100%;
+	background: var(--epc-accent);
+	transition: width 0.3s ease;
+}
+
+.epc-existing__stop {
+	color: var(--epc-bad-text);
+}
+
+.epc-existing__problems {
+	margin: 10px 0;
+}
+
+.epc-existing__result + .epc-existing__check,
+.epc-existing__result + .epc-existing__start {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--epc-line);
+}
+
+.epc-existing__start select {
+	max-width: 100%;
+	margin: 0 8px;
+}
+
+@media (max-width: 782px) {
+	.epc-existing__tiles {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
 }
 
 /* ---------- Design: status rules and advanced mapping ---------- */

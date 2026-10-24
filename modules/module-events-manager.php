@@ -824,7 +824,7 @@ class EPC_Module_Events_Manager extends EPC_Module {
 		}
 
 		$person  = $booking->get_person();
-		$user_id = $person && ! empty( $person->ID ) ? absint( $person->ID ) : absint( $booking->person_id );
+		$user_id = $this->resolve_booking_user_id( $booking, $person );
 		$first   = $person ? (string) $person->first_name : '';
 		$last    = $person ? (string) $person->last_name : '';
 		$email   = $person ? (string) $person->user_email : '';
@@ -979,5 +979,75 @@ class EPC_Module_Events_Manager extends EPC_Module {
 		}
 
 		return wp_timezone();
+	}
+
+	/**
+	 * WordPress user of a booking: the booking person's account (0 for a guest booking).
+	 *
+	 * @param EM_Booking $booking Booking.
+	 * @param mixed      $person  The booking's person, when already loaded.
+	 * @return int
+	 */
+	private function resolve_booking_user_id( $booking, $person = null ) {
+		$person = null !== $person ? $person : $booking->get_person();
+		return $person && ! empty( $person->ID ) ? absint( $person->ID ) : absint( $booking->person_id );
+	}
+
+	/**
+	 * Bookings of an event that has not ended whose status gets a card under the pass behavior
+	 * rules, oldest first.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		$event_id = absint( $entity_id );
+		if ( $event_id <= 0 || ! function_exists( 'em_get_event' ) || ! defined( 'EM_BOOKINGS_TABLE' ) ) {
+			return array();
+		}
+
+		$event = em_get_event( $event_id );
+		if ( ! is_object( $event ) || empty( $event->event_id ) ) {
+			return array();
+		}
+		$end = $this->get_event_datetime( $event, 'end' );
+		if ( $end && $end->getTimestamp() < time() ) {
+			return array();
+		}
+
+		$statuses = array();
+		foreach ( $this->get_status_rules() as $status => $action ) {
+			if ( 'sync' === $action ) {
+				$statuses[] = absint( $status );
+			}
+		}
+		if ( empty( $statuses ) ) {
+			return array();
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Events Manager bookings of one event; the IN list is one %d per status.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT booking_id FROM %i WHERE event_id = %d AND booking_status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%d' ) ) . ') ORDER BY booking_id ASC LIMIT %d OFFSET %d',
+				array_merge( array( EM_BOOKINGS_TABLE, $event_id ), $statuses, array( absint( $limit ), absint( $offset ) ) )
+			)
+		);
+		// phpcs:enable
+		return array_map( 'absint', (array) $ids );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Bookings of events that have not ended', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$booking = $this->get_booking( absint( $source_id ) );
+		return $booking ? $this->resolve_booking_user_id( $booking ) : 0;
 	}
 }

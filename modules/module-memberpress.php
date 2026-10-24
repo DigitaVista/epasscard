@@ -739,12 +739,27 @@ class EPC_Module_MemberPress extends EPC_Module {
 	 * @inheritDoc
 	 */
 	public function sync_by_source_id( $source_id, $mode = 'sync' ) {
+		$txn = $this->get_transaction_for_source( $source_id );
+		if ( $txn ) {
+			return $this->sync_from_transaction( $txn, $mode );
+		}
+
+		return new WP_Error( 'epc_invalid_source', __( 'Membership record not found.', 'epasscard' ) );
+	}
+
+	/**
+	 * Transaction a source key syncs from: the transaction itself, or a subscription's latest one.
+	 *
+	 * @param string|int $source_id Source key.
+	 * @return MeprTransaction|null
+	 */
+	private function get_transaction_for_source( $source_id ) {
 		$parsed = self::parse_source_key( $source_id );
 
 		if ( $parsed && self::SOURCE_TXN === $parsed['type'] && class_exists( 'MeprTransaction' ) ) {
 			$txn = new MeprTransaction( $parsed['id'] );
 			if ( ! empty( $txn->id ) ) {
-				return $this->sync_from_transaction( $txn, $mode );
+				return $txn;
 			}
 		}
 
@@ -753,7 +768,7 @@ class EPC_Module_MemberPress extends EPC_Module {
 			if ( ! empty( $sub->id ) && method_exists( $sub, 'latest_txn' ) ) {
 				$txn = $sub->latest_txn();
 				if ( $txn instanceof MeprTransaction ) {
-					return $this->sync_from_transaction( $txn, $mode );
+					return $txn;
 				}
 			}
 		}
@@ -766,7 +781,7 @@ class EPC_Module_MemberPress extends EPC_Module {
 				if ( ! empty( $sub->id ) && method_exists( $sub, 'latest_txn' ) ) {
 					$txn = $sub->latest_txn();
 					if ( $txn instanceof MeprTransaction ) {
-						return $this->sync_from_transaction( $txn, $mode );
+						return $txn;
 					}
 				}
 			}
@@ -774,12 +789,39 @@ class EPC_Module_MemberPress extends EPC_Module {
 			if ( class_exists( 'MeprTransaction' ) ) {
 				$txn = new MeprTransaction( $legacy_id );
 				if ( ! empty( $txn->id ) && empty( $txn->subscription_id ) ) {
-					return $this->sync_from_transaction( $txn, $mode );
+					return $txn;
 				}
 			}
 		}
 
-		return new WP_Error( 'epc_invalid_source', __( 'Membership record not found.', 'epasscard' ) );
+		return null;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Members with a current membership', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$txn = $this->get_transaction_for_source( $source_id );
+		return $txn ? absint( $txn->user_id ) : 0;
+	}
+
+	/**
+	 * Newest first by the transaction the card is built from (transaction ids grow over time;
+	 * a subscription key uses its latest transaction, as the sync does).
+	 *
+	 * @param string|int $source_id Source key.
+	 * @return int
+	 */
+	public function get_backfill_sort_key( $source_id ) {
+		$txn = $this->get_transaction_for_source( $source_id );
+		return $txn ? absint( $txn->id ) : 0;
 	}
 
 	/**

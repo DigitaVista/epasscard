@@ -1010,4 +1010,44 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 
 		return array_values( array_unique( $out ) );
 	}
+
+	/**
+	 * Customers who have earned points (their loyalty account has points), oldest account first.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		if ( self::PROGRAM_ENTITY_ID !== absint( $entity_id ) ) {
+			return array();
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Loyalty account table read for giving cards to existing customers.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT a.user_id FROM %i a INNER JOIN %i u ON u.ID = a.user_id WHERE ( a.lifetime_points > 0 OR a.points_balance > 0 ) ORDER BY a.user_id ASC LIMIT %d OFFSET %d',
+				EPC_DB::loyalty_accounts_table_name(),
+				$wpdb->users,
+				absint( $limit ),
+				absint( $offset )
+			)
+		);
+		return array_map( 'absint', (array) $ids );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Customers who have earned points', 'epasscard' );
+	}
+
+	/**
+	 * A loyalty record id is the customer's user id.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$user_id = absint( $source_id );
+		return $user_id > 0 && get_userdata( $user_id ) ? $user_id : 0;
+	}
 }

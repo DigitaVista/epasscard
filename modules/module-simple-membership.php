@@ -1046,4 +1046,19 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 		);
 		return array_map( 'absint', (array) $ids );
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Members with an active account', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$member = $this->get_member_by_id( absint( $source_id ) );
+		return $member ? $this->resolve_wp_user_id( $member ) : 0;
+	}
 }

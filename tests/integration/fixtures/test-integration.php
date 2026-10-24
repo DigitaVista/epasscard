@@ -65,6 +65,23 @@ if ( ! class_exists( 'EPC_Module_Test_Fixture' ) ) {
 			$id = absint( $source_id );
 			return EPC_Pass_Service::sync_pass( $this->get_slug(), $id, 1, $id, $this->get_mapping( 1 ), array( 'name' => 'Member ' . $id ), $mode );
 		}
+		/**
+		 * Existing records for "Give cards to existing customers": $GLOBALS['epc_test_backfill']
+		 * maps an entity id to its record ids (user ids). Unsupported when not set.
+		 *
+		 * @inheritDoc
+		 */
+		public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+			if ( ! isset( $GLOBALS['epc_test_backfill'] ) ) {
+				return null;
+			}
+			$ids = $GLOBALS['epc_test_backfill'][ absint( $entity_id ) ] ?? array();
+			return array_slice( $ids, absint( $offset ), absint( $limit ) );
+		}
+		/** @inheritDoc */
+		public function get_backfill_user_id( $source_id ) {
+			return absint( $source_id );
+		}
 		/** @inheritDoc */
 		protected function register_event_hooks() {}
 	}

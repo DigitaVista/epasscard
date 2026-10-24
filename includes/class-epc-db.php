@@ -706,6 +706,39 @@ class EPC_DB {
 	}
 
 	/**
+	 * Which of these records already have a card (a row with a pass id, any status).
+	 *
+	 * @param string                  $module     Module slug.
+	 * @param array<int, string|int> $source_ids Source record ids.
+	 * @return array<string, true> Source ids that have a card.
+	 */
+	public static function source_ids_with_card( $module, array $source_ids ) {
+		global $wpdb;
+
+		$module = sanitize_key( (string) $module );
+		$ids    = array_values( array_unique( array_filter( array_map( array( __CLASS__, 'sanitize_source_id' ), $source_ids ), 'strlen' ) ) );
+		if ( '' === $module || empty( $ids ) ) {
+			return array();
+		}
+
+		$out = array();
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Custom table read; the IN list is one %s per id.
+			$found = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT source_id FROM %i WHERE module = %s AND pass_uid <> '' AND source_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%s' ) ) . ')',
+					array_merge( array( self::table_name(), $module ), $chunk )
+				)
+			);
+			// phpcs:enable
+			foreach ( (array) $found as $source_id ) {
+				$out[ (string) $source_id ] = true;
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Resolve a pass row from a pass UUID, internal id, or source record id.
 	 *
 	 * @param string $module     Module slug.

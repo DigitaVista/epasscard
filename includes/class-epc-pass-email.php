@@ -162,13 +162,16 @@ class EPC_Pass_Email {
 	}
 
 	/**
-	 * Send pass link email for a pass row.
+	 * The card link email for a pass row, as it would be sent: recipient, subject, body, headers.
+	 *
+	 * Also used for a preview before the card exists (Cards → existing customers), with a pass
+	 * row stand-in whose pass_link is a placeholder.
 	 *
 	 * @param object               $pass_row Pass DB row.
 	 * @param array<string, mixed> $args     Optional overrides (to, subject, body, module_label).
-	 * @return true|\WP_Error
+	 * @return array{to: string, subject: string, body: string, headers: array<int, string>}|\WP_Error
 	 */
-	public static function send_for_pass_row( $pass_row, array $args = array() ) {
+	public static function compose( $pass_row, array $args = array() ) {
 		if ( ! is_object( $pass_row ) || empty( $pass_row->pass_link ) ) {
 			return new WP_Error( 'epc_no_pass_link', __( 'This pass does not have a wallet link yet.', 'epasscard' ) );
 		}
@@ -236,6 +239,31 @@ class EPC_Pass_Email {
 		 * @param array  $args     Send args.
 		 */
 		$headers = (array) apply_filters( 'epc_pass_email_headers', $headers, $pass_row, $args );
+
+		return array(
+			'to'      => $to,
+			'subject' => $subject,
+			'body'    => $body,
+			'headers' => $headers,
+		);
+	}
+
+	/**
+	 * Send pass link email for a pass row.
+	 *
+	 * @param object               $pass_row Pass DB row.
+	 * @param array<string, mixed> $args     Optional overrides (to, subject, body, module_label).
+	 * @return true|\WP_Error
+	 */
+	public static function send_for_pass_row( $pass_row, array $args = array() ) {
+		$email = self::compose( $pass_row, $args );
+		if ( is_wp_error( $email ) ) {
+			return $email;
+		}
+		$to      = $email['to'];
+		$subject = $email['subject'];
+		$body    = $email['body'];
+		$headers = $email['headers'];
 
 		/**
 		 * Fires before a pass link email is sent.
@@ -498,7 +526,8 @@ class EPC_Pass_Email {
 			'user_email'        => $user ? (string) $user->user_email : '',
 			'pass_link'         => (string) $pass_row->pass_link,
 			'pass_uid'          => (string) $pass_row->pass_uid,
-			'site_name'         => (string) get_bloginfo( 'name' ),
+			// WordPress stores the site title HTML-escaped; this is a plain-text email.
+			'site_name'         => wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES ),
 			'membership_title'  => $entity_label,
 			'module_label'      => $module_label,
 			// Plan, product, event or card name; falls back to the integration name.

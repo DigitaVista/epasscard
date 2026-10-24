@@ -141,7 +141,6 @@ abstract class EPC_Module {
 		add_action( 'wp_ajax_epc_send_test_push_' . $this->get_slug(), array( $this, 'ajax_send_test_push' ) );
 		add_action( 'wp_ajax_epc_save_notification_rules_' . $this->get_slug(), array( $this, 'ajax_save_notification_rules' ) );
 		add_action( 'wp_ajax_epc_save_status_rules_' . $this->get_slug(), array( $this, 'ajax_save_status_rules' ) );
-		add_action( 'wp_ajax_epc_backfill_' . $this->get_slug(), array( $this, 'ajax_backfill' ) );
 		add_action( 'admin_notices', array( $this, 'render_pass_action_notice' ) );
 
 		if ( $this->is_available() ) {
@@ -252,9 +251,12 @@ abstract class EPC_Module {
 	}
 
 	/**
-	 * Active source ids for an entity, for "Create passes for existing members".
+	 * Records of an entity that would get a card under this integration's rules, oldest first,
+	 * for "Give cards to existing customers" (EPC_Existing_Customers).
 	 *
 	 * Modules that support backfill return a list (possibly empty); null = unsupported.
+	 * The list holds one entry per row read, '' for a row that does not qualify, so paging by
+	 * offset stays correct: a list shorter than $limit means the last page.
 	 *
 	 * @param int $entity_id Entity (plan/level/product) id.
 	 * @param int $limit     Batch size.
@@ -276,60 +278,36 @@ abstract class EPC_Module {
 	}
 
 	/**
-	 * AJAX: create passes for one batch of existing active records of an entity.
+	 * Who counts as an existing customer here, in one short phrase for the Cards screen.
 	 *
-	 * @return void
+	 * @return string
 	 */
-	public function ajax_backfill() {
-		check_ajax_referer( 'epc_admin', 'nonce' );
+	public function get_backfill_scope_label() {
+		return __( 'Active records', 'epasscard' );
+	}
 
-		if ( ! $this->is_available() || ! $this->current_user_can_manage_passes() ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'epasscard' ) ), 403 );
-		}
+	/**
+	 * WordPress user a record's card would belong to, resolved the way this integration's sync
+	 * resolves it. The card email goes to this user.
+	 *
+	 * @param string|int $source_id Source record id.
+	 * @return int|null User id (0 = none), or null when the integration cannot tell before the
+	 *                  card exists.
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		unset( $source_id );
+		return null;
+	}
 
-		$entity_id = isset( $_POST['entity_id'] ) ? absint( wp_unslash( $_POST['entity_id'] ) ) : 0;
-		$offset    = isset( $_POST['offset'] ) ? absint( wp_unslash( $_POST['offset'] ) ) : 0;
-		$limit     = 10;
-
-		if ( $entity_id <= 0 || empty( $this->get_mapping( $entity_id )['template_uid'] ) ) {
-			wp_send_json_error( array( 'message' => __( 'Map a pass template first.', 'epasscard' ) ), 400 );
-		}
-
-		$ids = $this->get_backfill_source_ids( $entity_id, $limit, $offset );
-		if ( null === $ids ) {
-			wp_send_json_error( array( 'message' => __( 'This integration does not support bulk creation.', 'epasscard' ) ), 400 );
-		}
-
-		$created = 0;
-		$skipped = 0;
-		$failed  = 0;
-		foreach ( $ids as $source_id ) {
-			$source_id = EPC_DB::sanitize_source_id( $source_id );
-			if ( '' === $source_id ) {
-				continue;
-			}
-			$existing  = EPC_DB::get_pass( $this->get_slug(), $source_id );
-			if ( $existing && ! empty( $existing->pass_uid ) ) {
-				++$skipped;
-				continue;
-			}
-			$result = $this->sync_by_source_id( $source_id, 'sync' );
-			if ( is_wp_error( $result ) ) {
-				++$failed;
-			} else {
-				++$created;
-			}
-		}
-
-		wp_send_json_success(
-			array(
-				'created'     => $created,
-				'skipped'     => $skipped,
-				'failed'      => $failed,
-				'next_offset' => $offset + count( $ids ),
-				'done'        => count( $ids ) < $limit,
-			)
-		);
+	/**
+	 * Sort key for "newest first": a larger key is a more recent record.
+	 *
+	 * @param string|int $source_id Source record id.
+	 * @return int
+	 */
+	public function get_backfill_sort_key( $source_id ) {
+		$source_id = (string) $source_id;
+		return ctype_digit( $source_id ) ? (int) $source_id : 0;
 	}
 
 	/**
@@ -1218,15 +1196,12 @@ abstract class EPC_Module {
 			'uniqueHint'       => __( 'Every pass needs a different value here. Map an ID or code, not a value another pass of this template may already use.', 'epasscard' ),
 			'requiredMissing'  => __( 'Map these required fields before saving:', 'epasscard' ),
 			/* translators: 1: number of passes created, 2: number of members who already had a pass, 3: number of failures. */
-			'backfillRunning'  => __( 'Creating passes… %1$d created, %2$d already had one, %3$d failed', 'epasscard' ),
 			'starterWorking'   => __( 'Creating your pass design in EpassCard…', 'epasscard' ),
 			'sdSaving'         => __( 'Saving your design in EpassCard…', 'epasscard' ),
 			'sdLogoTitle'      => __( 'Choose a logo', 'epasscard' ),
 			'sdStripTitle'     => __( 'Choose a strip image', 'epasscard' ),
 			'sdUseImage'       => __( 'Use this image', 'epasscard' ),
 			/* translators: 1: number of passes created, 2: number of members who already had a pass, 3: number of failures. */
-			'backfillDone'     => __( 'Done: %1$d created, %2$d already had one, %3$d failed.', 'epasscard' ),
-			'backfillConfirm'  => __( 'Create wallet passes for every active member of this plan who does not have one yet? Each pass counts toward your EpassCard plan limit.', 'epasscard' ),
 			'saveAgain'        => __( 'Click Save mapping again to keep it anyway.', 'epasscard' ),
 			'numberMismatch'   => __( 'These number fields are mapped to text, which EpassCard may reject. Choose a numeric source (an ID, points, spaces, balance) or a numeric custom value:', 'epasscard' ),
 		);
@@ -1527,16 +1502,11 @@ abstract class EPC_Module {
 										>
 											<?php echo $mapped ? esc_html__( 'Edit mapping', 'epasscard' ) : esc_html__( 'Set up mapping', 'epasscard' ); ?>
 										</button>
-										<?php if ( ! empty( $this->get_mapping( $eid )['template_uid'] ) && $this->supports_backfill() ) : ?>
-											<button
-												type="button"
-												class="button epc-backfill-trigger"
-												data-module="<?php echo esc_attr( $this->get_slug() ); ?>"
-												data-entity-id="<?php echo esc_attr( (string) $eid ); ?>"
-											>
-												<?php esc_html_e( 'Create passes for existing members', 'epasscard' ); ?>
-											</button>
-											<span class="epc-backfill-status" aria-live="polite"></span>
+										<?php
+										$existing_url = ! empty( $this->get_mapping( $eid )['template_uid'] ) && class_exists( 'EPC_Admin_Cards' ) ? EPC_Admin_Cards::existing_customers_url( $this ) : '';
+										?>
+										<?php if ( '' !== $existing_url ) : ?>
+											<a class="button" href="<?php echo esc_url( $existing_url ); ?>"><?php esc_html_e( 'Give cards to existing customers', 'epasscard' ); ?></a>
 										<?php endif; ?>
 									</td>
 								</tr>

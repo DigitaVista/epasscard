@@ -51,6 +51,27 @@ $WP eval-file "$HERE/test-default-design.php" || status=1
 echo "== Cards list"
 $WP eval-file "$HERE/test-cards-list.php" || status=1
 
+echo "== Give cards to existing customers"
+$WP eval-file "$HERE/test-existing-customers.php" || status=1
+
+echo "== Give cards to existing customers: three runners at once handle and email each record once"
+slug="epc-existing-$RANDOM"
+log="$(mktemp)"
+EPC_TEST_MODULE=$slug EPC_EXISTING_STEP=setup $WP eval-file "$HERE/test-existing-customers-race.php" || status=1
+at=$(( $(date +%s) + 3 ))
+pids=""
+for i in 1 2 3; do
+	EPC_TEST_MODULE=$slug EPC_EXISTING_STEP=work EPC_RACE_AT=$at EPC_RACE_LOG="$log" EPC_FAKE_DELAY_MS=200 $WP eval-file "$HERE/test-existing-customers-race.php" &
+	pids="$pids $!"
+done
+for p in $pids; do wait "$p" || status=1; done
+got=$(EPC_TEST_MODULE=$slug EPC_EXISTING_STEP=check $WP eval-file "$HERE/test-existing-customers-race.php")
+mails=$(sort "$log" | uniq | wc -l | tr -d ' ')
+total=$(wc -l < "$log" | tr -d ' ')
+EPC_TEST_MODULE=$slug EPC_EXISTING_STEP=teardown $WP eval-file "$HERE/test-existing-customers-race.php"
+rm -f "$log"
+if [ "$got" = "10 10 10 10 done" ] && [ "$mails" = "10" ] && [ "$total" = "10" ]; then echo "PASS 3 parallel runners: 10 cards, 10 emails to 10 customers"; else echo "FAIL parallel runners: expected '10 10 10 10 done' and 10 emails to 10 customers, got '$got', $total emails to $mails customers"; status=1; fi
+
 echo "== Retry failed cards"
 $WP eval-file "$HERE/test-retry-failed.php" || status=1
 

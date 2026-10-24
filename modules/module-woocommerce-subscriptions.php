@@ -869,4 +869,22 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 		);
 		return array_map( 'absint', array_keys( (array) $subs ) );
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Customers with an active subscription', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		if ( ! function_exists( 'wcs_get_subscription' ) ) {
+			return 0;
+		}
+		$subscription = wcs_get_subscription( absint( $source_id ) );
+		return $subscription instanceof WC_Subscription ? (int) $subscription->get_user_id() : 0;
+	}
 }

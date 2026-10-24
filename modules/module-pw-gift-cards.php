@@ -581,7 +581,7 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 		$recipient = isset( $meta['recipient_email'] ) ? (string) $meta['recipient_email'] : '';
 		$from_name = isset( $meta['from_name'] ) ? (string) $meta['from_name'] : '';
 		$order_id  = isset( $meta['order_id'] ) ? absint( $meta['order_id'] ) : 0;
-		$user_id   = epc_resolve_gift_card_user_id( $recipient, $order_id );
+		$user_id   = $this->resolve_card_user_id( $meta );
 		$first     = '';
 		$last      = '';
 		$display   = $from_name;
@@ -778,5 +778,69 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 		}
 
 		return (string) $amount;
+	}
+
+	/**
+	 * WordPress user of a card: the recipient's account, else the buyer's (see
+	 * epc_resolve_gift_card_user_id()).
+	 *
+	 * @param array<string, mixed> $meta Order meta from get_card_order_meta().
+	 * @return int
+	 */
+	private function resolve_card_user_id( array $meta ) {
+		$recipient = isset( $meta['recipient_email'] ) ? (string) $meta['recipient_email'] : '';
+		$order_id  = isset( $meta['order_id'] ) ? absint( $meta['order_id'] ) : 0;
+		return epc_resolve_gift_card_user_id( $recipient, $order_id );
+	}
+
+	/**
+	 * Cards of a gift card product that would get a card now: the status rule gives "sync" and
+	 * the balance is above zero (as for a live card), oldest first.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		$product_id = absint( $entity_id );
+		if ( $product_id <= 0 || ! class_exists( 'PW_Gift_Card' ) ) {
+			return array();
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- PW Gift Cards table read for giving cards to existing customers.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT pimwick_gift_card_id FROM %i ORDER BY pimwick_gift_card_id ASC LIMIT %d OFFSET %d',
+				$wpdb->prefix . 'pimwick_gift_card',
+				absint( $limit ),
+				absint( $offset )
+			)
+		);
+
+		$out = array();
+		foreach ( (array) $ids as $card_id ) {
+			$card = $this->get_card( absint( $card_id ) );
+			$ok   = $card
+				&& $this->resolve_product_id( $card, $this->get_card_order_meta( $card ) ) === $product_id
+				&& 'sync' === $this->get_status_rule( $this->normalize_card_status( $card ) )
+				&& (float) $card->get_balance() > 0;
+			// One entry per row read keeps paging by offset correct.
+			$out[] = $ok ? absint( $card_id ) : '';
+		}
+		return $out;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Active gift cards with a balance', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$card = $this->get_card( absint( $source_id ) );
+		return $card ? $this->resolve_card_user_id( $this->get_card_order_meta( $card ) ) : 0;
 	}
 }

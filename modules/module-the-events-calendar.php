@@ -837,16 +837,9 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 			$ticket_id = absint( $data['ticket_id'] );
 		}
 
-		$user_id = isset( $data['user_id'] ) ? absint( $data['user_id'] ) : 0;
+		$user_id = $this->resolve_attendee_user_id( $data );
 		$email   = isset( $data['holder_email'] ) ? (string) $data['holder_email'] : '';
 		$full    = isset( $data['holder_name'] ) ? (string) $data['holder_name'] : '';
-
-		if ( $user_id <= 0 && $email ) {
-			$user = get_user_by( 'email', $email );
-			if ( $user ) {
-				$user_id = (int) $user->ID;
-			}
-		}
 
 		$user  = $user_id > 0 ? get_userdata( $user_id ) : false;
 		$first = $user ? (string) get_user_meta( $user_id, 'first_name', true ) : '';
@@ -1213,5 +1206,102 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		}
 
 		return '';
+	}
+
+	/**
+	 * WordPress user of an attendee: the attendee's user, else the account with the ticket
+	 * holder's email.
+	 *
+	 * @param array<string, mixed> $data Attendee data.
+	 * @return int
+	 */
+	private function resolve_attendee_user_id( array $data ) {
+		$user_id = isset( $data['user_id'] ) ? absint( $data['user_id'] ) : 0;
+		$email   = isset( $data['holder_email'] ) ? (string) $data['holder_email'] : '';
+
+		if ( $user_id <= 0 && $email ) {
+			$user = get_user_by( 'email', $email );
+			if ( $user ) {
+				$user_id = (int) $user->ID;
+			}
+		}
+
+		return $user_id;
+	}
+
+	/**
+	 * Whether an event has ended (its end time is in the past).
+	 *
+	 * @param int $event_id Event ID.
+	 * @return bool
+	 */
+	private function has_event_ended( $event_id ) {
+		$utc = (string) get_post_meta( absint( $event_id ), '_EventEndDateUTC', true );
+		if ( '' !== $utc ) {
+			$end = strtotime( $utc . ' UTC' );
+			return false !== $end && $end < time();
+		}
+
+		$local = (string) get_post_meta( absint( $event_id ), '_EventEndDate', true );
+		if ( '' === $local ) {
+			return false;
+		}
+		try {
+			$end = new DateTimeImmutable( $local, wp_timezone() );
+		} catch ( Exception $e ) {
+			unset( $e ); // Unreadable date: treat the event as not ended, as the pass expiry does.
+			return false;
+		}
+		return $end->getTimestamp() < time();
+	}
+
+	/**
+	 * Attendees of an event that has not ended whose status gets a card under the pass behavior
+	 * rules, oldest first.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_backfill_source_ids( $entity_id, $limit, $offset ) {
+		global $wpdb;
+		$event_id = absint( $entity_id );
+		if ( $event_id <= 0 || ! $this->is_tec_event( $event_id ) || $this->has_event_ended( $event_id ) ) {
+			return array();
+		}
+
+		// The same event keys get_attendee_event_id() reads.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Attendee ids of one event, for giving cards to existing attendees.
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT post_id FROM %i WHERE meta_key IN ( '_tribe_rsvp_event', '_tec_tickets_commerce_event', '_tribe_wooticket_event', '_tribe_tpp_event' ) AND meta_value = %s ORDER BY post_id ASC LIMIT %d OFFSET %d",
+				$wpdb->postmeta,
+				(string) $event_id,
+				absint( $limit ),
+				absint( $offset )
+			)
+		);
+
+		$out = array();
+		foreach ( (array) $ids as $attendee_id ) {
+			$data = $this->get_attendee_data( absint( $attendee_id ) );
+			$ok   = $data && absint( $data['event_id'] ?? 0 ) === $event_id && 'sync' === $this->get_status_rule( $this->normalize_attendee_status( $data ) );
+			// One entry per row read keeps paging by offset correct.
+			$out[] = $ok ? absint( $attendee_id ) : '';
+		}
+		return $out;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Attendees of events that have not ended', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$data = $this->get_attendee_data( absint( $source_id ) );
+		return $data ? $this->resolve_attendee_user_id( $data ) : 0;
 	}
 }

@@ -191,24 +191,17 @@ class EPC_Admin_Cards {
 	}
 
 	/**
-	 * Where cards can be given to customers who joined before EpassCard, or '' when the
-	 * integration cannot do that.
+	 * Where cards can be given to customers who joined before EpassCard (Cards → Give cards to
+	 * existing customers), or '' when the integration cannot do that or the user may not.
 	 *
 	 * @param EPC_Module $module Module.
 	 * @return string
 	 */
 	public static function existing_customers_url( $module ) {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! EPC_Existing_Customers::current_user_can() || ! $module->supports_backfill() ) {
 			return '';
 		}
-		if ( 'woocommerce-loyalty' === $module->get_slug() ) {
-			// "Past orders" tab: credits past orders and creates their cards.
-			return admin_url( 'admin.php?page=epc-woocommerce-loyalty#epc-section-loyalty-program' );
-		}
-		if ( $module->supports_backfill() ) {
-			return EPC_Admin_Design::url_for_module( $module->get_slug() ) . '#epc-section-mapping';
-		}
-		return '';
+		return EPC_Admin_App::url( 'cards', array( 'epc_existing_module' => $module->get_slug() ) ) . '#epc-existing';
 	}
 
 	/**
@@ -264,6 +257,13 @@ class EPC_Admin_Cards {
 			<?php if ( empty( $modules ) ) : ?>
 				<div class="epc-panel"><p><?php esc_html_e( 'No integration is turned on yet.', 'epasscard' ); ?></p></div>
 			<?php else : ?>
+				<?php
+				// A run, its result or a check waiting for confirmation comes first.
+				$existing_first = EPC_Existing_Customers::has_focus();
+				if ( $existing_first ) {
+					EPC_Existing_Customers::render();
+				}
+				?>
 				<?php if ( current_user_can( 'manage_options' ) ) : ?>
 					<div class="epc-stats" role="list">
 						<div class="epc-stat" role="listitem">
@@ -340,25 +340,10 @@ class EPC_Admin_Cards {
 				?>
 
 				<?php
-				$existing = array();
-				foreach ( $modules as $slug => $module ) {
-					$url = self::existing_customers_url( $module );
-					if ( '' !== $url ) {
-						$existing[ $slug ] = $url;
-					}
+				if ( ! $existing_first ) {
+					EPC_Existing_Customers::render();
 				}
 				?>
-				<?php if ( ! empty( $existing ) ) : ?>
-					<section class="epc-panel epc-cards__existing" aria-labelledby="epc-cards-existing">
-						<h3 id="epc-cards-existing" class="epc-panel__title"><?php esc_html_e( 'Give cards to existing customers', 'epasscard' ); ?></h3>
-						<p class="description"><?php esc_html_e( 'Customers who joined before EpassCard have no card yet. Each card counts toward your EpassCard plan.', 'epasscard' ); ?></p>
-						<ul class="epc-summary__list">
-							<?php foreach ( $existing as $slug => $url ) : ?>
-								<li><a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $modules[ $slug ]->get_label() ); ?></a></li>
-							<?php endforeach; ?>
-						</ul>
-					</section>
-				<?php endif; ?>
 			<?php endif; ?>
 		</div>
 		<?php

@@ -847,4 +847,19 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 		);
 		return array_map( 'absint', (array) $ids );
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_scope_label() {
+		return __( 'Members with an active membership level', 'epasscard' );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function get_backfill_user_id( $source_id ) {
+		$row = $this->get_membership_row_by_id( absint( $source_id ) );
+		return $row && isset( $row->user_id ) ? absint( $row->user_id ) : 0;
+	}
 }

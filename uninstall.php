@@ -32,6 +32,7 @@ function epasscard_uninstall_cron_hooks() {
 		'epc_resync_revoked_passes',
 		'epc_retry_pass_revoke',
 		'epc_retry_failed_batch',
+		'epc_existing_customers_batch',
 	);
 }
 
@@ -93,6 +94,9 @@ function epasscard_uninstall_site() {
 		'epc_api_log_redaction_cursor',
 		'epc_first_real_pass_at',
 		'epc_retry_failed_job',
+		'epc_existing_job',
+		'epc_existing_queue',
+		'epc_existing_results',
 		'epc_setup',
 		'epc_test_cards',
 		// Integration pass-behavior rules.
@@ -143,7 +147,7 @@ function epasscard_uninstall_site() {
 
 	// Short-lived caches.
 	delete_transient( 'epc_setup_wizard_redirect' );
-	foreach ( array( 'epc\_catalog\_%', 'epc\_starter\_lock\_%', 'epc\_retry\_failed\_notice\_%', 'epc\_try\_error\_%' ) as $pattern ) {
+	foreach ( array( 'epc\_catalog\_%', 'epc\_starter\_lock\_%', 'epc\_retry\_failed\_notice\_%', 'epc\_try\_error\_%', 'epc\_existing\_check\_%', 'epc\_existing\_notice\_%' ) as $pattern ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin uninstall.
 		$found = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", '\_transient\_' . $pattern ) );
 		foreach ( is_array( $found ) ? $found : array() as $option ) {

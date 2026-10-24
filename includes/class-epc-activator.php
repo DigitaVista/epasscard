@@ -63,6 +63,7 @@ class EPC_Activator {
 		EPC_Loyalty_Reward_Service::clear_cron();
 		EPC_Loyalty_Order_Sync_Service::clear_cron();
 		EPC_Retry_Failed::clear_cron();
+		EPC_Existing_Customers::clear_cron();
 
 		/*
 		 * Queued per-user pass syncs. They carry the user id as an argument, which
