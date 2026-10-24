@@ -99,6 +99,14 @@ class EPC_Jobs {
 				'no_items' => __( 'No product has a wallet card yet', 'epasscard' ),
 				'needs'    => __( 'Needs WooCommerce', 'epasscard' ),
 			),
+			'appointments' => array(
+				'title'    => __( 'Cards for my appointments', 'epasscard' ),
+				'pitch'    => __( 'Each booked appointment becomes a wallet card with the date, time and place. It expires the day after.', 'epasscard' ),
+				'goal'     => __( 'Get your appointment cards live', 'epasscard' ),
+				'items'    => __( 'services', 'epasscard' ),
+				'no_items' => __( 'No services yet', 'epasscard' ),
+				'needs'    => __( 'Needs a booking plugin', 'epasscard' ),
+			),
 			'forms'      => array(
 				'title'    => __( 'Cards from my forms', 'epasscard' ),
 				'pitch'    => __( 'Everyone who fills in your form gets a wallet card, linked on the thank-you message and sent by email.', 'epasscard' ),

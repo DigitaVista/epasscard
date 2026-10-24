@@ -522,12 +522,29 @@ abstract class EPC_Module {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				<?php $this->render_status_rules_extra_fields(); ?>
 				<p>
 					<?php submit_button( __( 'Save pass behavior', 'epasscard' ), 'secondary', 'submit', false ); ?>
 				</p>
 			</form>
 		</div>
 		<?php
+	}
+
+	/**
+	 * More settings saved with the status rules (printed under the rules table).
+	 *
+	 * @return void
+	 */
+	protected function render_status_rules_extra_fields() {
+	}
+
+	/**
+	 * Save the settings of render_status_rules_extra_fields() (nonce and rights already checked).
+	 *
+	 * @return void
+	 */
+	protected function save_status_rules_extra() {
 	}
 
 	/**
@@ -2373,6 +2390,7 @@ abstract class EPC_Module {
 		}
 
 		update_option( $this->get_status_rules_option_key(), $rules );
+		$this->save_status_rules_extra();
 
 		return true;
 	}

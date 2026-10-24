@@ -79,7 +79,9 @@ epasscard/
 │   ├── module-woocommerce-tickets.php, -vouchers.php, -product-cards.php
 │   ├── module-ultimate-member.php
 │   ├── module-wployalty.php
-│   └── module-wpforms.php
+│   ├── module-wpforms.php
+│   ├── abstract-module-amelia.php
+│   └── module-amelia-appointments.php, module-amelia-events.php
 ├── admin/
 │   ├── js/
 │   ├── css/

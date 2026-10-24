@@ -60,6 +60,8 @@ class EPC_Module_Loader {
 				'ultimate-member'           => 'module-ultimate-member.php',
 				'wployalty'                 => 'module-wployalty.php',
 				'wpforms'                   => 'module-wpforms.php',
+				'amelia-appointments'       => 'module-amelia-appointments.php',
+				'amelia-events'             => 'module-amelia-events.php',
 			)
 		);
 	}
@@ -205,6 +207,8 @@ class EPC_Module_Loader {
 				'ultimate-member'           => 'EPC_Module_Ultimate_Member',
 				'wployalty'                 => 'EPC_Module_WPLoyalty',
 				'wpforms'                   => 'EPC_Module_WPForms',
+				'amelia-appointments'       => 'EPC_Module_Amelia_Appointments',
+				'amelia-events'             => 'EPC_Module_Amelia_Events',
 			)
 		);
 

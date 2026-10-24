@@ -93,6 +93,7 @@ class EPC_Card_Preview {
 			'voucher'    => __( 'Voucher', 'epasscard' ),
 			'card'       => __( 'Card', 'epasscard' ),
 			'loyalty'    => __( 'Loyalty', 'epasscard' ),
+			'appointment' => __( 'Appointment', 'epasscard' ),
 		);
 
 		$data['kind']       = isset( $kinds[ $preset['type'] ] ) ? $kinds[ $preset['type'] ] : '';

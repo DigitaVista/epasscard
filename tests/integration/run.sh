@@ -46,6 +46,9 @@ $WP eval-file "$HERE/test-wployalty.php" || status=1
 echo "== WPForms form cards"
 $WP eval-file "$HERE/test-wpforms.php" || status=1
 
+echo "== Amelia appointment and event cards"
+$WP eval-file "$HERE/test-amelia.php" || status=1
+
 echo "== Account pages: Add to wallet (Paid Memberships Pro, Simple Membership)"
 $WP eval-file "$HERE/test-account-links.php" || status=1
 

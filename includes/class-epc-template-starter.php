@@ -248,6 +248,40 @@ class EPC_Template_Starter {
 				__( 'Booking No', 'epasscard' ),
 				'2'
 			),
+			'amelia-events'             => self::event_preset(
+				array(
+					'date'   => 'booking_start',
+					'event'  => 'event_name',
+					'ticket' => 'persons',
+					'venue'  => 'location_name',
+					'id'     => 'ticket_code',
+				),
+				array(
+					self::field( 'Address', __( 'Address', 'epasscard' ), 'location_address', false, false, '1 Main Street' ),
+				),
+				__( 'People', 'epasscard' ),
+				__( 'Ticket No', 'epasscard' ),
+				'2'
+			),
+			'amelia-appointments'       => array(
+				'type'      => 'appointment',
+				'card_type' => 'Event',
+				'header'    => array( self::field( 'Date', __( 'Date', 'epasscard' ), 'booking_date', false, false, '2026-11-20' ) ),
+				'primary'   => array( self::field( 'Service', __( 'Service', 'epasscard' ), 'service_name', false, false, __( 'Barista class', 'epasscard' ) ) ),
+				'secondary' => array(
+					self::field( 'Time', __( 'Time', 'epasscard' ), 'booking_time', false, false, '10:00' ),
+					self::field( 'With', __( 'With', 'epasscard' ), 'provider_name', false, false, 'Jordan Blake' ),
+				),
+				'auxiliary' => array(
+					self::field( 'Name', __( 'Name', 'epasscard' ), 'user_full_name', false, false, 'Alex Rivera' ),
+					self::field( 'Location', __( 'Location', 'epasscard' ), 'location_name', false, false, __( 'Main studio', 'epasscard' ) ),
+				),
+				'back'      => array(
+					self::field( 'Address', __( 'Address', 'epasscard' ), 'location_address', false, false, '1 Main Street' ),
+					self::field( 'Email', __( 'Email', 'epasscard' ), 'user_email', false, false, 'alex@example.com' ),
+				),
+				'barcode'   => self::field( 'Booking No', __( 'Booking No', 'epasscard' ), 'ticket_code', true, true, '1042' ),
+			),
 			'pw-gift-cards'             => self::gift_card_preset( 'recipient_email', 'from_name' ),
 			'yith-gift-cards'           => self::gift_card_preset( 'recipient_name', 'sender_name' ),
 			'woocommerce-tickets'       => self::event_preset(

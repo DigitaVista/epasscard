@@ -105,6 +105,19 @@ EpassCard ships with built-in integration modules. Each extends the same workflo
 - **Existing customers:** Cards → Give cards to existing customers (customers with points who are not banned).
 - Use either WPLoyalty or EpassCard's own loyalty program, not both, so customers do not get two loyalty cards.
 
+## Amelia (appointments and events)
+
+**Turn on:** Settings → Integrations (two integrations: **Amelia appointments**, design per service; **Amelia events**, design per event). Works with Amelia Lite and the paid plans.
+
+- **One card per booking** by default, showing the number of people. To give each person their own card and code, choose **One card per person** under the integration's **Cards by booking status** (Design). Bookings that already have cards keep them as they are.
+- **When:** Approved creates the card; Canceled and Rejected void it; Pending, No-show and the waiting list wait (changeable per status). Canceling a whole appointment or event voids all its cards. Rescheduling updates the date and time on the card.
+- **The day after the appointment or event ends,** the daily check expires its card. The same check voids cards whose booking was deleted in Amelia.
+- **Guests:** bookings without a WordPress account get the card at the email they booked with.
+- **Fields:** customer name, email and phone, start (date and time, in your site's time zone), end, location and address, number of people, person ("2 of 3"), booking status, booking number, card code, and the service and employee (appointments) or the event name (events).
+- **Push reminders:** before it starts (days before, set on the integration).
+- **Recurring events** (Amelia's paid plans) share the design of their first date.
+- **Existing bookings:** Cards → Give cards to existing customers (upcoming bookings whose status gives a card).
+
 ## WPForms
 
 **Turn on:** Settings → Integrations, or Home → Cards from a form. Works with WPForms Lite and Pro.

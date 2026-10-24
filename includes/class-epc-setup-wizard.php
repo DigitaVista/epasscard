@@ -742,7 +742,7 @@ class EPC_Setup_Wizard {
 				'label'       => __( 'Event tickets', 'epasscard' ),
 				'description' => __( 'Send attendees a wallet ticket when they register or book.', 'epasscard' ),
 				'icon'        => 'confirmation_number',
-				'modules'     => array( 'the-events-calendar', 'events-manager' ),
+				'modules'     => array( 'the-events-calendar', 'events-manager', 'amelia-events' ),
 			),
 			'gift-cards' => array(
 				'label'       => __( 'Gift cards', 'epasscard' ),
@@ -755,6 +755,12 @@ class EPC_Setup_Wizard {
 				'description' => __( 'Sell a ticket, voucher or pass as a WooCommerce product; each buyer gets a wallet card.', 'epasscard' ),
 				'icon'        => 'sell',
 				'modules'     => array( 'woocommerce-tickets', 'woocommerce-vouchers', 'woocommerce-product-cards' ),
+			),
+			'appointments' => array(
+				'label'       => __( 'Appointment cards', 'epasscard' ),
+				'description' => __( 'Clients get a wallet card for each appointment they book, with the date, time and place.', 'epasscard' ),
+				'icon'        => 'event_available',
+				'modules'     => array( 'amelia-appointments' ),
 			),
 			'forms'      => array(
 				'label'       => __( 'Cards from a form', 'epasscard' ),

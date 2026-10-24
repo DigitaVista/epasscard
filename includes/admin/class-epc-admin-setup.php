@@ -655,6 +655,12 @@ class EPC_Admin_Setup {
 			$lines[] = __( 'One card for each submission of a form that uses a card design. The ready-made design covers every form: turn it off on the Design page for forms that should not give cards, such as contact or newsletter forms.', 'epasscard' );
 			$lines[] = __( 'The card goes to the form\'s first Email field. A logged-in visitor\'s card is also linked to their account.', 'epasscard' );
 			$lines[] = __( 'EpassCard keeps only the values the card shows, so a card can be resent or retried. WordPress\'s Erase Personal Data tool removes them and voids the card.', 'epasscard' );
+		} elseif ( $module instanceof EPC_Module_Amelia_Bookings ) {
+			array_unshift(
+				$lines,
+				'person' === $module->cards_per() ? __( 'One card for each person booked.', 'epasscard' ) : __( 'One card for each booking, showing the number of people.', 'epasscard' )
+			);
+			$lines[] = __( 'The day after it ends, the card is expired.', 'epasscard' );
 		} elseif ( 'the-events-calendar' === $slug ) {
 			array_unshift( $lines, __( 'One ticket for each attendee.', 'epasscard' ) );
 		} elseif ( 'events-manager' === $slug ) {

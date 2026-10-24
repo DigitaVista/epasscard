@@ -183,6 +183,19 @@ function epc_is_ultimate_member_active() {
 }
 
 /**
+ * Whether Amelia (Lite or a paid plan) is installed and active.
+ *
+ * @return bool
+ */
+function epc_is_amelia_active() {
+	if ( defined( 'AMELIA_VERSION' ) && defined( 'AMELIA_PATH' ) ) {
+		return true;
+	}
+
+	return epc_is_plugin_active( 'ameliabooking/ameliabooking.php' );
+}
+
+/**
  * Whether WPForms (Lite or Pro) is installed and active.
  *
  * @return bool

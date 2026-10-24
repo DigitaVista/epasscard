@@ -463,6 +463,8 @@ class EPC_Frontend {
 			'ultimate-member'           => __( 'Membership', 'epasscard' ),
 			'wployalty'                 => __( 'Loyalty card', 'epasscard' ),
 			'wpforms'                   => __( 'Card', 'epasscard' ),
+			'amelia-appointments'       => __( 'Appointment', 'epasscard' ),
+			'amelia-events'             => __( 'Event ticket', 'epasscard' ),
 			'woocommerce-tickets'       => __( 'Ticket', 'epasscard' ),
 			'woocommerce-vouchers'      => __( 'Voucher', 'epasscard' ),
 			'woocommerce-product-cards' => __( 'Card', 'epasscard' ),
