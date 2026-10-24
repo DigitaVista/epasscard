@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Loyalty_Starter {
 
 	public const OPTION_KEY = 'epc_loyalty_starter_pack';
-	public const VERSION    = 3;
+	public const VERSION    = 4;
 
 	/**
 	 * Whether a seed is already in progress.
@@ -51,6 +51,9 @@ class EPC_Loyalty_Starter {
 		if ( self::stored_list_empty( EPC_Loyalty_Reward_Service::MILESTONES_OPTION, 'milestones' ) ) {
 			EPC_Loyalty_Reward_Service::save_milestones( self::milestones() );
 		}
+
+		// Starter names saved before version 4 hold the HTML-encoded currency symbol ("&#36;5 off").
+		self::decode_saved_names();
 
 		update_option( self::OPTION_KEY, self::VERSION, false );
 		self::$installing = false;
@@ -283,14 +286,48 @@ class EPC_Loyalty_Starter {
 	 *
 	 * @return string
 	 */
-	private static function currency_symbol() {
+	public static function currency_symbol() {
 		if ( function_exists( 'get_woocommerce_currency_symbol' ) ) {
-			$symbol = (string) get_woocommerce_currency_symbol();
+			// WooCommerce returns an HTML entity (e.g. "&#36;"); names are plain text shown on cards.
+			$symbol = html_entity_decode( (string) get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' );
 			if ( '' !== $symbol ) {
 				return $symbol;
 			}
 		}
 		return '$';
+	}
+
+	/**
+	 * Decode HTML entities in saved earning rule and reward names (plain text on cards and in
+	 * emails). Earlier starter names held the encoded currency symbol.
+	 *
+	 * @return void
+	 */
+	private static function decode_saved_names() {
+		$lists = array(
+			array( EPC_Loyalty_Rule_Service::OPTION_KEY, 'rules' ),
+			array( EPC_Loyalty_Reward_Service::MILESTONES_OPTION, 'milestones' ),
+		);
+		foreach ( $lists as $list ) {
+			$saved = get_option( $list[0], false );
+			if ( ! is_array( $saved ) || ! isset( $saved[ $list[1] ] ) || ! is_array( $saved[ $list[1] ] ) ) {
+				continue;
+			}
+			$changed = false;
+			foreach ( $saved[ $list[1] ] as $index => $item ) {
+				if ( ! is_array( $item ) || ! isset( $item['name'] ) || ! is_string( $item['name'] ) ) {
+					continue;
+				}
+				$decoded = html_entity_decode( $item['name'], ENT_QUOTES, 'UTF-8' );
+				if ( $decoded !== $item['name'] ) {
+					$saved[ $list[1] ][ $index ]['name'] = $decoded;
+					$changed                             = true;
+				}
+			}
+			if ( $changed ) {
+				update_option( $list[0], $saved );
+			}
+		}
 	}
 
 	/**

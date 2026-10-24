@@ -1335,6 +1335,52 @@ fieldset.epc-panel {
 	width: 32%;
 }
 
+/* ---------- Setup: rules to confirm ---------- */
+
+.epc-setup-rules {
+	margin: 0 0 10px;
+	padding: 12px 14px 4px;
+	border: 1px solid var(--epc-line);
+	border-radius: 8px;
+	min-inline-size: 0;
+}
+
+.epc-setup-rules legend {
+	padding: 0 6px;
+	font-size: 12px;
+	color: var(--epc-muted);
+}
+
+.epc-setup-rules__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	margin: 0 0 10px;
+}
+
+.epc-setup-rules__row > label:first-child {
+	font-weight: 600;
+}
+
+.epc-setup-rules__note {
+	flex-basis: 100%;
+}
+
+.epc-setup-status-rules {
+	max-width: 520px;
+}
+
+.epc-setup-status-rules caption {
+	padding: 0 0 6px;
+	text-align: left;
+	color: var(--epc-muted);
+}
+
+.epc-setup-status-rules th[scope="row"] {
+	font-weight: 600;
+}
+
 /* ---------- Cards: give cards to existing customers ---------- */
 
 .epc-existing {

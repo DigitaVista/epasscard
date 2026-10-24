@@ -45,6 +45,9 @@ if [ "$cards" = "4" ] && [ "$events" = "1" ]; then echo "PASS 4 parallel first c
 echo "== Home checklist and Try it"
 $WP eval-file "$HERE/test-onboarding.php" || status=1
 
+echo "== Setup: edit the rules before confirming"
+$WP eval-file "$HERE/test-setup-rules.php" || status=1
+
 echo "== Default design and Design: Applies to"
 $WP eval-file "$HERE/test-default-design.php" || status=1
 

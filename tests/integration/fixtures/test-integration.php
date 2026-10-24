@@ -82,6 +82,26 @@ if ( ! class_exists( 'EPC_Module_Test_Fixture' ) ) {
 		public function get_backfill_user_id( $source_id ) {
 			return absint( $source_id );
 		}
+		/**
+		 * Status rules when $GLOBALS['epc_test_statuses'] lists statuses (status => label).
+		 *
+		 * @inheritDoc
+		 */
+		public function has_pass_behavior_settings() {
+			return ! empty( $GLOBALS['epc_test_statuses'] );
+		}
+		/** @inheritDoc */
+		public function get_pass_behavior_statuses() {
+			return isset( $GLOBALS['epc_test_statuses'] ) ? (array) $GLOBALS['epc_test_statuses'] : array();
+		}
+		/** @inheritDoc */
+		public function get_status_rules_option_key() {
+			return 'epc_' . str_replace( '-', '_', $this->get_slug() ) . '_status_rules';
+		}
+		/** @inheritDoc */
+		public function get_default_status_rules() {
+			return array_fill_keys( array_keys( $this->get_pass_behavior_statuses() ), 'sync' );
+		}
 		/** @inheritDoc */
 		protected function register_event_hooks() {}
 	}
@@ -228,6 +248,7 @@ function epc_test_fixture_teardown() {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test cleanup.
 	$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE module = %s', EPC_DB::table_name(), $slug ) );
 	delete_option( 'epc_mappings_' . $slug );
+	delete_option( 'epc_' . str_replace( '-', '_', $slug ) . '_status_rules' );
 	foreach ( EPC_Pass_Issues::for_module( $slug ) as $issue ) {
 		EPC_Pass_Issues::clear( $slug, (string) $issue['source_id'] );
 	}
