@@ -170,6 +170,19 @@ function epc_is_simple_membership_active() {
 }
 
 /**
+ * Whether Ultimate Member is installed and active.
+ *
+ * @return bool
+ */
+function epc_is_ultimate_member_active() {
+	if ( defined( 'UM_PLUGIN' ) && function_exists( 'UM' ) ) {
+		return true;
+	}
+
+	return epc_is_plugin_active( 'ultimate-member/ultimate-member.php' );
+}
+
+/**
  * Whether The Events Calendar is installed and active.
  *
  * @return bool

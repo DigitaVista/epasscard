@@ -110,6 +110,8 @@ function epasscard_uninstall_site() {
 		'epc_wcs_status_rules',
 		'epc_yith_gift_cards_status_rules',
 		'epc_woocommerce_tickets_status_rules',
+		'epc_ultimate_member_status_rules',
+		'epc_um_role_ids',
 		'epc_woocommerce_vouchers_status_rules',
 		'epc_woocommerce_product_cards_status_rules',
 		// Loyalty.

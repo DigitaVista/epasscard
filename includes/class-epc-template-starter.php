@@ -199,6 +199,15 @@ class EPC_Template_Starter {
 					'id'      => 'membership_id',
 				)
 			),
+			'ultimate-member'           => self::membership_preset(
+				array(
+					'status'  => 'membership_status',
+					'plan'    => 'role_name',
+					'expires' => 'member_since',
+					'id'      => 'member_id',
+				),
+				__( 'Member since', 'epasscard' )
+			),
 			'woocommerce-subscriptions' => self::membership_preset(
 				array(
 					'status'  => 'subscription_status',

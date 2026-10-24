@@ -37,6 +37,9 @@ $WP eval-file "$HERE/test-gift-recipient.php" || status=1
 echo "== WooCommerce products with a wallet card (tickets, vouchers, cards)"
 $WP eval-file "$HERE/test-product-cards.php" || status=1
 
+echo "== Ultimate Member member cards"
+$WP eval-file "$HERE/test-ultimate-member.php" || status=1
+
 echo "== Account pages: Add to wallet (Paid Memberships Pro, Simple Membership)"
 $WP eval-file "$HERE/test-account-links.php" || status=1
 

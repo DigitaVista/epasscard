@@ -736,7 +736,7 @@ class EPC_Setup_Wizard {
 				'label'       => __( 'Membership or subscription cards', 'epasscard' ),
 				'description' => __( 'Issue a digital membership card when someone joins or renews.', 'epasscard' ),
 				'icon'        => 'badge',
-				'modules'     => array( 'memberpress', 'paid-memberships-pro', 'simple-membership', 'ultimate-membership-pro', 'woocommerce-subscriptions' ),
+				'modules'     => array( 'memberpress', 'paid-memberships-pro', 'simple-membership', 'ultimate-membership-pro', 'ultimate-member', 'woocommerce-subscriptions' ),
 			),
 			'events'     => array(
 				'label'       => __( 'Event tickets', 'epasscard' ),

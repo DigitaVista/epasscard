@@ -85,6 +85,15 @@ EpassCard ships with built-in integration modules. Each extends the same workflo
 - **Users list** (`ihc_manage` → Users): Pass actions column.
 - **Push reminders:** Before level expires (EpassCard daily cron + **Days before** setting).
 
+## Ultimate Member
+
+**Turn on:** Settings → Integrations.
+
+- **One member card per user**, with a design per role (Ultimate Member's priority role). Administrators get no card.
+- **When:** the account status decides: Approved creates the card; Inactive and Rejected void it; pending reviews and email confirmations wait (changeable per status). Deleting the user voids the card.
+- **Members find it** in a **Wallet card** tab on the Ultimate Member account page (shown only to members with a card), in the card email, and with the `[epc_my_passes]` shortcode.
+- **Existing members:** Cards → Give cards to existing customers (approved members of roles with a design).
+
 ## WooCommerce tickets, vouchers and product cards
 
 **Turn on:** Settings → Integrations (one integration per kind of card: tickets, vouchers, product cards). Needs only WooCommerce.

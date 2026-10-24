@@ -24,6 +24,7 @@ integration uses.
 | Events Manager | `events-manager` | Booking id |
 | PW Gift Cards | `pw-gift-cards` | Gift card id |
 | YITH Gift Cards | `yith-gift-cards` | Gift card post id |
+| Ultimate Member | `ultimate-member` | WordPress user id |
 | WooCommerce tickets | `woocommerce-tickets` | `i<order item id>_<unit>`, one per unit bought (`i57_2` = second ticket of line 57) |
 | WooCommerce vouchers | `woocommerce-vouchers` | `i<order item id>_<unit>` |
 | WooCommerce product cards | `woocommerce-product-cards` | `i<order item id>_<unit>` |
