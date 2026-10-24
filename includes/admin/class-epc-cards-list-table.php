@@ -146,30 +146,6 @@ class EPC_Cards_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * What the card shows now: points and tier for loyalty, else the plan, event or product.
-	 *
-	 * @param object     $item   Pass row.
-	 * @param EPC_Module $module Module.
-	 * @return string
-	 */
-	private function shows( $item, $module ) {
-		if ( 'woocommerce-loyalty' === (string) $item->module && class_exists( 'EPC_Loyalty_Account_Service' ) ) {
-			$account = EPC_Loyalty_Account_Service::get( (int) $item->user_id );
-			if ( ! $account ) {
-				return '';
-			}
-			$tier = EPC_Loyalty_Reward_Service::get_tier_progress( (int) $account->lifetime_points );
-			/* translators: %s: number of points */
-			$out = sprintf( _n( '%s point', '%s points', (int) $account->points_balance, 'epasscard' ), number_format_i18n( (int) $account->points_balance ) );
-			if ( ! empty( $tier['current']['name'] ) ) {
-				$out .= ' · ' . (string) $tier['current']['name'];
-			}
-			return $out;
-		}
-		return $module->get_entity_label( (int) $item->entity_id );
-	}
-
-	/**
 	 * Column output.
 	 *
 	 * @param object $item        Pass row.
@@ -197,7 +173,7 @@ class EPC_Cards_List_Table extends WP_List_Table {
 			case 'status':
 				return EPC_Pass_Status::render_status_html( $item );
 			case 'shows':
-				$shows = $this->shows( $item, $module );
+				$shows = EPC_Admin_Cards::shows( $item, $module );
 				return '' !== $shows ? esc_html( $shows ) : '&mdash;';
 			case 'updated_at':
 				$time = strtotime( (string) $item->updated_at );

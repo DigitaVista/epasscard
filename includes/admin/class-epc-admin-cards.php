@@ -21,6 +21,141 @@ class EPC_Admin_Cards {
 	 */
 	public static function init() {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 20 );
+		add_action( 'admin_post_epc_cards_export', array( __CLASS__, 'handle_export' ) );
+	}
+
+	/**
+	 * What a card shows now: points and tier for loyalty, else the plan, event or product.
+	 *
+	 * @param object     $item   Pass row.
+	 * @param EPC_Module $module Module.
+	 * @return string
+	 */
+	public static function shows( $item, $module ) {
+		if ( 'woocommerce-loyalty' === (string) $item->module && class_exists( 'EPC_Loyalty_Account_Service' ) ) {
+			$account = EPC_Loyalty_Account_Service::get( (int) $item->user_id );
+			if ( ! $account ) {
+				return '';
+			}
+			$tier = EPC_Loyalty_Reward_Service::get_tier_progress( (int) $account->lifetime_points );
+			/* translators: %s: number of points */
+			$out = sprintf( _n( '%s point', '%s points', (int) $account->points_balance, 'epasscard' ), number_format_i18n( (int) $account->points_balance ) );
+			if ( ! empty( $tier['current']['name'] ) ) {
+				$out .= ' · ' . (string) $tier['current']['name'];
+			}
+			return $out;
+		}
+		return $module->get_entity_label( (int) $item->entity_id );
+	}
+
+	/**
+	 * Admin-post: the cards of the current filters as CSV (at most 10,000 rows).
+	 *
+	 * @return void
+	 */
+	public static function handle_export() {
+		if ( ! epc_current_user_can_manage_passes() ) {
+			wp_die( esc_html__( 'Permission denied.', 'epasscard' ) );
+		}
+		check_admin_referer( 'epc_cards_export' );
+
+		$modules = self::modules();
+		$filters = self::filters( $modules );
+		$list    = '' !== $filters['module'] ? array( $filters['module'] ) : array_keys( $modules );
+
+		$user_ids = null;
+		if ( '' !== $filters['search'] ) {
+			$user_ids = get_users(
+				array(
+					'search'         => '*' . $filters['search'] . '*',
+					'search_columns' => array( 'user_login', 'user_email', 'display_name' ),
+					'fields'         => 'ID',
+					'number'         => 200,
+				)
+			);
+		}
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename=epasscard-cards-' . gmdate( 'Y-m-d-His' ) . '.csv' );
+
+		$output = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming CSV download.
+		if ( false === $output ) {
+			wp_die( esc_html__( 'Unable to start the export.', 'epasscard' ) );
+		}
+
+		$safe = array( 'EPC_Loyalty_Customer_Service', 'csv_safe_cell' );
+		fputcsv(
+			$output,
+			array_map(
+				$safe,
+				array(
+					__( 'Customer', 'epasscard' ),
+					__( 'Email', 'epasscard' ),
+					__( 'Card', 'epasscard' ),
+					__( 'Integration', 'epasscard' ),
+					__( 'Status', 'epasscard' ),
+					__( 'Shows', 'epasscard' ),
+					__( 'Record ID', 'epasscard' ),
+					__( 'Card ID', 'epasscard' ),
+					__( 'Card link', 'epasscard' ),
+					__( 'Last update', 'epasscard' ),
+				)
+			),
+			',',
+			'"',
+			'\\'
+		);
+
+		$page     = 1;
+		$exported = 0;
+		do {
+			$result = EPC_DB::query_all_passes(
+				array(
+					'modules'  => $list,
+					'view'     => $filters['view'],
+					'search'   => $filters['search'],
+					'user_ids' => $user_ids,
+					'page'     => $page,
+					'per_page' => 100,
+				)
+			);
+			foreach ( $result['items'] as $item ) {
+				$module = $modules[ (string) $item->module ];
+				$user   = (int) $item->user_id > 0 ? get_userdata( (int) $item->user_id ) : false;
+				$status = EPC_Pass_Status::get_display_status( $item );
+				$copy   = EPC_Jobs::get_copy( EPC_Jobs::get_job_for_module( (string) $item->module ) );
+				fputcsv(
+					$output,
+					array_map(
+						$safe,
+						array(
+							$user ? $user->display_name : '',
+							$user ? $user->user_email : '',
+							$copy['title'],
+							$module->get_label(),
+							$status['label'] . ( $status['is_test'] ? ' (' . __( 'Test', 'epasscard' ) . ')' : '' ),
+							self::shows( $item, $module ),
+							(string) $item->source_id,
+							(string) $item->pass_uid,
+							(string) $item->pass_link,
+							(string) $item->updated_at,
+						)
+					),
+					',',
+					'"',
+					'\\'
+				);
+				++$exported;
+				if ( $exported >= 10000 ) {
+					break 2;
+				}
+			}
+			++$page;
+		} while ( ( $page - 1 ) * 100 < (int) $result['total'] );
+
+		fclose( $output ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Streaming CSV download.
+		exit;
 	}
 
 	/**
@@ -83,10 +218,10 @@ class EPC_Admin_Cards {
 	 * @return array{module: string, view: string, search: string}
 	 */
 	private static function filters( array $modules ) {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filters.
-		$module = isset( $_GET['epc_module'] ) ? sanitize_key( wp_unslash( (string) $_GET['epc_module'] ) ) : '';
-		$view   = isset( $_GET['epc_view'] ) ? sanitize_key( wp_unslash( (string) $_GET['epc_view'] ) ) : 'all';
-		$search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : '';
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filters (the export checks its nonce first).
+		$module = isset( $_REQUEST['epc_module'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['epc_module'] ) ) : '';
+		$view   = isset( $_REQUEST['epc_view'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['epc_view'] ) ) : 'all';
+		$search = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( (string) $_REQUEST['s'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		return array(
@@ -180,6 +315,21 @@ class EPC_Admin_Cards {
 						<option value="test" <?php selected( $filters['view'], 'test' ); ?>><?php esc_html_e( 'Test cards', 'epasscard' ); ?></option>
 					</select>
 					<button type="submit" class="button"><?php esc_html_e( 'Filter', 'epasscard' ); ?></button>
+					<?php
+					$export_url = wp_nonce_url(
+						add_query_arg(
+							array(
+								'action'     => 'epc_cards_export',
+								'epc_module' => $filters['module'],
+								'epc_view'   => $filters['view'],
+								's'          => $filters['search'],
+							),
+							admin_url( 'admin-post.php' )
+						),
+						'epc_cards_export'
+					);
+					?>
+					<a class="button epc-cards__export" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export CSV', 'epasscard' ); ?></a>
 				</form>
 
 				<?php
