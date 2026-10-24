@@ -23,6 +23,7 @@
 				{ id: 'custom-modules', title: 'Custom modules', href: 'custom-modules.html' },
 				{ id: 'mapping-extensions', title: 'Mapping extensions', href: 'mapping-extensions.html' },
 				{ id: 'pass-email', title: 'Pass email API', href: 'pass-email.html' },
+				{ id: 'api', title: 'Card API (PHP and REST)', href: 'api.html' },
 				{ id: 'push-notifications', title: 'Push notifications', href: 'push-notifications.html' },
 				{ id: 'database', title: 'Database', href: 'database.html' }
 			]

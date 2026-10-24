@@ -736,3 +736,55 @@ function epc_register_module( $slug, $file, $class_name ) {
 		);
 	}
 }
+
+/**
+ * Create the wallet card for a record of an active integration, or update it when it exists
+ * (a voided card is made live again). Runs the integration's own sync: same design, same
+ * fields, never a second card.
+ *
+ * Example: epc_issue_pass( 'paid-memberships-pro', $membership_row_id, array( 'email' => true ) ).
+ *
+ * @param string               $module    Integration slug, e.g. paid-memberships-pro, woocommerce-loyalty.
+ * @param string|int           $source_id Record id used by the integration (membership row, subscription,
+ *                                        loyalty customer's user id, attendee, gift card …).
+ * @param array<string, mixed> $args      Optional: email (bool) – email the card link once.
+ * @return array<string, mixed>|\WP_Error Card data: module, source_id, entity_id, user_id, pass_uid,
+ *                                        pass_link, status, is_test, created_at, updated_at, created, emailed.
+ */
+function epc_issue_pass( $module, $source_id, array $args = array() ) {
+	return EPC_Developer_Api::issue( $module, $source_id, $args );
+}
+
+/**
+ * Update a record's existing card with the record's current values. Fails with
+ * epc_pass_missing when the record has no card.
+ *
+ * @param string     $module    Integration slug.
+ * @param string|int $source_id Record id.
+ * @return array<string, mixed>|\WP_Error Card data.
+ */
+function epc_update_pass( $module, $source_id ) {
+	return EPC_Developer_Api::update( $module, $source_id );
+}
+
+/**
+ * Void a record's card: it expires in Apple Wallet and Google Wallet and shows as revoked.
+ *
+ * @param string     $module    Integration slug.
+ * @param string|int $source_id Record id.
+ * @return array<string, mixed>|\WP_Error Card data.
+ */
+function epc_void_pass( $module, $source_id ) {
+	return EPC_Developer_Api::void( $module, $source_id );
+}
+
+/**
+ * A record's card data, or a WP_Error epc_pass_missing.
+ *
+ * @param string     $module    Integration slug.
+ * @param string|int $source_id Record id.
+ * @return array<string, mixed>|\WP_Error Card data.
+ */
+function epc_get_pass( $module, $source_id ) {
+	return EPC_Developer_Api::get( $module, $source_id );
+}

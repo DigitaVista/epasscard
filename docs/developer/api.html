@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Card API — EpassCard Docs</title>
+	<link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body class="doc-page" data-section="developer" data-page="api">
+	<header class="site-header">
+		<div class="site-header__inner">
+			<a href="../index.html" class="site-logo"><img src="https://epasscard.com/wp-content/uploads/2026/06/Epasscard-logo.webp" alt="EpassCard" class="site-logo__img" width="160" height="32"> <span class="site-logo__badge">Docs</span></a>
+			<button type="button" class="menu-toggle" aria-label="Open menu">☰</button>
+			<nav class="site-nav">
+				<a href="../index.html" class="site-nav__link">Home</a>
+				<a href="../user/getting-started.html" class="site-nav__link" data-nav="user">User Guide</a>
+				<a href="architecture.html" class="site-nav__link" data-nav="developer">Developer</a>
+				<a href="https://epasscard.com/" class="site-nav__link site-nav__cta" target="_blank" rel="noopener">epasscard.com</a>
+			</nav>
+			<button type="button" class="menu-toggle sidebar-toggle" aria-label="Open sidebar">☰</button>
+		</div>
+	</header>
+	<div class="sidebar-backdrop"></div>
+	<div class="doc-layout">
+		<aside class="doc-sidebar"></aside>
+		<main class="doc-main">
+			<article class="doc-content">
+				<nav class="doc-breadcrumb"><a href="../index.html">Docs</a><span>/</span><a href="architecture.html">Developer</a><span>/</span> Card API</nav>
+				<h1>Card API (PHP and REST)</h1>
+				<p class="doc-lead">Issue, update, void and read a wallet card for a record of an active integration from your own code, or over the WordPress REST API. Available since 1.2.0.</p>
+				<p>Each call runs the integration's own sync, so the card gets the same design and field values as the automatic flow, and a record never gets a second card. Every card counts toward the EpassCard plan like any other.</p>
+				<h2>Which record?</h2>
+				<p>A card belongs to one record of an integration: the integration slug plus the record id that integration uses.</p>
+				<div class="doc-table-wrap">
+				<table class="doc-table">
+					<thead><tr><th>Integration</th><th>Slug</th><th>Record id</th></tr></thead>
+					<tbody>
+						<tr><td>WooCommerce Loyalty</td><td><code>woocommerce-loyalty</code></td><td>The customer's WordPress user id</td></tr>
+						<tr><td>Paid Memberships Pro</td><td><code>paid-memberships-pro</code></td><td>Row id in <code>pmpro_memberships_users</code></td></tr>
+						<tr><td>MemberPress</td><td><code>memberpress</code></td><td><code>sub_&lt;subscription id&gt;</code> or <code>txn_&lt;transaction id&gt;</code></td></tr>
+						<tr><td>Simple Membership</td><td><code>simple-membership</code></td><td>Member id</td></tr>
+						<tr><td>Ultimate Membership Pro</td><td><code>ultimate-membership-pro</code></td><td>Row id in <code>ihc_user_levels</code></td></tr>
+						<tr><td>WooCommerce Subscriptions</td><td><code>woocommerce-subscriptions</code></td><td>Subscription id</td></tr>
+						<tr><td>The Events Calendar</td><td><code>the-events-calendar</code></td><td>Attendee id</td></tr>
+						<tr><td>Events Manager</td><td><code>events-manager</code></td><td>Booking id</td></tr>
+						<tr><td>PW Gift Cards</td><td><code>pw-gift-cards</code></td><td>Gift card id</td></tr>
+						<tr><td>YITH Gift Cards</td><td><code>yith-gift-cards</code></td><td>Gift card post id</td></tr>
+					</tbody>
+				</table>
+				</div>
+				<p>The integration must be turned on and its plugin active, and the site must be connected to EpassCard. Record ids are digits, or a lowercase prefix, an underscore and digits (<code>sub_12</code>).</p>
+				<h2>PHP</h2>
+				<div class="code-block">
+					<div class="code-block__header"><span class="code-block__lang">PHP</span><button type="button" class="code-block__copy">Copy</button></div>
+					<pre>// Create the card, or update it when it exists (a voided card is made live again).
+				// 'email' =&gt; true sends the card link once (Settings → Emails), instead of the automatic email.
+				$card = epc_issue_pass( 'paid-memberships-pro', $membership_row_id, array( 'email' =&gt; true ) );
+				
+				// Update the existing card with the record's current values. Error when there is no card.
+				$card = epc_update_pass( 'paid-memberships-pro', $membership_row_id );
+				
+				// Void: the card expires in Apple Wallet and Google Wallet and shows as revoked.
+				$card = epc_void_pass( 'paid-memberships-pro', $membership_row_id );
+				
+				// Read.
+				$card = epc_get_pass( 'paid-memberships-pro', $membership_row_id );
+				
+				if ( is_wp_error( $card ) ) {
+				    error_log( $card-&gt;get_error_code() . ': ' . $card-&gt;get_error_message() );
+				}</pre>
+				</div>
+				<p>Each function returns an array or a <code>WP_Error</code>:</p>
+				<div class="doc-table-wrap">
+				<table class="doc-table">
+					<thead><tr><th>Key</th><th>Type</th><th>Notes</th></tr></thead>
+					<tbody>
+						<tr><td><code>module</code></td><td>string</td><td>Integration slug</td></tr>
+						<tr><td><code>source_id</code></td><td>string</td><td>Record id</td></tr>
+						<tr><td><code>entity_id</code></td><td>int</td><td>Plan, level, event or product id</td></tr>
+						<tr><td><code>user_id</code></td><td>int</td><td>WordPress user the card belongs to (0 = none)</td></tr>
+						<tr><td><code>pass_uid</code></td><td>string</td><td>Card id at EpassCard</td></tr>
+						<tr><td><code>pass_link</code></td><td>string</td><td>Link that adds the card to Apple Wallet or Google Wallet</td></tr>
+						<tr><td><code>status</code></td><td>string</td><td><code>active</code> or <code>revoked</code></td></tr>
+						<tr><td><code>is_test</code></td><td>bool</td><td>A test card from the Try it step</td></tr>
+						<tr><td><code>created_at</code>, <code>updated_at</code></td><td>string</td><td>Database time</td></tr>
+						<tr><td><code>created</code></td><td>bool</td><td><code>epc_issue_pass()</code> only: this call created the card</td></tr>
+						<tr><td><code>emailed</code></td><td>bool</td><td><code>epc_issue_pass()</code> only: the email went out (<code>email_error</code> holds the reason when not)</td></tr>
+					</tbody>
+				</table>
+				</div>
+				<p>The functions do not check the current user's capabilities; check them in your code.</p>
+				<h2>REST</h2>
+				<p>Namespace <code>epasscard/v1</code>. Requests need a user who can manage cards (administrators, and staff with the EpassCard staff capability): use an application password or the REST nonce.</p>
+				<div class="doc-table-wrap">
+				<table class="doc-table">
+					<thead><tr><th>Method</th><th>Route</th><th>Does</th></tr></thead>
+					<tbody>
+						<tr><td><code>POST</code></td><td><code>/passes</code> (body: <code>module</code>, <code>source_id</code>, optional <code>email</code>)</td><td>Issue. <code>201</code> when the card was created, <code>200</code> when it was updated</td></tr>
+						<tr><td><code>GET</code></td><td><code>/passes/{module}/{source_id}</code></td><td>Read</td></tr>
+						<tr><td><code>PUT</code>, <code>PATCH</code></td><td><code>/passes/{module}/{source_id}</code></td><td>Update</td></tr>
+						<tr><td><code>DELETE</code></td><td><code>/passes/{module}/{source_id}</code></td><td>Void</td></tr>
+					</tbody>
+				</table>
+				</div>
+				<div class="code-block">
+					<div class="code-block__header"><span class="code-block__lang">Shell</span><button type="button" class="code-block__copy">Copy</button></div>
+					<pre>curl -u "admin:APPLICATION PASSWORD" -X POST \
+				  https://example.com/wp-json/epasscard/v1/passes \
+				  -d module=woocommerce-loyalty -d source_id=42 -d email=true</pre>
+				</div>
+				<p>Errors use the same codes as PHP, with these statuses:</p>
+				<div class="doc-table-wrap">
+				<table class="doc-table">
+					<thead><tr><th>Code</th><th>Status</th></tr></thead>
+					<tbody>
+						<tr><td><code>epc_unknown_integration</code>, <code>epc_invalid_source</code>, <code>epc_pass_missing</code></td><td>404</td></tr>
+						<tr><td><code>epc_invalid_source_id</code></td><td>400</td></tr>
+						<tr><td><code>epc_no_mapping</code> (no design for the plan, event or product)</td><td>409</td></tr>
+						<tr><td><code>epc_no_key</code> (not connected)</td><td>503</td></tr>
+						<tr><td><code>epc_http</code>, <code>epc_http_transport</code>, <code>epc_create_failed</code>, <code>epc_update_failed</code>, <code>epc_expire_failed</code>, <code>epc_bad_json</code> (EpassCard answered with an error or could not be reached)</td><td>502</td></tr>
+						<tr><td><code>epc_timeout</code></td><td>504</td></tr>
+						<tr><td>Anything else about the record (no user, no fields …)</td><td>400</td></tr>
+					</tbody>
+				</table>
+				</div>
+
+				<div class="doc-pager"></div>
+			</article>
+		</main>
+	</div>
+	<footer class="site-footer"><div class="site-footer__inner"><span class="site-footer__brand">EpassCard WordPress Plugin</span><span>© 2026 · <a href="https://epasscard.com/" target="_blank" rel="noopener">epasscard.com</a></span></div></footer>
+	<script src="../assets/js/docs.js"></script>
+</body>
+</html>

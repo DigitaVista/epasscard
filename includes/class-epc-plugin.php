@@ -42,6 +42,7 @@ require_once EPC_PLUGIN_DIR . 'includes/class-epc-jobs.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-status.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-retry-failed.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-existing-customers.php';
+require_once EPC_PLUGIN_DIR . 'includes/class-epc-developer-api.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-template-starter.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-default-design.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-email.php';
@@ -131,6 +132,7 @@ final class EPC_Plugin {
 		EPC_Pass_Status::init();
 		EPC_Retry_Failed::init();
 		EPC_Existing_Customers::init();
+		EPC_Developer_Api::init();
 		EPC_Template_Starter::init();
 		EPC_Default_Design::init();
 

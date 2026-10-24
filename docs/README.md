@@ -35,6 +35,7 @@ Markdown sources remain in this folder for editing and version control.
 | [Custom modules](developer/custom-modules.md) | Add new integrations |
 | [Mapping extensions](developer/mapping-extensions.md) | Extra source fields and mapping modes |
 | [Pass email API](developer/pass-email.md) | Programmatic email delivery |
+| [Card API](developer/api.md) | Issue, update, void and read cards from PHP or REST |
 | [Database](developer/database.md) | Custom tables and options |
 | [Push notifications](developer/push-notifications.md) | Push API, cron, module extension |
 | [Loyalty template API v2](developer/loyalty-template-api-v2.md) | Reviewed live v2 create/read + specified update contract |

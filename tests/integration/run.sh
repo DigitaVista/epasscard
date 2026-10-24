@@ -90,6 +90,9 @@ EPC_TEST_MODULE=$slug EPC_EXISTING_STEP=teardown $WP eval-file "$HERE/test-exist
 rm -f "$log"
 if [ "$got" = "10 10 10 10 done" ] && [ "$mails" = "10" ] && [ "$total" = "10" ]; then echo "PASS 3 parallel runners: 10 cards, 10 emails to 10 customers"; else echo "FAIL parallel runners: expected '10 10 10 10 done' and 10 emails to 10 customers, got '$got', $total emails to $mails customers"; status=1; fi
 
+echo "== Card API (PHP and REST)"
+$WP eval-file "$HERE/test-developer-api.php" || status=1
+
 echo "== Retry failed cards"
 $WP eval-file "$HERE/test-retry-failed.php" || status=1
 

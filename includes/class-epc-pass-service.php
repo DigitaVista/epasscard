@@ -255,6 +255,15 @@ class EPC_Pass_Service {
 
 		if ( is_wp_error( $result ) ) {
 			self::$failed_in_request[ $failure_key ] = $result;
+		} else {
+			// The record changed (a card was created, updated or restored): earlier failures of
+			// it in this request no longer hold (e.g. "no pass yet" before the card was issued).
+			$prefix = $module . '|' . $source_id . '|';
+			foreach ( array_keys( self::$failed_in_request ) as $key ) {
+				if ( 0 === strpos( $key, $prefix ) ) {
+					unset( self::$failed_in_request[ $key ] );
+				}
+			}
 		}
 
 		if ( class_exists( 'EPC_Pass_Issues' ) ) {
