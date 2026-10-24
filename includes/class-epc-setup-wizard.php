@@ -742,7 +742,7 @@ class EPC_Setup_Wizard {
 				'label'       => __( 'Event tickets', 'epasscard' ),
 				'description' => __( 'Send attendees a wallet ticket when they register or book.', 'epasscard' ),
 				'icon'        => 'confirmation_number',
-				'modules'     => array( 'the-events-calendar', 'events-manager', 'amelia-events' ),
+				'modules'     => array( 'the-events-calendar', 'events-manager', 'amelia-events', 'tickera' ),
 			),
 			'gift-cards' => array(
 				'label'       => __( 'Gift cards', 'epasscard' ),

@@ -196,6 +196,19 @@ function epc_is_amelia_active() {
 }
 
 /**
+ * Whether Tickera is installed and active.
+ *
+ * @return bool
+ */
+function epc_is_tickera_active() {
+	if ( class_exists( '\\Tickera\\TC' ) ) {
+		return true;
+	}
+
+	return epc_is_plugin_active( 'tickera-event-ticketing-system/tickera.php' );
+}
+
+/**
  * Whether WPForms (Lite or Pro) is installed and active.
  *
  * @return bool

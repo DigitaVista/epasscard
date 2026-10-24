@@ -118,6 +118,22 @@ EpassCard ships with built-in integration modules. Each extends the same workflo
 - **Recurring events** (Amelia's paid plans) share the design of their first date.
 - **Existing bookings:** Cards → Give cards to existing customers (upcoming bookings whose status gives a card).
 
+## Tickera
+
+**Turn on:** Settings → Integrations, or Home → Event tickets. A design per event (Design → Tickera).
+
+- **One wallet ticket per Tickera ticket** (each attendee). The ready-made design puts Tickera's ticket code in the QR code, so Tickera's check-in apps and its Barcode Reader scan the wallet ticket.
+- **When:** Paid creates the ticket; Cancelled, Refunded and Fraud void it; Received (waiting for an offline payment) waits (changeable per status). Tickera's Free Orders gateway leaves free orders as Received unless its "Automatic payment status" is set to Order Paid. Trashing or deleting the order or the attendee voids the ticket.
+- **Who gets it:** the attendee's email when Tickera asks for it (Tickera → Settings → "Show attendee email field"), else the buyer's email. The ticket is linked to the WordPress account with that email, if there is one.
+- **Check-in:** the **Checked in** field shows the date and time of the last check-in ("Not yet" before). It updates only when the design shows the field.
+- **Event changes:** a new date, place or name (or a renamed ticket type) refreshes the event's tickets in the background.
+- **The day after the event ends,** the daily check expires its tickets.
+- **Order page:** Tickera's order details page gets a **Wallet** column with an Add to wallet link per ticket.
+- **Fields:** attendee name and email, buyer name and email, event, start (date and time), date, time, end, location, event page, ticket type, ticket price, ticket code, order number, order status, checked in.
+- **Push reminders:** before it starts (days before, set on the integration).
+- **Existing tickets:** Cards → Give cards to existing customers (tickets of upcoming events whose order status gives a card).
+- Tickera's own checkout only: orders placed through Bridge for WooCommerce are not covered.
+
 ## WPForms
 
 **Turn on:** Settings → Integrations, or Home → Cards from a form. Works with WPForms Lite and Pro.

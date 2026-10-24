@@ -263,6 +263,22 @@ class EPC_Template_Starter {
 				__( 'Ticket No', 'epasscard' ),
 				'2'
 			),
+			'tickera'                   => self::event_preset(
+				array(
+					'date'   => 'event_start',
+					'event'  => 'event_name',
+					'ticket' => 'ticket_type',
+					'venue'  => 'event_location',
+					'id'     => 'ticket_code',
+				),
+				array(
+					self::field( 'Checked in', __( 'Checked in', 'epasscard' ), 'checked_in', false, false, __( 'Not yet', 'epasscard' ) ),
+					self::field( 'Order', __( 'Order', 'epasscard' ), 'order_number', false, false, '3BA24AEFB4' ),
+					self::field( 'Event page', __( 'Event page', 'epasscard' ), 'event_url', false, false, 'https://example.com/event' ),
+				),
+				__( 'Ticket', 'epasscard' ),
+				__( 'Ticket No', 'epasscard' )
+			),
 			'amelia-appointments'       => array(
 				'type'      => 'appointment',
 				'card_type' => 'Event',

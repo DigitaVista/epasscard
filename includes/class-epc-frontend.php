@@ -465,6 +465,7 @@ class EPC_Frontend {
 			'wpforms'                   => __( 'Card', 'epasscard' ),
 			'amelia-appointments'       => __( 'Appointment', 'epasscard' ),
 			'amelia-events'             => __( 'Event ticket', 'epasscard' ),
+			'tickera'                   => __( 'Event ticket', 'epasscard' ),
 			'woocommerce-tickets'       => __( 'Ticket', 'epasscard' ),
 			'woocommerce-vouchers'      => __( 'Voucher', 'epasscard' ),
 			'woocommerce-product-cards' => __( 'Card', 'epasscard' ),

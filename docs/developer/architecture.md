@@ -81,7 +81,8 @@ epasscard/
 │   ├── module-wployalty.php
 │   ├── module-wpforms.php
 │   ├── abstract-module-amelia.php
-│   └── module-amelia-appointments.php, module-amelia-events.php
+│   ├── module-amelia-appointments.php, module-amelia-events.php
+│   └── module-tickera.php
 ├── admin/
 │   ├── js/
 │   ├── css/

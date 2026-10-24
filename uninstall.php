@@ -33,6 +33,7 @@ function epasscard_uninstall_cron_hooks() {
 		'epc_retry_pass_revoke',
 		'epc_retry_failed_batch',
 		'epc_existing_customers_batch',
+		'epc_tickera_refresh_event',
 	);
 }
 
@@ -116,6 +117,7 @@ function epasscard_uninstall_site() {
 		'epc_amelia_appointments_cards_per',
 		'epc_amelia_events_status_rules',
 		'epc_amelia_events_cards_per',
+		'epc_tickera_status_rules',
 		'epc_um_role_ids',
 		'epc_woocommerce_vouchers_status_rules',
 		'epc_woocommerce_product_cards_status_rules',

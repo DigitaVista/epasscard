@@ -661,6 +661,10 @@ class EPC_Admin_Setup {
 				'person' === $module->cards_per() ? __( 'One card for each person booked.', 'epasscard' ) : __( 'One card for each booking, showing the number of people.', 'epasscard' )
 			);
 			$lines[] = __( 'The day after it ends, the card is expired.', 'epasscard' );
+		} elseif ( 'tickera' === $slug ) {
+			array_unshift( $lines, __( 'One ticket for each attendee. Its barcode can carry the Tickera ticket code, so Tickera\'s check-in apps scan it.', 'epasscard' ) );
+			$lines[] = __( 'The ticket goes to the attendee\'s email when Tickera asks for it, else to the buyer.', 'epasscard' );
+			$lines[] = __( 'The day after the event ends, the ticket is expired.', 'epasscard' );
 		} elseif ( 'the-events-calendar' === $slug ) {
 			array_unshift( $lines, __( 'One ticket for each attendee.', 'epasscard' ) );
 		} elseif ( 'events-manager' === $slug ) {

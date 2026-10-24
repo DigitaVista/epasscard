@@ -62,6 +62,7 @@ class EPC_Module_Loader {
 				'wpforms'                   => 'module-wpforms.php',
 				'amelia-appointments'       => 'module-amelia-appointments.php',
 				'amelia-events'             => 'module-amelia-events.php',
+				'tickera'                   => 'module-tickera.php',
 			)
 		);
 	}
@@ -209,6 +210,7 @@ class EPC_Module_Loader {
 				'wpforms'                   => 'EPC_Module_WPForms',
 				'amelia-appointments'       => 'EPC_Module_Amelia_Appointments',
 				'amelia-events'             => 'EPC_Module_Amelia_Events',
+				'tickera'                   => 'EPC_Module_Tickera',
 			)
 		);
 

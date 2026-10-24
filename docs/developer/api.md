@@ -28,6 +28,7 @@ integration uses.
 | WPLoyalty | `wployalty` | Row id in `wlr_users` (WPLoyalty's customer table) |
 | Amelia appointments | `amelia-appointments` | Amelia booking id; with one card per person `p<booking id>_<n>` |
 | Amelia events | `amelia-events` | Amelia booking id; with one card per person `p<booking id>_<n>` |
+| Tickera | `tickera` | Tickera ticket (attendee) post id (`tc_tickets_instances`) |
 | WPForms | `wpforms` | Row id in `epc_form_submissions` (EpassCard's copy of the submission) |
 | WooCommerce tickets | `woocommerce-tickets` | `i<order item id>_<unit>`, one per unit bought (`i57_2` = second ticket of line 57) |
 | WooCommerce vouchers | `woocommerce-vouchers` | `i<order item id>_<unit>` |
