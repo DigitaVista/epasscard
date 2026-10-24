@@ -6,6 +6,7 @@
 	}
 
 	var CUSTOM_MODE = 'custom';
+	var USER_FIELD_MODE = 'user_meta';
 	var SOURCE_MODE = 'source';
 
 	var state = {
@@ -75,6 +76,23 @@
 		$row.find('.epc-source-select').toggle(isSource);
 		$row.find('.epc-custom-value').toggle(isCustom);
 		$row.find('.epc-mode-value').toggle(!isSource && !isCustom);
+		// "User profile field": suggest the profile field names of this site.
+		var isUserField = mode === USER_FIELD_MODE;
+		$row.find('.epc-mode-value')
+			.attr('placeholder', isUserField ? (epcAdmin.i18n.userFieldPlaceholder || 'member_id') : (epcAdmin.i18n.modeValuePlaceholder || 'Value'))
+			.attr('list', isUserField ? 'epc-user-fields' : null);
+		$row.find('.epc-user-field-hint').toggle(isUserField);
+	}
+
+	function ensureUserFieldList() {
+		if (document.getElementById('epc-user-fields') || !Array.isArray(epcAdmin.userFields)) {
+			return;
+		}
+		var $list = $('<datalist id="epc-user-fields"></datalist>');
+		epcAdmin.userFields.forEach(function (key) {
+			$list.append($('<option></option>').val(String(key)));
+		});
+		$('body').append($list);
 	}
 
 	function openModal(entityId, entityLabel) {
@@ -306,8 +324,11 @@
 				.attr('placeholder', epcAdmin.i18n.modeValuePlaceholder || 'Value')
 				.val(saved.modeValue);
 
-			controls.append(modeSelect, sourceSelect, customInput, modeValueInput);
+			var userFieldHint = $('<p class="description epc-user-field-hint"></p>').text(epcAdmin.i18n.userFieldHint || '').hide();
+
+			controls.append(modeSelect, sourceSelect, customInput, modeValueInput, userFieldHint);
 			row.append(controls);
+			ensureUserFieldList();
 			$wrap.append(row);
 			toggleMappingRow(row);
 		});
@@ -1055,6 +1076,9 @@
 				}
 
 				var modeValue = $.trim(String($(this).find('.epc-mode-value').val() || ''));
+				if (mode === USER_FIELD_MODE && !modeValue) {
+					return;
+				}
 				fieldMapping[uid] = { type: mode, value: modeValue };
 			});
 

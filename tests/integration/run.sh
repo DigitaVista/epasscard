@@ -55,6 +55,9 @@ $WP eval-file "$HERE/test-amelia.php" || status=1
 echo "== Tickera event tickets"
 $WP eval-file "$HERE/test-tickera.php" || status=1
 
+echo "== User profile fields on cards"
+$WP eval-file "$HERE/test-user-fields.php" || status=1
+
 echo "== Support chat (Chat with us)"
 $WP eval-file "$HERE/test-support-chat.php" || status=1
 

@@ -52,6 +52,7 @@ require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-email.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-frontend.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-pass-notifications.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-user-pass-sync.php';
+require_once EPC_PLUGIN_DIR . 'includes/class-epc-user-fields.php';
 require_once EPC_PLUGIN_DIR . 'includes/epc-dependencies.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-admin-app.php';
 require_once EPC_PLUGIN_DIR . 'includes/admin/class-epc-plan.php';
@@ -131,6 +132,7 @@ final class EPC_Plugin {
 		EPC_Connection::init();
 		EPC_Connection::schedule_cron();
 		EPC_User_Pass_Sync::init();
+		EPC_User_Fields::init();
 		EPC_Pass_Notifications::init();
 		EPC_Pass_Notifications::schedule_cron();
 		EPC_Pass_Issues::init();

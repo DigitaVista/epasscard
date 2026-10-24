@@ -153,6 +153,17 @@ class EPC_Pass_Service {
 			);
 		}
 
+		if ( EPC_User_Fields::MODE === $type ) {
+			$key = isset( $entry['value'] ) ? trim( sanitize_text_field( (string) $entry['value'] ) ) : '';
+			if ( '' === $key || EPC_User_Fields::is_blocked( $key ) ) {
+				return null;
+			}
+			return array(
+				'type'  => EPC_User_Fields::MODE,
+				'value' => $key,
+			);
+		}
+
 		if ( 'source' !== $type ) {
 			$value = isset( $entry['value'] ) ? sanitize_text_field( (string) $entry['value'] ) : '';
 			return array(
@@ -182,6 +193,11 @@ class EPC_Pass_Service {
 	public static function resolve_mapped_value( array $entry, array $source_values ) {
 		if ( 'custom' === $entry['type'] ) {
 			return isset( $entry['value'] ) ? (string) $entry['value'] : '';
+		}
+
+		if ( EPC_User_Fields::MODE === $entry['type'] ) {
+			$key = EPC_User_Fields::VALUE_PREFIX . trim( (string) ( $entry['value'] ?? '' ) );
+			return isset( $source_values[ $key ] ) ? (string) $source_values[ $key ] : '';
 		}
 
 		if ( 'source' !== $entry['type'] ) {
@@ -314,7 +330,9 @@ class EPC_Pass_Service {
 	 * @return true|\WP_Error
 	 */
 	private static function run_sync_pass( $module, $source_id, $entity_id, $user_id, array $mapping, array $source_values, $mode = 'sync' ) {
-		$mode = sanitize_key( (string) $mode );
+		// Profile fields the design shows ("User profile field" mode), from the card holder's account.
+		$source_values = EPC_User_Fields::attach( $mapping, $source_values, (int) $user_id );
+		$mode          = sanitize_key( (string) $mode );
 		if ( ! in_array( $mode, array( 'sync', 'create', 'update' ), true ) ) {
 			$mode = 'sync';
 		}

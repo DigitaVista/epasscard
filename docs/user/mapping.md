@@ -13,6 +13,7 @@ Mapping connects a membership plan or subscription product to an EpassCard **pas
 2. **Map fields** — For each pass field, choose:
    - **Source field** — Pull value from membership/subscription data (name, email, expiry, etc.).
    - **Custom value** — Fixed text for every pass on this plan.
+   - **User profile field** — Any field of the card holder's WordPress profile (user meta), for example a member ID another plugin stores. Type the field name (suggestions list the fields used on your site), such as `member_id` or `billing_phone`. `user_email`, `display_name`, `user_login`, `user_url`, `user_registered` and `user_id` work too. Cards without a WordPress account (guests) leave the field out. Fields holding passwords, tokens, keys, sessions or roles are refused. When the field changes on a profile, that person's cards update within a minute.
 3. **Save mapping** — Stored in WordPress options per entity id.
 
 ## Source fields

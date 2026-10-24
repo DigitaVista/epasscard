@@ -19,7 +19,7 @@ Populate values in your module by merging into `$source_values` before `EPC_Pass
 
 ## Add mapping modes
 
-Default modes: `source`, `custom`.
+Default modes: `source`, `custom`, `user_meta` ("User profile field": `{ "type": "user_meta", "value": "<meta key>" }`, resolved from the card's WordPress user by `EPC_User_Fields`; secret keys are refused).
 
 ```php
 add_filter( 'epc_mapping_modes', function ( $modes, $slug, $module ) {

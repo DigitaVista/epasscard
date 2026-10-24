@@ -69,8 +69,9 @@ abstract class EPC_Module {
 	 */
 	public function get_mapping_modes() {
 		$modes = array(
-			'source' => __( 'Source field', 'epasscard' ),
-			'custom' => __( 'Custom value', 'epasscard' ),
+			'source'               => __( 'Source field', 'epasscard' ),
+			'custom'               => __( 'Custom value', 'epasscard' ),
+			EPC_User_Fields::MODE  => __( 'User profile field', 'epasscard' ),
 		);
 
 		/**
@@ -1270,6 +1271,8 @@ abstract class EPC_Module {
 					'mappingCustom'     => __( 'Custom value', 'epasscard' ),
 					'customPlaceholder' => __( 'Enter a fixed value', 'epasscard' ),
 					'modeValuePlaceholder' => __( 'Value for custom mode', 'epasscard' ),
+					'userFieldPlaceholder' => __( 'Profile field name, e.g. member_id', 'epasscard' ),
+					'userFieldHint'        => __( 'From the card holder\'s WordPress profile (user meta). Left out for guests.', 'epasscard' ),
 					'noFields'          => __( 'No pass fields found for this template.', 'epasscard' ),
 					'refreshTemplates'  => __( 'Refresh template list', 'epasscard' ),
 					'templatesRefreshed'=> __( 'Template list refreshed.', 'epasscard' ),
@@ -1301,6 +1304,7 @@ abstract class EPC_Module {
 		if ( $include_mapping ) {
 			$localize['sourceFields']  = $this->get_mapping_source_fields();
 			$localize['mappingModes']  = $this->get_mapping_modes();
+			$localize['userFields']    = EPC_User_Fields::suggestions();
 		}
 
 		wp_localize_script( 'epc-admin', 'epcAdmin', $localize );

@@ -83,7 +83,8 @@ class EPC_Test_Cards {
 			return $existing;
 		}
 
-		$fields = EPC_Pass_Service::build_create_fields( $mapping, self::sample_values( $module ), $slug );
+		// Profile fields show the values of your own profile on the test card.
+		$fields = EPC_Pass_Service::build_create_fields( $mapping, EPC_User_Fields::attach( $mapping, self::sample_values( $module ), get_current_user_id() ), $slug );
 		$fields = self::make_unique_fields_unique( $fields, $mapping );
 		if ( empty( $fields ) ) {
 			return new WP_Error( 'epc_no_fields', __( 'No mapped fields to send.', 'epasscard' ) );
