@@ -1357,6 +1357,19 @@ class EPC_DB {
 	}
 
 	/**
+	 * Whole days since the first real (non-test) card was created (database clock), or null
+	 * when there is none.
+	 *
+	 * @return int|null
+	 */
+	public static function first_real_pass_age_days() {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table read; must be fresh.
+		$days = $wpdb->get_var( $wpdb->prepare( "SELECT DATEDIFF( NOW(), MIN(created_at) ) FROM %i WHERE is_test = 0 AND pass_uid <> ''", self::table_name() ) );
+		return null === $days ? null : max( 0, (int) $days );
+	}
+
+	/**
 	 * Real (non-test) passes created in the last N days, for every integration.
 	 *
 	 * Compared with the database clock, which also fills created_at.

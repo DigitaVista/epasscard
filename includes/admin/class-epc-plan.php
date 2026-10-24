@@ -51,6 +51,79 @@ class EPC_Plan {
 	}
 
 	/**
+	 * Days of recent activity the forecast looks at.
+	 */
+	const FORECAST_DAYS = 30;
+
+	/**
+	 * Plain-language forecast for Settings → Account & plan: "4 left, about 2 days at this
+	 * rate". The rate is real cards created on this site over the last 30 days (or since the
+	 * first card, when that is more recent). Empty when the plan limit is unknown.
+	 *
+	 * @return string
+	 */
+	public static function get_forecast() {
+		$left = self::cards_left();
+		if ( null === $left ) {
+			return '';
+		}
+
+		$window  = self::FORECAST_DAYS;
+		$created = 0;
+		if ( $left > 0 ) {
+			$age = EPC_DB::first_real_pass_age_days();
+			if ( null !== $age ) {
+				$window  = min( self::FORECAST_DAYS, max( 1, $age ) );
+				$created = EPC_DB::count_real_passes_last_days( $window );
+			}
+		}
+
+		return self::forecast_text( $left, $created, $window );
+	}
+
+	/**
+	 * Forecast sentence from the numbers.
+	 *
+	 * @param int $left    Cards left on the plan.
+	 * @param int $created Real cards created in the window.
+	 * @param int $window  Window length in days.
+	 * @return string
+	 */
+	public static function forecast_text( $left, $created, $window ) {
+		$left    = max( 0, (int) $left );
+		$created = max( 0, (int) $created );
+		$window  = max( 1, (int) $window );
+
+		if ( 0 === $left ) {
+			return __( 'No cards left. New cards are not created until you change the plan.', 'epasscard' );
+		}
+
+		/* translators: %s: number of cards left on the plan */
+		$left_text = sprintf( _n( '%s card left', '%s cards left', $left, 'epasscard' ), number_format_i18n( $left ) );
+		if ( 0 === $created ) {
+			return $left_text;
+		}
+
+		$days = $left / ( $created / $window );
+		if ( $days < 1 ) {
+			$when = __( 'less than a day', 'epasscard' );
+		} elseif ( $days < 14 ) {
+			$whole = (int) round( $days );
+			/* translators: %s: number of days */
+			$when = sprintf( _n( 'about %s day', 'about %s days', $whole, 'epasscard' ), number_format_i18n( $whole ) );
+		} elseif ( $days <= 60 ) {
+			$weeks = (int) round( $days / 7 );
+			/* translators: %s: number of weeks */
+			$when = sprintf( _n( 'about %s week', 'about %s weeks', $weeks, 'epasscard' ), number_format_i18n( $weeks ) );
+		} else {
+			$when = __( 'more than two months', 'epasscard' );
+		}
+
+		/* translators: 1: "4 cards left", 2: "about 2 days" */
+		return sprintf( __( '%1$s, %2$s at this rate.', 'epasscard' ), $left_text, $when );
+	}
+
+	/**
 	 * Cards left on the plan, or null when the limit is unknown.
 	 *
 	 * @return int|null

@@ -1143,6 +1143,19 @@ fieldset.epc-panel {
 	background: #d97706;
 }
 
+.epc-forecast {
+	margin: 0 0 8px;
+	font-weight: 600;
+}
+
+.epc-forecast:empty {
+	display: none;
+}
+
+.epc-forecast.is-warning {
+	color: var(--epc-warn-text);
+}
+
 .epc-facts {
 	display: grid;
 	grid-template-columns: minmax(140px, auto) 1fr;

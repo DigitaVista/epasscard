@@ -96,6 +96,9 @@ if [ "$got" = "10 10 10 10 done" ] && [ "$mails" = "10" ] && [ "$total" = "10" ]
 echo "== Card API (PHP and REST)"
 $WP eval-file "$HERE/test-developer-api.php" || status=1
 
+echo "== Plan forecast (Settings, Account & plan)"
+$WP eval-file "$HERE/test-plan-forecast.php" || status=1
+
 echo "== Retry failed cards"
 $WP eval-file "$HERE/test-retry-failed.php" || status=1
 

@@ -43,6 +43,7 @@ $epc_percent   = $epc_limit > 0 ? min( 100, (int) round( $epc_used * 100 / $epc_
 			echo esc_attr( sprintf( __( '%1$s of %2$s cards used', 'epasscard' ), number_format_i18n( $epc_used ), number_format_i18n( $epc_limit ) ) );
 			?>
 		"><span style="width:<?php echo esc_attr( (string) $epc_percent ); ?>%"></span></div>
+		<p class="epc-forecast<?php echo $meter['warn'] ? ' is-warning' : ''; ?>"><?php echo esc_html( EPC_Plan::get_forecast() ); ?></p>
 		<p class="description">
 			<?php
 			/* translators: 1: cards used, 2: card limit */
