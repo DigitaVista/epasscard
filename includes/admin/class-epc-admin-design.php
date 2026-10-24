@@ -192,6 +192,7 @@ class EPC_Admin_Design {
 				<h2 class="epc-page-head__title"><?php esc_html_e( 'Card designs', 'epasscard' ); ?></h2>
 				<p class="epc-page-head__lead"><?php esc_html_e( 'One design for each kind of card you give.', 'epasscard' ); ?></p>
 			</div>
+			<?php EPC_Help::render( 'design-change' ); ?>
 
 			<?php if ( empty( $modules ) ) : ?>
 				<div class="epc-panel">
@@ -259,6 +260,7 @@ class EPC_Admin_Design {
 				</h2>
 				<p class="epc-page-head__lead"><?php echo esc_html( $module->get_label() ); ?></p>
 			</div>
+			<?php EPC_Help::render( 'design' ); ?>
 
 			<?php if ( 'saved' === $notice ) : ?>
 				<div class="epc-message is-success" role="status"><p><?php esc_html_e( 'Saved.', 'epasscard' ); ?></p></div>

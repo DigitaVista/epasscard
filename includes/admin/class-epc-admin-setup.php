@@ -98,6 +98,7 @@ class EPC_Admin_Setup {
 			<h2 class="epc-page-head__title"><?php esc_html_e( 'What do you want to give your customers?', 'epasscard' ); ?></h2>
 			<p class="epc-page-head__lead"><?php esc_html_e( 'Start with one. You can add another kind of card later.', 'epasscard' ); ?></p>
 		</div>
+		<?php EPC_Help::render( 'job' ); ?>
 		<div class="epc-jobcards">
 			<?php foreach ( array_keys( EPC_Jobs::get_jobs() ) as $job ) : ?>
 				<?php
@@ -197,6 +198,7 @@ class EPC_Admin_Setup {
 			<h2 class="epc-page-head__title"><?php echo esc_html( $copy['title'] ); ?></h2>
 			<p class="epc-page-head__lead"><?php echo esc_html( $copy['pitch'] ); ?></p>
 		</div>
+		<?php EPC_Help::render( 'job' ); ?>
 		<?php
 		$error = get_transient( 'epc_setup_error_' . get_current_user_id() );
 		if ( is_string( $error ) && '' !== $error ) {

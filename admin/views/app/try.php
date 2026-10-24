@@ -27,6 +27,7 @@ $epc_is_loyalty = 'woocommerce-loyalty' === $slug;
 		<h2 class="epc-page-head__title"><?php esc_html_e( 'Put a test card on your phone', 'epasscard' ); ?></h2>
 		<p class="epc-page-head__lead"><?php esc_html_e( 'See what your customers will see before anyone else does.', 'epasscard' ); ?></p>
 	</div>
+	<?php EPC_Help::render( 'try' ); ?>
 
 	<?php if ( isset( $epc_messages[ $notice ] ) ) : ?>
 		<div class="epc-message is-<?php echo esc_attr( $epc_messages[ $notice ][0] ); ?>" role="<?php echo 'error' === $epc_messages[ $notice ][0] ? 'alert' : 'status'; ?>">

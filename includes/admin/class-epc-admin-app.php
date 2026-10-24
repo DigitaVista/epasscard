@@ -121,6 +121,7 @@ class EPC_Admin_App {
 		// Reached from Home, not from the menu.
 		self::add_hidden_page( self::PAGE_SETUP, __( 'Set up EpassCard', 'epasscard' ), array( 'EPC_Admin_Setup', 'render' ) );
 		self::add_hidden_page( self::PAGE_TRY, __( 'Try your card', 'epasscard' ), array( 'EPC_Admin_Try', 'render' ) );
+		self::add_hidden_page( EPC_Help::PAGE, __( 'Tutorials', 'epasscard' ), array( 'EPC_Help', 'render_page' ) );
 	}
 
 	/**
@@ -195,7 +196,7 @@ class EPC_Admin_App {
 	 * Section a page belongs to.
 	 *
 	 * @param string $page Page slug.
-	 * @return string home|cards|design|customers|settings
+	 * @return string home|cards|design|customers|settings|help
 	 */
 	public static function section_for_page( $page ) {
 		$page = sanitize_key( (string) $page );
@@ -214,6 +215,8 @@ class EPC_Admin_App {
 			case self::PAGE_CUSTOMERS:
 			case 'epc-woocommerce-loyalty-customers':
 				return 'customers';
+			case EPC_Help::PAGE:
+				return 'help';
 		}
 		return 0 === strpos( $page, 'epc-' ) ? 'design' : 'home';
 	}
@@ -352,6 +355,7 @@ class EPC_Admin_App {
 			array(
 				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
 				'installNonce' => current_user_can( 'install_plugins' ) ? wp_create_nonce( 'epc_wizard' ) : '',
+				'helpNonce'    => wp_create_nonce( 'epc_help' ),
 				'i18n'         => array(
 					'installing' => __( 'Installing and activating…', 'epasscard' ),
 					'installed'  => __( 'Plugin ready. Reloading…', 'epasscard' ),

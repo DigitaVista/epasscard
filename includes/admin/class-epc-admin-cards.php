@@ -253,6 +253,11 @@ class EPC_Admin_Cards {
 				<h2 class="epc-page-head__title"><?php esc_html_e( 'Cards', 'epasscard' ); ?></h2>
 				<p class="epc-page-head__lead"><?php esc_html_e( 'Every wallet card this site has issued, from all integrations.', 'epasscard' ); ?></p>
 			</div>
+			<?php
+			if ( current_user_can( 'manage_options' ) ) {
+				EPC_Help::render( 'cards', array( 'failure' => ! empty( $issues ) ) );
+			}
+			?>
 
 			<?php if ( empty( $modules ) ) : ?>
 				<div class="epc-panel"><p><?php esc_html_e( 'No integration is turned on yet.', 'epasscard' ); ?></p></div>

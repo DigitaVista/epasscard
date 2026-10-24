@@ -140,6 +140,7 @@ class EPC_Admin_Settings {
 		<div class="epc-page-head">
 			<h2 class="epc-page-head__title"><?php echo esc_html( $title ); ?></h2>
 		</div>
+		<?php EPC_Help::render( 'emails' === $tab || 'push' === $tab || 'integrations' === $tab || 'advanced' === $tab ? $tab : 'account' ); ?>
 		<div class="<?php echo esc_attr( 'epc-settings epc-settings--' . $tab ); ?>">
 		<?php
 		$connected = EPC_Connection::is_connected();

@@ -1,6 +1,6 @@
 /**
  * EpassCard 1.2 screens: plugin install buttons (Setup), QR code and copy link (Try it), progress of
- * giving cards to existing customers (Cards).
+ * giving cards to existing customers (Cards), "How this works" panels and tutorial videos.
  *
  * @package EpassCard
  */
@@ -249,6 +249,77 @@
 			window.setTimeout( function () {
 				box.hidden = true;
 			}, 0 );
+		}
+	} );
+
+	/**
+	 * Save a help panel change for this user (hide, show, watched). The page has already changed.
+	 *
+	 * @param {string} topic  Topic id.
+	 * @param {string} change hide|show|watched.
+	 */
+	function saveHelp( topic, change ) {
+		if ( ! config.ajaxUrl || ! config.helpNonce || ! window.fetch ) {
+			return;
+		}
+		var body = new window.FormData();
+		body.append( 'action', 'epc_help' );
+		body.append( '_ajax_nonce', config.helpNonce );
+		body.append( 'topic', topic );
+		body.append( 'change', change );
+		window.fetch( config.ajaxUrl, { method: 'POST', body: body, credentials: 'same-origin' } ).catch( function () {} );
+	}
+
+	// "Hide" folds a "How this works" panel to its button; the button opens it again. Without
+	// JavaScript both are forms that post and reload.
+	document.addEventListener( 'submit', function ( event ) {
+		var form = event.target instanceof Element ? event.target : null;
+		var box = form ? form.closest( '[data-epc-help]' ) : null;
+		var change = form ? form.querySelector( 'input[name="change"]' ) : null;
+		if ( ! box || ! change || ! config.helpNonce || ! window.fetch ) {
+			return;
+		}
+		var panel = box.querySelector( '.epc-help__panel' );
+		var toggle = box.querySelector( '.epc-help__toggle' );
+		if ( ! panel || ! toggle ) {
+			return;
+		}
+		event.preventDefault();
+		var hide = change.value === 'hide';
+		panel.hidden = hide;
+		toggle.hidden = ! hide;
+		var open = toggle.querySelector( '.epc-help__open' );
+		if ( open ) {
+			open.setAttribute( 'aria-expanded', hide ? 'false' : 'true' );
+		}
+		var focus = hide ? open : panel.querySelector( '.epc-help__hide' );
+		if ( focus ) {
+			focus.focus();
+		}
+		saveHelp( box.getAttribute( 'data-epc-help' ), hide ? 'hide' : 'show' );
+	} );
+
+	// Click to play: the poster becomes YouTube's privacy-enhanced player. Nothing loads before.
+	document.addEventListener( 'click', function ( event ) {
+		var button = event.target instanceof Element ? event.target.closest( '[data-epc-help-play]' ) : null;
+		if ( ! button ) {
+			return;
+		}
+		var id = button.getAttribute( 'data-epc-help-play' ) || '';
+		if ( ! /^[A-Za-z0-9_-]{11}$/.test( id ) ) {
+			return;
+		}
+		var frame = document.createElement( 'iframe' );
+		frame.className = 'epc-help__player';
+		frame.src = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0';
+		frame.title = ( button.querySelector( '.epc-help__poster-title' ) || button ).textContent.trim();
+		frame.setAttribute( 'allow', 'autoplay; encrypted-media; picture-in-picture' );
+		frame.setAttribute( 'allowfullscreen', '' );
+		button.parentNode.replaceChild( frame, button );
+		frame.focus();
+		var box = frame.closest( '[data-epc-help]' );
+		if ( box ) {
+			saveHelp( box.getAttribute( 'data-epc-help' ), 'watched' );
 		}
 	} );
 

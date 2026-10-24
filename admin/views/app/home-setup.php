@@ -32,34 +32,6 @@ $epc_first_card = array(
 	'gift-cards' => __( 'The next gift card that is created (sold, or added by you) gets a wallet card.', 'epasscard' ),
 );
 
-// "How this step works" text, per step.
-$epc_help = array(
-	'connect' => array(
-		__( 'EpassCard signs and delivers the wallet cards; your customer data stays in WordPress.', 'epasscard' ),
-		__( 'One API key per site. It is extended automatically.', 'epasscard' ),
-		__( 'Sign up, sign in, or paste a key from app.epasscard.com.', 'epasscard' ),
-	),
-	'job'     => array(
-		__( 'Start with one kind of card; add another later.', 'epasscard' ),
-		__( 'We check the plugins on this site and turn on the matching integration.', 'epasscard' ),
-		__( 'Pick a card type and confirm the rules.', 'epasscard' ),
-	),
-	'design'  => array(
-		__( 'The card is your brand on your customers\' phones.', 'epasscard' ),
-		__( 'Logo, colours and the fields the card shows.', 'epasscard' ),
-		__( 'Edit, check the preview, save.', 'epasscard' ),
-	),
-	'try'     => array(
-		__( 'See it work before your customers do.', 'epasscard' ),
-		__( 'A test card with your name and sample data.', 'epasscard' ),
-		__( 'Scan the code with your phone and add it to your wallet.', 'epasscard' ),
-	),
-	'live'    => array(
-		__( 'Cards only help once real customers have them.', 'epasscard' ),
-		__( 'New customers get a card automatically.', 'epasscard' ),
-		__( 'Wait for the next customer, or give cards to the ones you already have.', 'epasscard' ),
-	),
-);
 ?>
 <div class="epc-home">
 	<div class="epc-page-head">
@@ -221,19 +193,27 @@ $epc_help = array(
 				</div>
 			<?php endif; ?>
 
-			<?php if ( '' !== $current && isset( $epc_help[ $current ] ) ) : ?>
-				<div class="epc-panel">
-					<h3 class="epc-panel__title"><?php esc_html_e( 'How this step works', 'epasscard' ); ?></h3>
-					<dl class="epc-why">
-						<dt><?php esc_html_e( 'Why', 'epasscard' ); ?></dt>
-						<dd><?php echo esc_html( $epc_help[ $current ][0] ); ?></dd>
-						<dt><?php esc_html_e( 'What', 'epasscard' ); ?></dt>
-						<dd><?php echo esc_html( $epc_help[ $current ][1] ); ?></dd>
-						<dt><?php esc_html_e( 'How', 'epasscard' ); ?></dt>
-						<dd><?php echo esc_html( $epc_help[ $current ][2] ); ?></dd>
-					</dl>
-				</div>
-			<?php endif; ?>
+			<?php
+			if ( ! $epc_connected ) {
+				// First visit: what EpassCard does, before the first step.
+				EPC_Help::render(
+					'home',
+					array(
+						'layout'  => 'aside',
+						'heading' => __( 'How EpassCard works', 'epasscard' ),
+					)
+				);
+			}
+			if ( '' !== $current ) {
+				EPC_Help::render(
+					$current,
+					array(
+						'layout'  => 'aside',
+						'heading' => __( 'How this step works', 'epasscard' ),
+					)
+				);
+			}
+			?>
 
 		</aside>
 	</div>

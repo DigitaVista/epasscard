@@ -168,6 +168,7 @@ function epasscard_uninstall_user_meta() {
 
 	delete_metadata( 'user', 0, 'epc_loyalty_highest_tier_threshold', '', true );
 	delete_metadata( 'user', 0, 'epc_review_prompt', '', true );
+	delete_metadata( 'user', 0, 'epc_help', '', true );
 
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin uninstall.
 	$keys = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT meta_key FROM {$wpdb->usermeta} WHERE meta_key LIKE %s", 'epc\_loyalty\_expiry\_notice\_%' ) );
