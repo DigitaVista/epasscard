@@ -300,6 +300,18 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * The person a gift card was given to (gift card integrations), for sending the card email
+	 * to them instead of the buyer (Settings → Emails).
+	 *
+	 * @param string|int $source_id Source record id.
+	 * @return array{email: string, name: string}|null Null when there is no gift recipient.
+	 */
+	public function get_gift_recipient( $source_id ) {
+		unset( $source_id );
+		return null;
+	}
+
+	/**
 	 * Sort key for "newest first": a larger key is a more recent record.
 	 *
 	 * @param string|int $source_id Source record id.

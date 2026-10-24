@@ -36,6 +36,7 @@ class EPC_Pass_Email {
 		return array(
 			'auto_on_create'        => true,
 			'include_on_wc_order'   => true,
+			'gift_recipient'        => false,
 			'subject'               => __( 'Your {pass_name} wallet pass from {site_name}', 'epasscard' ),
 			'body'                  => __( "Hi {user_first_name},\n\nYour digital wallet pass is ready. Add it to Apple Wallet or Google Wallet using the link below:\n\n{pass_link}\n\nThanks,\n{site_name}", 'epasscard' ),
 		);
@@ -58,6 +59,7 @@ class EPC_Pass_Email {
 		// Normalize toggles (supports bool / 1 / "1" from older saves).
 		$settings['auto_on_create']      = self::is_truthy( $settings['auto_on_create'] ?? false );
 		$settings['include_on_wc_order'] = self::is_truthy( $settings['include_on_wc_order'] ?? false );
+		$settings['gift_recipient']      = self::is_truthy( $settings['gift_recipient'] ?? false );
 
 		// Empty templates fall back to defaults so auto-send never goes out blank.
 		if ( '' === trim( (string) $settings['subject'] ) ) {
@@ -103,6 +105,7 @@ class EPC_Pass_Email {
 		$settings = array(
 			'auto_on_create'      => ! empty( $_POST['epc_email_auto_on_create'] ) ? 1 : 0,
 			'include_on_wc_order' => ! empty( $_POST['epc_email_include_on_wc_order'] ) ? 1 : 0,
+			'gift_recipient'      => ! empty( $_POST['epc_email_gift_recipient'] ) ? 1 : 0,
 			'subject'             => '' !== trim( $subject ) ? $subject : (string) $defaults['subject'],
 			'body'                => '' !== trim( $body ) ? $body : (string) $defaults['body'],
 		);
@@ -180,6 +183,18 @@ class EPC_Pass_Email {
 		$user    = $user_id > 0 ? get_userdata( $user_id ) : false;
 
 		$to = isset( $args['to'] ) ? sanitize_email( (string) $args['to'] ) : '';
+
+		// Gift cards: to the person the card was given to, when the store chose so.
+		$recipient = '' === $to ? self::gift_recipient( $pass_row ) : null;
+		if ( null !== $recipient ) {
+			$to   = $recipient['email'];
+			$user = get_user_by( 'email', $recipient['email'] );
+			if ( ! $user ) {
+				$args['recipient_name']  = $recipient['name'];
+				$args['recipient_email'] = $recipient['email'];
+			}
+		}
+
 		if ( '' === $to && $user ) {
 			$to = sanitize_email( (string) $user->user_email );
 		}
@@ -208,6 +223,8 @@ class EPC_Pass_Email {
 		$subject = self::replace_tags( $subject, $replacements );
 		$subject = trim( (string) preg_replace( '/\s{2,}/', ' ', $subject ) );
 		$body    = self::replace_tags( $body, $replacements );
+		// An empty name leaves "Hi ," behind.
+		$body = (string) preg_replace( '/ +,/', ',', $body );
 
 		/**
 		 * Filter pass link email subject.
@@ -518,12 +535,16 @@ class EPC_Pass_Email {
 		$first_name = $user ? (string) get_user_meta( $user->ID, 'first_name', true ) : '';
 		$last_name  = $user ? (string) get_user_meta( $user->ID, 'last_name', true ) : '';
 		$display    = $user ? (string) $user->display_name : '';
+		if ( ! $user && isset( $args['recipient_name'] ) ) {
+			// A gift recipient without an account: the name on the gift card, if any.
+			$display = sanitize_text_field( (string) $args['recipient_name'] );
+		}
 
 		return array(
 			'user_first_name'   => '' !== $first_name ? $first_name : $display,
 			'user_last_name'    => $last_name,
 			'user_display_name' => $display,
-			'user_email'        => $user ? (string) $user->user_email : '',
+			'user_email'        => $user ? (string) $user->user_email : (string) ( $args['recipient_email'] ?? '' ),
 			'pass_link'         => (string) $pass_row->pass_link,
 			'pass_uid'          => (string) $pass_row->pass_uid,
 			// WordPress stores the site title HTML-escaped; this is a plain-text email.
@@ -532,6 +553,31 @@ class EPC_Pass_Email {
 			'module_label'      => $module_label,
 			// Plan, product, event or card name; falls back to the integration name.
 			'pass_name'         => '' !== $entity_label ? $entity_label : $module_label,
+		);
+	}
+
+	/**
+	 * The gift recipient of a gift card's card, when the store sends card emails to recipients
+	 * (Settings → Emails) and the gift card has a valid recipient email.
+	 *
+	 * @param object $pass_row Pass row (or a stand-in with module and source_id).
+	 * @return array{email: string, name: string}|null
+	 */
+	public static function gift_recipient( $pass_row ) {
+		if ( empty( self::get_settings()['gift_recipient'] ) || empty( $pass_row->module ) || ! isset( $pass_row->source_id ) || ! function_exists( 'epc_plugin' ) ) {
+			return null;
+		}
+		$module = epc_plugin()->get_module( (string) $pass_row->module );
+		if ( ! $module instanceof EPC_Module ) {
+			return null;
+		}
+		$recipient = $module->get_gift_recipient( (string) $pass_row->source_id );
+		if ( ! is_array( $recipient ) || ! is_email( (string) ( $recipient['email'] ?? '' ) ) ) {
+			return null;
+		}
+		return array(
+			'email' => sanitize_email( (string) $recipient['email'] ),
+			'name'  => (string) ( $recipient['name'] ?? '' ),
 		);
 	}
 

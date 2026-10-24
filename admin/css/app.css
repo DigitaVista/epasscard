@@ -1335,6 +1335,13 @@ fieldset.epc-panel {
 	width: 32%;
 }
 
+/* ---------- Settings: emails ---------- */
+
+.epc-toggle__help {
+	display: block;
+	margin-top: 4px;
+}
+
 /* ---------- Home: review invitation ---------- */
 
 .epc-review {

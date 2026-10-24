@@ -31,6 +31,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<span class="epc-toggle__label"><?php esc_html_e( 'Include pass links in WooCommerce order emails', 'epasscard' ); ?></span>
 				</label>
 			</p>
+			<?php if ( EPC_Module_Settings::is_enabled( 'pw-gift-cards' ) || EPC_Module_Settings::is_enabled( 'yith-gift-cards' ) ) : ?>
+				<p>
+					<label class="epc-toggle">
+						<input type="checkbox" name="epc_email_gift_recipient" value="1" <?php checked( ! empty( $email_settings['gift_recipient'] ) ); ?> />
+						<span class="epc-toggle__track" aria-hidden="true"></span>
+						<span class="epc-toggle__label"><?php esc_html_e( 'Gift cards: email the card to the gift recipient', 'epasscard' ); ?></span>
+					</label>
+					<span class="description epc-toggle__help"><?php esc_html_e( 'Uses the recipient email on the gift card. When a gift card has none, the card goes to the buyer as before.', 'epasscard' ); ?></span>
+				</p>
+			<?php else : ?>
+				<input type="hidden" name="epc_email_gift_recipient" value="<?php echo ! empty( $email_settings['gift_recipient'] ) ? '1' : ''; ?>" />
+			<?php endif; ?>
 
 			<p>
 				<label for="epc-email-subject"><strong><?php esc_html_e( 'Email subject', 'epasscard' ); ?></strong></label><br />

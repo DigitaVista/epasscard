@@ -901,4 +901,21 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		$card = $this->get_card( absint( $source_id ) );
 		return $card ? $this->resolve_card_user_id( $card ) : 0;
 	}
+
+	/**
+	 * The recipient email and name stored on the gift card.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_gift_recipient( $source_id ) {
+		$card = $this->get_card( absint( $source_id ) );
+		if ( ! $card ) {
+			return null;
+		}
+		$email = (string) $card->recipient;
+		return is_email( $email ) ? array(
+			'email' => $email,
+			'name'  => (string) $card->recipient_name,
+		) : null;
+	}
 }

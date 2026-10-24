@@ -843,4 +843,21 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 		$card = $this->get_card( absint( $source_id ) );
 		return $card ? $this->resolve_card_user_id( $this->get_card_order_meta( $card ) ) : 0;
 	}
+
+	/**
+	 * The "To" email of the order line the card was bought with (PW stores no recipient name).
+	 *
+	 * @inheritDoc
+	 */
+	public function get_gift_recipient( $source_id ) {
+		$card = $this->get_card( absint( $source_id ) );
+		if ( ! $card ) {
+			return null;
+		}
+		$email = (string) ( $this->get_card_order_meta( $card )['recipient_email'] ?? '' );
+		return is_email( $email ) ? array(
+			'email' => $email,
+			'name'  => '',
+		) : null;
+	}
 }

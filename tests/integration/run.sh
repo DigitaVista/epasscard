@@ -28,6 +28,9 @@ $WP eval-file "$HERE/test-loyalty-sync-cancel.php" || status=1
 echo "== Loyalty: a customer without points gets the card from My Account"
 $WP eval-file "$HERE/test-loyalty-get-card.php" || status=1
 
+echo "== Gift cards: card email to the gift recipient"
+$WP eval-file "$HERE/test-gift-recipient.php" || status=1
+
 echo "== Card statuses and test cards"
 $WP eval-file "$HERE/test-pass-status.php" || status=1
 
