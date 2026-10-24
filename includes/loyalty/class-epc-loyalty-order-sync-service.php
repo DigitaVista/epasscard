@@ -68,6 +68,17 @@ class EPC_Loyalty_Order_Sync_Service {
 	}
 
 	/**
+	 * Saved job state read from the database, not this request's cache: a Cancel from the
+	 * admin screen is saved by another request.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function get_fresh_job() {
+		wp_cache_delete( self::OPTION_KEY, 'options' );
+		return self::get_job();
+	}
+
+	/**
 	 * Preview how many registered-customer orders would be scanned.
 	 *
 	 * @return void
@@ -181,7 +192,7 @@ class EPC_Loyalty_Order_Sync_Service {
 			return;
 		}
 
-		$job = self::get_job();
+		$job = self::get_fresh_job();
 		if ( 'running' !== $job['status'] ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Release unused lock.
 			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
@@ -229,7 +240,8 @@ class EPC_Loyalty_Order_Sync_Service {
 				$job['refunded'] = (int) $job['refunded'] + (int) ( $result['refunded'] ?? 0 );
 			}
 
-			$latest = self::get_job();
+			// A Cancel clicked while this batch ran was saved by another request.
+			$latest = self::get_fresh_job();
 			if ( 'cancelled' === ( $latest['status'] ?? '' ) ) {
 				$job['status']      = 'cancelled';
 				$job['finished_at'] = (string) ( $latest['finished_at'] ?? gmdate( 'Y-m-d H:i:s' ) );

@@ -22,6 +22,9 @@ wait $p2 || status=1
 got=$($WP eval "\$a = EPC_Loyalty_Account_Service::get( $user ); echo (int) \$a->points_balance, ' ', (int) \$a->lifetime_points;")
 if [ "$got" = "100 100" ]; then echo "PASS 2 x 50 parallel writes: balance 100, lifetime 100"; else echo "FAIL parallel writes: expected '100 100', got '$got'"; status=1; fi
 
+echo "== Loyalty past-order sync: a cancel from another request stops it"
+$WP eval-file "$HERE/test-loyalty-sync-cancel.php" || status=1
+
 echo "== Card statuses and test cards"
 $WP eval-file "$HERE/test-pass-status.php" || status=1
 
