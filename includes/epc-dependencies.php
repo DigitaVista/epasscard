@@ -546,6 +546,55 @@ function epc_manage_passes_menu_capability() {
 }
 
 /**
+ * Add UTM tags to a link to epasscard.com, so installs, sign-ups and upgrades from the plugin
+ * can be measured. Links to other hosts are returned unchanged. Nothing about the site or the
+ * user is added: only the fixed source and medium and the name of the screen.
+ *
+ * @param string $url      URL.
+ * @param string $campaign Screen the link is on (home, setup, try, cards, design, settings, help...).
+ *                         Empty: the current EpassCard screen.
+ * @return string
+ */
+function epc_utm_url( $url, $campaign = '' ) {
+	$url  = (string) $url;
+	$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+	if ( ! in_array( $host, array( 'epasscard.com', 'www.epasscard.com', 'app.epasscard.com' ), true ) ) {
+		return $url;
+	}
+
+	$campaign = sanitize_key( (string) $campaign );
+	if ( '' === $campaign && class_exists( 'EPC_Admin_App' ) ) {
+		$page = EPC_Admin_App::current_page();
+		if ( EPC_Admin_App::PAGE_SETUP === $page ) {
+			$campaign = 'setup';
+		} elseif ( EPC_Admin_App::PAGE_TRY === $page ) {
+			$campaign = 'try';
+		} elseif ( '' !== $page ) {
+			$campaign = EPC_Admin_App::section_for_page( $page );
+		}
+	}
+
+	$args = array(
+		'utm_source' => 'wp-plugin',
+		'utm_medium' => 'plugin-admin',
+	);
+	if ( '' !== $campaign ) {
+		$args['utm_campaign'] = $campaign;
+	}
+
+	/**
+	 * Filter the UTM tags added to links to epasscard.com. Return an empty array for none.
+	 *
+	 * @param array<string, string> $args     Query args.
+	 * @param string                $url      URL without the tags.
+	 * @param string                $campaign Screen name.
+	 */
+	$args = apply_filters( 'epc_utm_args', $args, $url, $campaign );
+
+	return is_array( $args ) && ! empty( $args ) ? add_query_arg( array_map( 'rawurlencode', $args ), $url ) : $url;
+}
+
+/**
  * EpassCard Terms and Conditions URL.
  *
  * @return string

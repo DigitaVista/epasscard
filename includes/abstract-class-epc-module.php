@@ -1493,7 +1493,7 @@ abstract class EPC_Module {
 								</button>
 							</div>
 							<p class="epc-template-actions">
-								<a href="<?php echo esc_url( 'https://app.epasscard.com/pass-templates' ); ?>" target="_blank" rel="noopener noreferrer">
+								<a href="<?php echo esc_url( epc_utm_url( 'https://app.epasscard.com/pass-templates' ) ); ?>" target="_blank" rel="noopener noreferrer">
 									<?php esc_html_e( 'Create a new template', 'epasscard' ); ?>
 									<span class="dashicons dashicons-external" aria-hidden="true"></span>
 								</a>

@@ -235,18 +235,6 @@ $epc_help = array(
 				</div>
 			<?php endif; ?>
 
-			<?php if ( EPC_Setup_Help::is_offer_active() ) : ?>
-				<div class="epc-panel">
-					<h3 class="epc-panel__title"><?php esc_html_e( 'We set it up with you, free', 'epasscard' ); ?></h3>
-					<p class="epc-panel__text">
-						<?php
-						/* translators: %s: e.g. "12 days left" */
-						echo esc_html( sprintf( __( 'Message the EpassCard team on WhatsApp and we help you finish setup. Free for your first 30 days (%s).', 'epasscard' ), EPC_Setup_Help::get_days_left_label() ) );
-						?>
-					</p>
-					<a class="button button-secondary" href="<?php echo esc_url( EPC_Setup_Help::get_whatsapp_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Message us on WhatsApp', 'epasscard' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span></a>
-				</div>
-			<?php endif; ?>
 		</aside>
 	</div>
 </div>

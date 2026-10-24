@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<button type="button" class="button button-primary" id="epc-connect-key">
 				<?php esc_html_e( 'Connect', 'epasscard' ); ?>
 			</button>
-			<a class="button button-secondary" href="<?php echo esc_url( 'https://app.epasscard.com/api-keys' ); ?>" target="_blank" rel="noopener noreferrer">
+			<a class="button button-secondary" href="<?php echo esc_url( epc_utm_url( 'https://app.epasscard.com/api-keys' ) ); ?>" target="_blank" rel="noopener noreferrer">
 				<?php esc_html_e( 'Get an API key', 'epasscard' ); ?>
 			</a>
 		</p>

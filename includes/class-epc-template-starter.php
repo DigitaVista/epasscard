@@ -906,7 +906,7 @@ class EPC_Template_Starter {
 	 * @return string
 	 */
 	public static function upgrade_url() {
-		return (string) apply_filters( 'epc_upgrade_url', 'https://app.epasscard.com' );
+		return (string) apply_filters( 'epc_upgrade_url', epc_utm_url( 'https://app.epasscard.com' ) );
 	}
 
 	/* -------------------------------------------------------------------------
@@ -1137,7 +1137,7 @@ class EPC_Template_Starter {
 							?>
 						</button>
 					<?php endif; ?>
-					<a href="<?php echo esc_url( 'https://app.epasscard.com/pass-templates' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open in EpassCard', 'epasscard' ); ?> <span class="dashicons dashicons-external" aria-hidden="true"></span></a>
+					<a href="<?php echo esc_url( epc_utm_url( 'https://app.epasscard.com/pass-templates' ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open in EpassCard', 'epasscard' ); ?> <span class="dashicons dashicons-external" aria-hidden="true"></span></a>
 					<span class="epc-starter-status" aria-live="polite"></span>
 				</p>
 			<?php endif; ?>

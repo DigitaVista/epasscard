@@ -61,7 +61,15 @@ $epc_is_loyalty = 'woocommerce-loyalty' === $slug;
 						);
 						?>
 					</p>
-					<p class="description"><?php esc_html_e( 'It is a real card in your EpassCard account, so it may count toward your plan\'s card limit. It is not counted as a customer card on this site.', 'epasscard' ); ?></p>
+					<p class="description">
+						<?php
+						echo esc_html(
+							$epc_is_loyalty
+								? __( 'It counts as 1 card on your EpassCard plan. It is not counted as a customer card on this site.', 'epasscard' )
+								: __( 'It counts as 1 card on your EpassCard plan until you delete it. It is not counted as a customer card on this site.', 'epasscard' )
+						);
+						?>
+					</p>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<input type="hidden" name="action" value="epc_try_issue" />
 						<?php wp_nonce_field( 'epc_try_issue' ); ?>
@@ -118,9 +126,6 @@ $epc_is_loyalty = 'woocommerce-loyalty' === $slug;
 						<p>
 							<a href="<?php echo esc_url( EPC_Admin_Home::design_url( $slug ) ); ?>"><?php esc_html_e( 'Edit the design', 'epasscard' ); ?></a>
 							· <a href="<?php echo esc_url( EPC_Admin_App::url( 'api-log' ) ); ?>"><?php esc_html_e( 'See what EpassCard answered (API log)', 'epasscard' ); ?></a>
-							<?php if ( EPC_Setup_Help::is_offer_active() ) : ?>
-								· <a href="<?php echo esc_url( EPC_Setup_Help::get_whatsapp_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Message us on WhatsApp', 'epasscard' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span></a>
-							<?php endif; ?>
 						</p>
 					</section>
 				<?php endif; ?>

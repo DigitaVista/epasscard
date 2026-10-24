@@ -30,7 +30,7 @@ $member_id = (string) ( $preview['member_id'] ?? 'LYL-DEMO-001' );
 $barcode_format = strtoupper( (string) ( $design['barcode_format'] ?? 'QR' ) );
 $barcode_preview_url = EPC_Loyalty_Pass_Design_Service::preview_barcode_image_url( $barcode_format, $member_id );
 $design_source = ( 'builder' === ( $design['design_source'] ?? '' ) ) ? 'builder' : 'form';
-$builder_url   = 'https://app.epasscard.com/pass-templates';
+$builder_url   = epc_utm_url( 'https://app.epasscard.com/pass-templates' );
 $logo_url      = (string) ( $design['logo_url'] ?? '' );
 $strip_url     = (string) ( $design['strip_url'] ?? '' );
 $logo_inline   = EPC_Loyalty_Pass_Design_Service::is_data_image_uri( $logo_url );

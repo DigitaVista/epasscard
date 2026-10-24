@@ -52,7 +52,7 @@ $epc_percent   = $epc_limit > 0 ? min( 100, (int) round( $epc_used * 100 / $epc_
 		</p>
 	<?php endif; ?>
 	<p style="margin-bottom:0;">
-		<a class="button button-primary" href="<?php echo esc_url( 'https://app.epasscard.com' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Change plan on EpassCard', 'epasscard' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span></a>
+		<a class="button button-primary" href="<?php echo esc_url( epc_utm_url( 'https://app.epasscard.com', 'settings' ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Change plan on EpassCard', 'epasscard' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span></a>
 	</p>
 </div>
 
