@@ -281,6 +281,23 @@ class EPC_Template_Starter {
 				),
 				'barcode'   => self::field( 'Voucher code', __( 'Voucher code', 'epasscard' ), 'card_code', true, true, 'K7M2Q9XR4T' ),
 			),
+			// Level and referral fields need WPLoyalty Pro, so the ready-made card leaves them out.
+			'wployalty'                 => array(
+				'type'      => 'loyalty',
+				'card_type' => 'StoreCard',
+				'header'    => array( self::field( 'Member since', __( 'Member since', 'epasscard' ), 'member_since', false, false, '2025-03-14' ) ),
+				'primary'   => array( self::field( 'Points', __( 'Points', 'epasscard' ), 'points_balance', false, false, '1250' ) ),
+				'secondary' => array(
+					self::field( 'Name', __( 'Name', 'epasscard' ), 'user_full_name', false, false, 'Alex Rivera' ),
+					self::field( 'Lifetime points', __( 'Lifetime points', 'epasscard' ), 'lifetime_points', false, false, '3400' ),
+				),
+				'auxiliary' => array(),
+				'back'      => array(
+					self::field( 'Points used', __( 'Points used', 'epasscard' ), 'used_points', false, false, '2150' ),
+					self::field( 'Email', __( 'Email', 'epasscard' ), 'user_email', false, false, 'alex@example.com' ),
+				),
+				'barcode'   => self::field( 'Member ID', __( 'Member ID', 'epasscard' ), 'member_id', true, true, '10042' ),
+			),
 			'woocommerce-product-cards' => array(
 				'type'      => 'card',
 				'card_type' => 'Generic',

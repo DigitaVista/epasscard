@@ -94,6 +94,17 @@ EpassCard ships with built-in integration modules. Each extends the same workflo
 - **Members find it** in a **Wallet card** tab on the Ultimate Member account page (shown only to members with a card), in the card email, and with the `[epc_my_passes]` shortcode.
 - **Existing members:** Cards → Give cards to existing customers (approved members of roles with a design).
 
+## WPLoyalty
+
+**Turn on:** Settings → Integrations. Needs WPLoyalty (free or Pro), which needs WooCommerce.
+
+- **One loyalty card per WPLoyalty customer.** WPLoyalty's campaigns decide the points; EpassCard shows them.
+- **When:** the card is made the first time the customer has points, and updated whenever WPLoyalty changes the balance (orders, redeemed rewards, expiry, returns, your changes and imports). Banning the customer in WPLoyalty voids the card and lifting the ban brings it back; deleting the customer in WPLoyalty voids it.
+- **Fields:** points balance, WPLoyalty's points label, lifetime and used points, member since, name and email; also the level (WPLoyalty Pro) and the referral code and link (for a WPLoyalty referral campaign). The ready-made design uses the fields every WPLoyalty site has.
+- **Customers find it** in a **Wallet card** block at the end of WPLoyalty's rewards page in My Account, in the card email, and with the `[epc_my_passes]` shortcode. Customers without an account (guest orders) get the card email at their WPLoyalty email.
+- **Existing customers:** Cards → Give cards to existing customers (customers with points who are not banned).
+- Use either WPLoyalty or EpassCard's own loyalty program, not both, so customers do not get two loyalty cards.
+
 ## WooCommerce tickets, vouchers and product cards
 
 **Turn on:** Settings → Integrations (one integration per kind of card: tickets, vouchers, product cards). Needs only WooCommerce.

@@ -58,6 +58,7 @@ class EPC_Module_Loader {
 				'woocommerce-vouchers'      => 'module-woocommerce-vouchers.php',
 				'woocommerce-product-cards' => 'module-woocommerce-product-cards.php',
 				'ultimate-member'           => 'module-ultimate-member.php',
+				'wployalty'                 => 'module-wployalty.php',
 			)
 		);
 	}
@@ -201,6 +202,7 @@ class EPC_Module_Loader {
 				'woocommerce-vouchers'      => 'EPC_Module_WooCommerce_Vouchers',
 				'woocommerce-product-cards' => 'EPC_Module_WooCommerce_Product_Cards',
 				'ultimate-member'           => 'EPC_Module_Ultimate_Member',
+				'wployalty'                 => 'EPC_Module_WPLoyalty',
 			)
 		);
 

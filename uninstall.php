@@ -49,6 +49,7 @@ function epasscard_uninstall_clear_jobs() {
 	// Action Scheduler jobs (loaded when WooCommerce is active).
 	if ( function_exists( 'as_unschedule_all_actions' ) ) {
 		as_unschedule_all_actions( '', array(), 'epasscard-loyalty' );
+		as_unschedule_all_actions( '', array(), 'epasscard-wployalty' );
 		as_unschedule_all_actions( '', array(), 'epasscard' );
 	}
 }

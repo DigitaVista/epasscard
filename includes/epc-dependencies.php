@@ -183,6 +183,19 @@ function epc_is_ultimate_member_active() {
 }
 
 /**
+ * Whether WPLoyalty (free or Pro) is installed and active.
+ *
+ * @return bool
+ */
+function epc_is_wployalty_active() {
+	if ( defined( 'WLR_PLUGIN_VERSION' ) && class_exists( 'Wlr\\App\\Router' ) ) {
+		return true;
+	}
+
+	return epc_is_plugin_active( 'wployalty/wp-loyalty-rules-lite.php' ) || epc_is_plugin_active( 'wp-loyalty-rules/wp-loyalty-rules.php' );
+}
+
+/**
  * Whether The Events Calendar is installed and active.
  *
  * @return bool

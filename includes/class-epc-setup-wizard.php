@@ -730,7 +730,7 @@ class EPC_Setup_Wizard {
 				'label'       => __( 'Loyalty cards', 'epasscard' ),
 				'description' => __( 'Customers earn points in WooCommerce and keep a loyalty card in their phone wallet.', 'epasscard' ),
 				'icon'        => 'loyalty',
-				'modules'     => array( 'woocommerce-loyalty' ),
+				'modules'     => array( 'woocommerce-loyalty', 'wployalty' ),
 			),
 			'membership' => array(
 				'label'       => __( 'Membership or subscription cards', 'epasscard' ),

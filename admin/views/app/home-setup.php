@@ -32,6 +32,9 @@ $epc_first_card = array(
 	'gift-cards' => __( 'The next gift card that is created (sold, or added by you) gets a wallet card.', 'epasscard' ),
 	'products'   => __( 'The next paid order for a product with a wallet card gives the buyer one card for each one bought.', 'epasscard' ),
 );
+if ( 'wployalty' === $epc_slug ) {
+	$epc_first_card['loyalty'] = __( 'The next time WPLoyalty gives a customer points, they get their card.', 'epasscard' );
+}
 
 ?>
 <div class="epc-home">

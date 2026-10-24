@@ -243,7 +243,16 @@ class EPC_Admin_Setup {
 							<?php foreach ( $available as $slug => $candidate ) : ?>
 								<li>
 									<a class="epc-choice<?php echo $selected === $slug ? ' is-selected' : ''; ?>" href="<?php echo esc_url( EPC_Admin_App::url( 'setup', array( 'job' => $job, 'module' => $slug ) ) ); ?>"<?php echo $selected === $slug ? ' aria-current="true"' : ''; ?>>
-										<?php echo esc_html( $one_plugin ? $candidate->get_label() : $candidate->get_dependency_label() ); ?>
+										<?php
+										if ( $one_plugin ) {
+											echo esc_html( $candidate->get_label() );
+										} elseif ( 'woocommerce-loyalty' === $slug ) {
+											// EpassCard's own program runs on WooCommerce; "WooCommerce" alone reads like another plugin.
+											esc_html_e( 'EpassCard loyalty (built in)', 'epasscard' );
+										} else {
+											echo esc_html( $candidate->get_dependency_label() );
+										}
+										?>
 									</a>
 								</li>
 							<?php endforeach; ?>
@@ -637,7 +646,12 @@ class EPC_Admin_Setup {
 			}
 		}
 
-		if ( 'the-events-calendar' === $slug ) {
+		if ( 'wployalty' === $slug ) {
+			$lines[] = __( 'One card for each WPLoyalty customer, made when they first have points. WPLoyalty\'s own campaigns decide the points.', 'epasscard' );
+			$lines[] = __( 'The card updates whenever WPLoyalty changes the balance: orders, rewards, expiry, returns and your changes.', 'epasscard' );
+			$lines[] = __( 'Banning a customer in WPLoyalty voids the card; lifting the ban brings it back.', 'epasscard' );
+			$lines[] = __( 'Customers without an account get the card at their WPLoyalty email.', 'epasscard' );
+		} elseif ( 'the-events-calendar' === $slug ) {
 			array_unshift( $lines, __( 'One ticket for each attendee.', 'epasscard' ) );
 		} elseif ( 'events-manager' === $slug ) {
 			array_unshift( $lines, __( 'One ticket for each booking.', 'epasscard' ) );
@@ -662,6 +676,9 @@ class EPC_Admin_Setup {
 		}
 		if ( $module->has_pass_behavior_settings() ) {
 			return EPC_Admin_Design::url_for_module( $module->get_slug() ) . '#epc-section-pass-behavior';
+		}
+		if ( $module instanceof EPC_Module_WPLoyalty ) {
+			return EPC_Module_WPLoyalty::admin_url();
 		}
 		return '';
 	}
