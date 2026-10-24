@@ -35,13 +35,7 @@ class EPC_Admin_Design {
 	 * @return string
 	 */
 	public static function url_for_module( $slug ) {
-		$slug   = sanitize_key( (string) $slug );
-		$module = EPC_Module_Loader::get_module_instance( $slug );
-		if ( 'woocommerce-loyalty' === $slug || ( $module instanceof EPC_Module && EPC_Template_Starter::supports( $module ) ) ) {
-			return EPC_Admin_App::url( 'design', array( 'module' => $slug ) );
-		}
-		// Integrations added by other plugins have no ready-made design: their own mapping screen.
-		return admin_url( 'admin.php?page=epc-' . $slug . '#epc-section-mapping' );
+		return EPC_Admin_App::url( 'design', array( 'module' => sanitize_key( (string) $slug ) ) );
 	}
 
 	/**
@@ -86,7 +80,8 @@ class EPC_Admin_Design {
 			return;
 		}
 		wp_enqueue_media();
-		$module->enqueue_designer_assets();
+		// Loyalty loads its own designer script; the others also get the template-mapping dialog.
+		$module->enqueue_designer_assets( 'woocommerce-loyalty' !== $module->get_slug() );
 	}
 
 	/**
@@ -303,14 +298,38 @@ class EPC_Admin_Design {
 				<?php if ( $saved ) : ?>
 					<?php self::render_applies( $module, $saved, $copy ); ?>
 				<?php endif; ?>
+
+				<?php self::render_behavior( $module ); ?>
+
+				<details class="epc-panel epc-advanced" id="epc-advanced">
+					<summary class="epc-panel__title"><?php esc_html_e( 'Use your own EpassCard templates (advanced)', 'epasscard' ); ?></summary>
+					<p class="description"><?php esc_html_e( 'For a plan, event or product that should use a template you built in EpassCard: choose it and map its fields. Here you can also give cards to members who joined before EpassCard.', 'epasscard' ); ?></p>
+					<?php $module->render_mapping_section( $module->get_filtered_mappable_entities(), $module->get_mappings(), true ); ?>
+				</details>
 			<?php else : ?>
+				<?php // Integrations added by other plugins have no ready-made design: templates from EpassCard. ?>
 				<div class="epc-panel">
-					<p><?php esc_html_e( 'This integration uses a template you build in EpassCard.', 'epasscard' ); ?></p>
-					<p><a class="button button-primary" href="<?php echo esc_url( admin_url( 'admin.php?page=epc-' . $slug . '#epc-section-mapping' ) ); ?>"><?php esc_html_e( 'Choose a template', 'epasscard' ); ?></a></p>
+					<?php $module->render_mapping_section( $module->get_filtered_mappable_entities(), $module->get_mappings(), true ); ?>
 				</div>
+				<?php self::render_behavior( $module ); ?>
 			<?php endif; ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * What happens to a card when the membership, booking or gift card changes status.
+	 *
+	 * @param EPC_Module $module Module.
+	 * @return void
+	 */
+	private static function render_behavior( $module ) {
+		if ( ! $module->has_pass_behavior_settings() ) {
+			return;
+		}
+		echo '<div class="epc-panel epc-behavior">';
+		$module->render_settings_part( 'behavior' );
+		echo '</div>';
 	}
 
 	/**
@@ -358,7 +377,7 @@ class EPC_Admin_Design {
 												echo esc_html( sprintf( __( 'Your EpassCard template "%s"', 'epasscard' ), '' !== $row['template'] ? $row['template'] : __( 'unnamed', 'epasscard' ) ) );
 												?>
 											</span>
-											· <a href="<?php echo esc_url( admin_url( 'admin.php?page=epc-' . $slug . '#epc-section-mapping' ) ); ?>"><?php esc_html_e( 'Change', 'epasscard' ); ?></a>
+											· <a href="#epc-section-mapping"><?php esc_html_e( 'Change', 'epasscard' ); ?></a>
 										<?php else : ?>
 											<?php $locked = in_array( $row['state'], array( 'this', 'default' ), true ) && $row['cards'] > 0; ?>
 											<select id="<?php echo esc_attr( $field ); ?>" name="<?php echo esc_attr( 'applies[' . $row['id'] . ']' ); ?>"<?php echo $locked ? ' aria-describedby="' . esc_attr( $field . '-note' ) . '"' : ''; ?>>

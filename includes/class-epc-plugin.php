@@ -136,6 +136,8 @@ final class EPC_Plugin {
 		EPC_Admin_Setup::init();
 		EPC_Admin_Try::init();
 		EPC_Admin_Design::init();
+		EPC_Admin_Cards::init();
+		EPC_Admin_Settings::init();
 		EPC_Admin_Menu::init();
 		EPC_Admin_Shell::init();
 		EPC_Setup_Help_Notice::init();

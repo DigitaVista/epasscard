@@ -52,7 +52,7 @@ $epc_setup_module = EPC_Onboarding::get_state()['module'];
 					<?php $epc_module = EPC_Module_Loader::get_module_instance( $epc_slug ); ?>
 					<li>
 						<?php if ( $epc_module instanceof EPC_Module ) : ?>
-							<a href="<?php echo esc_url( $epc_module->get_issued_passes_admin_url() ); ?>">
+							<a href="<?php echo esc_url( EPC_Admin_App::url( 'cards', array( 'epc_module' => $epc_slug ) ) . '#epc-section-pass-issues-' . $epc_slug ); ?>">
 								<?php
 								/* translators: 1: integration name, 2: number of records */
 								echo esc_html( sprintf( _n( '%1$s: %2$d record, see why', '%1$s: %2$d records, see why', $epc_count, 'epasscard' ), $epc_module->get_label(), $epc_count ) );

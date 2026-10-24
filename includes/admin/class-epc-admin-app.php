@@ -45,6 +45,34 @@ class EPC_Admin_App {
 		add_filter( 'parent_file', array( __CLASS__, 'filter_parent_file' ) );
 		add_filter( 'submenu_file', array( __CLASS__, 'filter_submenu_file' ), 20, 2 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 16 );
+		add_action( 'admin_init', array( __CLASS__, 'redirect_retired_pages' ) );
+	}
+
+	/**
+	 * The 1.1 page of each integration is retired: its design, status rules and template
+	 * mapping are on Design, its reminders on Settings, its cards on Cards. Old links and
+	 * bookmarks land there. The loyalty program page stays (Customers).
+	 *
+	 * @return void
+	 */
+	public static function redirect_retired_pages() {
+		if ( wp_doing_ajax() || ! is_admin() ) {
+			return;
+		}
+		$page = self::current_page();
+		if ( 'epc-woocommerce-loyalty-passes' === $page ) {
+			wp_safe_redirect( self::url( 'cards', array( 'epc_module' => 'woocommerce-loyalty' ) ) );
+			exit;
+		}
+		if ( 0 !== strpos( $page, 'epc-' ) ) {
+			return;
+		}
+		$slug = substr( $page, 4 );
+		if ( 'woocommerce-loyalty' === $slug || ! array_key_exists( $slug, EPC_Module_Loader::get_module_files() ) ) {
+			return;
+		}
+		wp_safe_redirect( self::url( 'design', array( 'module' => $slug ) ) );
+		exit;
 	}
 
 	/**

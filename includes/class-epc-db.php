@@ -1140,6 +1140,92 @@ class EPC_DB {
 	}
 
 	/**
+	 * Cards of every integration for the Cards list.
+	 *
+	 * @param array<string, mixed> $args {
+	 *     @type string[] $modules  Module slugs to include (required; empty = none).
+	 *     @type string   $view     all|active|revoked|test (default all; all and active leave test cards out).
+	 *     @type int[]    $user_ids Only these users (from a name / email search), or null for any.
+	 *     @type string   $search   Matches pass id, link, record id.
+	 *     @type int      $page     Page (1-based).
+	 *     @type int      $per_page Rows per page (max 100).
+	 * }
+	 * @return array{total: int, items: array<int, object>}
+	 */
+	public static function query_all_passes( array $args ) {
+		global $wpdb;
+
+		$modules = array_values( array_filter( array_map( 'sanitize_key', array_map( 'strval', (array) ( $args['modules'] ?? array() ) ) ) ) );
+		if ( empty( $modules ) ) {
+			return array(
+				'total' => 0,
+				'items' => array(),
+			);
+		}
+
+		$view     = sanitize_key( (string) ( $args['view'] ?? 'all' ) );
+		$page     = max( 1, absint( $args['page'] ?? 1 ) );
+		$limit    = max( 1, min( 100, absint( $args['per_page'] ?? 20 ) ) );
+		$search   = sanitize_text_field( (string) ( $args['search'] ?? '' ) );
+		$user_ids = isset( $args['user_ids'] ) && is_array( $args['user_ids'] ) ? array_values( array_filter( array_map( 'absint', $args['user_ids'] ) ) ) : null;
+
+		// Only fixed SQL fragments and %s / %d placeholders are joined; every value is a prepare() argument.
+		$where  = array( 'module IN (' . implode( ',', array_fill( 0, count( $modules ), '%s' ) ) . ')' );
+		$params = $modules;
+
+		if ( 'test' === $view ) {
+			$where[] = 'is_test = 1';
+		} else {
+			$where[] = 'is_test = 0';
+			if ( 'active' === $view || 'revoked' === $view ) {
+				$where[]  = 'status = %s';
+				$params[] = $view;
+			}
+		}
+
+		$or = array();
+		if ( '' !== $search ) {
+			$like = '%' . $wpdb->esc_like( $search ) . '%';
+			$or[] = '(pass_uid LIKE %s OR pass_link LIKE %s OR source_id LIKE %s)';
+			array_push( $params, $like, $like, $like );
+		}
+		if ( null !== $user_ids && ! empty( $user_ids ) ) {
+			$or[]   = 'user_id IN (' . implode( ',', array_fill( 0, count( $user_ids ), '%d' ) ) . ')';
+			$params = array_merge( $params, $user_ids );
+		}
+		if ( ! empty( $or ) ) {
+			$where[] = '(' . implode( ' OR ', $or ) . ')';
+		} elseif ( null !== $user_ids ) {
+			// A name / email search that matched no user and nothing else.
+			$where[] = '1 = 0';
+		}
+
+		$sql_where = implode( ' AND ', $where );
+		$table     = self::table_name();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $sql_where holds only fixed fragments and placeholders (see above), passed as one array; admin list that must be fresh.
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE {$sql_where}", array_merge( array( $table ), $params ) ) );
+		$items = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE {$sql_where} ORDER BY updated_at DESC, id DESC LIMIT %d OFFSET %d", array_merge( array( $table ), $params, array( $limit, ( $page - 1 ) * $limit ) ) ) );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return array(
+			'total' => $total,
+			'items' => is_array( $items ) ? $items : array(),
+		);
+	}
+
+	/**
+	 * Real (non-test) active cards whose link was emailed at least once.
+	 *
+	 * @return int
+	 */
+	public static function count_emailed_real_passes() {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table count; must be fresh.
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE is_test = 0 AND status = 'active' AND pass_uid <> '' AND meta LIKE %s", self::table_name(), '%' . $wpdb->esc_like( '"emailed_at"' ) . '%' ) );
+	}
+
+	/**
 	 * Active real (non-test) cards of a module per plan, event or product.
 	 *
 	 * @param string $module Module slug.

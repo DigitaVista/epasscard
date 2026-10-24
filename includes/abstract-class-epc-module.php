@@ -464,6 +464,9 @@ abstract class EPC_Module {
 	 * @return void
 	 */
 	protected function render_status_rules_form( array $labels ) {
+		if ( 'push' === $this->settings_part ) {
+			return;
+		}
 		$labels   = wp_parse_args(
 			$labels,
 			array(
@@ -495,7 +498,7 @@ abstract class EPC_Module {
 							<tr>
 								<td><strong><?php echo esc_html( $label ); ?></strong></td>
 								<td>
-									<select name="epc_status_rule_<?php echo esc_attr( $status ); ?>">
+									<select name="epc_status_rule_<?php echo esc_attr( $status ); ?>" aria-label="<?php /* translators: %s: status, e.g. "Expired" */ echo esc_attr( sprintf( __( 'Pass action: %s', 'epasscard' ), $label ) ); ?>">
 										<?php foreach ( $actions as $action_key => $action_label ) : ?>
 											<option value="<?php echo esc_attr( $action_key ); ?>" <?php selected( isset( $rules[ $status ] ) ? $rules[ $status ] : 'none', $action_key ); ?>>
 												<?php echo esc_html( $action_label ); ?>
@@ -523,6 +526,9 @@ abstract class EPC_Module {
 	 * @return void
 	 */
 	protected function render_native_reminder_notice( $settings_url, $settings_label ) {
+		if ( 'behavior' === $this->settings_part ) {
+			return;
+		}
 		if ( '' === $settings_url || '' === $settings_label ) {
 			return;
 		}
@@ -1096,14 +1102,36 @@ abstract class EPC_Module {
 
 	/**
 	 * Load the pass designer and pass-action scripts on a screen outside the integration's own
-	 * page (the Design section).
+	 * page (Design, Cards, Settings).
 	 *
+	 * @param bool $include_mapping Also the template-mapping strings and source fields.
 	 * @return void
 	 */
-	public function enqueue_designer_assets() {
+	public function enqueue_designer_assets( $include_mapping = false ) {
 		if ( $this->is_available() && $this->current_user_can_manage_passes() ) {
-			$this->enqueue_pass_action_assets( false );
+			$this->enqueue_pass_action_assets( (bool) $include_mapping );
 		}
+	}
+
+	/**
+	 * Which part of render_module_settings() is printed: all, behavior (status rules) or push
+	 * (reminders and push messages).
+	 *
+	 * @var string
+	 */
+	private $settings_part = 'all';
+
+	/**
+	 * Print one part of the integration's settings on a 1.2 screen: 'behavior' on Design,
+	 * 'push' on Settings → Reminders & push.
+	 *
+	 * @param string $part behavior|push.
+	 * @return void
+	 */
+	public function render_settings_part( $part ) {
+		$this->settings_part = in_array( $part, array( 'behavior', 'push' ), true ) ? $part : 'all';
+		$this->render_module_settings();
+		$this->settings_part = 'all';
 	}
 
 	/**
@@ -1361,7 +1389,6 @@ abstract class EPC_Module {
 			)
 		);
 		?>
-		<script>window.epcSavedMappings = <?php echo wp_json_encode( $mappings ); ?>;</script>
 			<div id="epc-section-overview" class="epc-section epc-section--overview">
 				<div class="epc-page-header">
 					<h1 class="epc-page-title"><?php echo esc_html( $this->get_label() ); ?></h1>
@@ -1388,6 +1415,30 @@ abstract class EPC_Module {
 
 			<?php $this->render_module_settings(); ?>
 
+			<?php $this->render_mapping_section( $entities, $mappings, false ); ?>
+
+			<?php
+			if ( $this->should_render_issued_passes_on_dashboard() ) {
+				$this->render_issued_passes_section();
+			}
+			?>
+
+		<?php
+		EPC_Admin_Shell::render_close();
+	}
+
+	/**
+	 * "Pass Template mapping": per plan / event / product template and field mapping, the
+	 * ready-made design card, "Create passes for existing members", and the mapping dialog.
+	 *
+	 * @param array<int, array<string, mixed>>      $entities     Items.
+	 * @param array<int|string, array<string,mixed>> $mappings     Saved mappings.
+	 * @param bool                                  $from_designer Printed on the Design page (no ready-made card: the designer is above).
+	 * @return void
+	 */
+	public function render_mapping_section( array $entities, array $mappings, $from_designer = false ) {
+		?>
+		<script>window.epcSavedMappings = <?php echo wp_json_encode( $mappings ); ?>;</script>
 			<div id="epc-section-mapping" class="epc-section epc-section--mapping">
 				<h2><?php esc_html_e( 'Pass Template mapping', 'epasscard' ); ?></h2>
 				<p class="description">
@@ -1395,7 +1446,7 @@ abstract class EPC_Module {
 				</p>
 
 				<?php
-				if ( class_exists( 'EPC_Template_Starter' ) ) {
+				if ( ! $from_designer && class_exists( 'EPC_Template_Starter' ) ) {
 					EPC_Template_Starter::render_card( $this, $entities, $mappings );
 				}
 				?>
@@ -1444,6 +1495,12 @@ abstract class EPC_Module {
 									<td>
 										<?php if ( $mapped ) : ?>
 											<?php echo esc_html( $tpl_label ); ?>
+										<?php elseif ( class_exists( 'EPC_Default_Design' ) && ! empty( EPC_Default_Design::for_entity( $this->get_slug(), $eid ) ) ) : ?>
+											<?php
+											$default_design = EPC_Default_Design::get( $this->get_slug() );
+											/* translators: %s: template name */
+											echo esc_html( sprintf( __( '%s (default design)', 'epasscard' ), (string) ( $default_design['template_name'] ?? '' ) ) );
+											?>
 										<?php else : ?>
 											<em><?php esc_html_e( 'Not mapped', 'epasscard' ); ?></em>
 										<?php endif; ?>
@@ -1470,7 +1527,7 @@ abstract class EPC_Module {
 										>
 											<?php echo $mapped ? esc_html__( 'Edit mapping', 'epasscard' ) : esc_html__( 'Set up mapping', 'epasscard' ); ?>
 										</button>
-										<?php if ( $mapped && $this->supports_backfill() ) : ?>
+										<?php if ( ! empty( $this->get_mapping( $eid )['template_uid'] ) && $this->supports_backfill() ) : ?>
 											<button
 												type="button"
 												class="button epc-backfill-trigger"
@@ -1488,12 +1545,6 @@ abstract class EPC_Module {
 					</table>
 				<?php endif; ?>
 			</div>
-
-			<?php
-			if ( $this->should_render_issued_passes_on_dashboard() ) {
-				$this->render_issued_passes_section();
-			}
-			?>
 
 			<div id="epc-mapping-modal" class="epc-modal" hidden>
 				<div class="epc-modal__backdrop" data-epc-close></div>
@@ -1542,7 +1593,6 @@ abstract class EPC_Module {
 				</div>
 			</div>
 		<?php
-		EPC_Admin_Shell::render_close();
 	}
 
 	/**
@@ -1920,6 +1970,9 @@ abstract class EPC_Module {
 	 * @return void
 	 */
 	public function render_push_notification_settings() {
+		if ( 'behavior' === $this->settings_part ) {
+			return;
+		}
 		$types = $this->get_notification_types();
 		if ( empty( $types ) || ! $this->is_available() ) {
 			return;
@@ -1969,18 +2022,18 @@ abstract class EPC_Module {
 									<td><strong><?php echo esc_html( $label ); ?></strong></td>
 									<td>
 										<label class="epc-toggle">
-											<input type="checkbox" name="epc_notification_enabled_<?php echo esc_attr( $type ); ?>" value="1" <?php checked( ! empty( $rule['enabled'] ) ); ?> />
+											<input type="checkbox" name="epc_notification_enabled_<?php echo esc_attr( $type ); ?>" value="1" <?php checked( ! empty( $rule['enabled'] ) ); ?> aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Push enabled: %s', 'epasscard' ), $label ) ); ?>" />
 											<span class="epc-toggle__track" aria-hidden="true"></span>
 										</label>
 									</td>
 									<td>
-										<input type="number" class="small-text" min="1" max="90" name="epc_notification_days_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['days'] ?? 7 ) ); ?>" />
+										<input type="number" class="small-text" min="1" max="90" name="epc_notification_days_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['days'] ?? 7 ) ); ?>" aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Days before: %s', 'epasscard' ), $label ) ); ?>" />
 									</td>
 									<td>
-										<input type="text" class="regular-text" name="epc_notification_title_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['title'] ?? '' ) ); ?>" />
+										<input type="text" class="regular-text" name="epc_notification_title_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['title'] ?? '' ) ); ?>" aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Push title: %s', 'epasscard' ), $label ) ); ?>" />
 									</td>
 									<td>
-										<textarea class="large-text" rows="2" name="epc_notification_message_<?php echo esc_attr( $type ); ?>"><?php echo esc_textarea( (string) ( $rule['message'] ?? '' ) ); ?></textarea>
+										<textarea class="large-text" rows="2" name="epc_notification_message_<?php echo esc_attr( $type ); ?>" aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Push message: %s', 'epasscard' ), $label ) ); ?>"><?php echo esc_textarea( (string) ( $rule['message'] ?? '' ) ); ?></textarea>
 									</td>
 								</tr>
 							<?php endforeach; ?>

@@ -356,6 +356,14 @@ class EPC_Pass_Issues {
 		}
 
 		$issues = self::all();
+
+		// The Cards list, and Home after setup, show the failures in the page itself.
+		if ( ! empty( $issues ) && class_exists( 'EPC_Admin_App' ) ) {
+			if ( EPC_Admin_App::PAGE_CARDS === $page || ( EPC_Admin_App::PAGE_HOME === $page && EPC_Onboarding::is_complete() ) ) {
+				return;
+			}
+		}
+
 		if ( empty( $issues ) ) {
 			// Everything fixed by a bulk retry: say so on EpassCard screens (for a day).
 			$job = class_exists( 'EPC_Retry_Failed' ) ? EPC_Retry_Failed::get_job() : array();
@@ -375,8 +383,10 @@ class EPC_Pass_Issues {
 		foreach ( $by_module as $slug => $count ) {
 			$module = function_exists( 'epc_plugin' ) ? epc_plugin()->get_module( $slug ) : null;
 			$label  = $module ? $module->get_label() : $slug;
-			$url    = $module ? $module->get_issued_passes_admin_url() : admin_url( 'admin.php?page=epc-api-log' );
-			$links[] = sprintf( '<a href="%1$s#epc-section-pass-issues">%2$s (%3$d)</a>', esc_url( $url ), esc_html( $label ), (int) $count );
+			$url    = class_exists( 'EPC_Admin_App' )
+				? EPC_Admin_App::url( 'cards', array( 'epc_module' => $slug ) ) . '#epc-section-pass-issues-' . $slug
+				: ( $module ? $module->get_issued_passes_admin_url() . '#epc-section-pass-issues' : admin_url( 'admin.php?page=epc-api-log' ) );
+			$links[] = sprintf( '<a href="%1$s">%2$s (%3$d)</a>', esc_url( $url ), esc_html( $label ), (int) $count );
 		}
 		?>
 		<div class="notice notice-warning epc-pass-issues-notice">
@@ -397,17 +407,27 @@ class EPC_Pass_Issues {
 	/**
 	 * Render the failures panel above a module's issued passes table.
 	 *
-	 * @param EPC_Module $module Module.
+	 * @param EPC_Module $module     Module.
+	 * @param bool       $with_label Name the integration (the Cards list shows several panels).
 	 * @return void
 	 */
-	public static function render_module_panel( $module ) {
+	public static function render_module_panel( $module, $with_label = false ) {
 		$issues = self::for_module( $module->get_slug() );
 		if ( empty( $issues ) ) {
 			return;
 		}
 		?>
-		<div id="epc-section-pass-issues" class="epc-pass-issues">
-			<h3><?php esc_html_e( 'Pass actions that need attention', 'epasscard' ); ?></h3>
+		<div id="<?php echo esc_attr( 'epc-section-pass-issues' . ( $with_label ? '-' . $module->get_slug() : '' ) ); ?>" class="epc-pass-issues">
+			<h3>
+				<?php
+				echo esc_html(
+					$with_label
+						/* translators: %s: integration name */
+						? sprintf( __( '%s: cards that need attention', 'epasscard' ), $module->get_label() )
+						: __( 'Pass actions that need attention', 'epasscard' )
+				);
+				?>
+			</h3>
 			<p class="description"><?php esc_html_e( 'These records failed when EpassCard was asked to create, update or expire their pass. Fix the cause (usually the field mapping), then retry. Full request details are in API Logs.', 'epasscard' ); ?></p>
 			<?php
 			if ( class_exists( 'EPC_Retry_Failed' ) ) {

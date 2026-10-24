@@ -152,6 +152,19 @@
 			} );
 	}
 
+	/**
+	 * Open the <details> that holds the element the URL hash points to, and scroll to it.
+	 */
+	function openDetailsForHash() {
+		var id = window.location.hash.replace( '#', '' );
+		var target = id ? document.getElementById( id ) : null;
+		var details = target ? target.closest( 'details' ) : null;
+		if ( details && ! details.open ) {
+			details.open = true;
+			target.scrollIntoView( { block: 'start' } );
+		}
+	}
+
 	document.addEventListener( 'click', function ( event ) {
 		var target = event.target instanceof Element ? event.target : null;
 		if ( ! target ) {
@@ -186,6 +199,10 @@
 
 	document.addEventListener( 'DOMContentLoaded', function () {
 		Array.prototype.forEach.call( document.querySelectorAll( '[data-epc-qr]' ), drawQr );
+
+		// A link to a section inside a closed "advanced" panel opens the panel.
+		openDetailsForHash();
+		window.addEventListener( 'hashchange', openDetailsForHash );
 
 		// "Something went wrong" lands on the help panel; move focus there for keyboard and screen reader users.
 		if ( window.location.hash === '#epc-try-help' ) {

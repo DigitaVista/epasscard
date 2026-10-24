@@ -15,6 +15,61 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Admin_Settings {
 
 	/**
+	 * Register hooks.
+	 *
+	 * @return void
+	 */
+	public static function init() {
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 20 );
+	}
+
+	/**
+	 * Integrations with reminders or push messages, keyed by slug (loyalty has its own on Customers).
+	 *
+	 * @return array<string, EPC_Module>
+	 */
+	public static function push_modules() {
+		$out = array();
+		foreach ( EPC_Admin_Design::modules() as $slug => $module ) {
+			if ( 'woocommerce-loyalty' !== $slug && ( $module->uses_native_reminder_timing() || ! empty( $module->get_notification_types() ) ) ) {
+				$out[ $slug ] = $module;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Integration shown on Reminders & push.
+	 *
+	 * @return EPC_Module|null
+	 */
+	public static function current_push_module() {
+		$modules = self::push_modules();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only view selection.
+		$slug = isset( $_GET['module'] ) ? sanitize_key( wp_unslash( (string) $_GET['module'] ) ) : '';
+		if ( isset( $modules[ $slug ] ) ) {
+			return $modules[ $slug ];
+		}
+		$first = reset( $modules );
+		return $first instanceof EPC_Module ? $first : null;
+	}
+
+	/**
+	 * Scripts for the push messages form and the test push button.
+	 *
+	 * @return void
+	 */
+	public static function enqueue_assets() {
+		if ( EPC_Admin_App::PAGE_SETTINGS !== EPC_Admin_App::current_page() || 'push' !== self::current_tab() ) {
+			return;
+		}
+		$module = self::current_push_module();
+		if ( null !== $module ) {
+			$module->enqueue_designer_assets( false );
+		}
+	}
+
+	/**
 	 * Tabs: id => label.
 	 *
 	 * @return array<string, string>

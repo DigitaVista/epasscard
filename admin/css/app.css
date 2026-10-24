@@ -1298,3 +1298,58 @@ fieldset.epc-panel {
 .epc-app .button-link-delete {
 	color: #b32d2e;
 }
+
+/* ---------- Cards list ---------- */
+
+.epc-cards__filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 16px 0 8px;
+}
+
+.epc-cards__filters input[type="search"] {
+	min-width: 240px;
+}
+
+.epc-cards__attention .epc-pass-issues {
+	margin: 0 0 16px;
+	padding: 14px 18px;
+	border: 1px solid var(--epc-bad-line);
+	border-left: 4px solid var(--epc-bad-text);
+	border-radius: var(--epc-r);
+	background: var(--epc-bad-soft);
+}
+
+.epc-cards__attention .epc-pass-issues h3 {
+	margin-top: 0;
+}
+
+.epc-app .wp-list-table.epc-cards .column-actions {
+	width: 32%;
+}
+
+.epc-cards__existing {
+	margin-top: 20px;
+}
+
+/* ---------- Design: status rules and advanced mapping ---------- */
+
+.epc-behavior .epc-section,
+.epc-advanced .epc-section {
+	margin: 0;
+}
+
+.epc-advanced > summary {
+	cursor: pointer;
+	list-style-position: inside;
+}
+
+.epc-advanced[open] > summary {
+	margin-bottom: 8px;
+}
+
+.epc-settings__push .epc-section {
+	margin-top: 16px;
+}

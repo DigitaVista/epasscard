@@ -395,7 +395,7 @@ class EPC_Admin_Setup {
 			return admin_url( 'admin.php?page=epc-woocommerce-loyalty#epc-section-loyalty-program' );
 		}
 		if ( $module->has_pass_behavior_settings() ) {
-			return admin_url( 'admin.php?page=epc-' . $module->get_slug() . '#epc-section-pass-behavior' );
+			return EPC_Admin_Design::url_for_module( $module->get_slug() ) . '#epc-section-pass-behavior';
 		}
 		return '';
 	}
