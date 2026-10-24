@@ -28,7 +28,7 @@ WordPress (membership / events / gift cards plugin)
 | `EPC_Pass_Service` | Create/update passes from mappings |
 | `EPC_Api_Client` | HTTP client, templates, pass CRUD |
 | `EPC_Loyalty_Pass_Design_Service` | Loyalty StoreCard designer → API v2 create/update |
-| `EPC_DB` | `epc_passes` table |
+| `EPC_DB` | `epc_passes` table; `epc_form_submissions` (DB 1.7.0): the card values of form submissions, for form plugins that keep no entries |
 | `EPC_Api_Log` | Request/response logging |
 | `EPC_Pass_Email` | `wp_mail` delivery |
 | `EPC_Pass_Notifications` | Push notification cron, dedupe, send helpers |
@@ -75,7 +75,11 @@ epasscard/
 │   ├── module-the-events-calendar.php
 │   ├── module-events-manager.php
 │   ├── module-pw-gift-cards.php
-│   └── module-yith-gift-cards.php
+│   ├── module-yith-gift-cards.php
+│   ├── module-woocommerce-tickets.php, -vouchers.php, -product-cards.php
+│   ├── module-ultimate-member.php
+│   ├── module-wployalty.php
+│   └── module-wpforms.php
 ├── admin/
 │   ├── js/
 │   ├── css/

@@ -105,6 +105,17 @@ EpassCard ships with built-in integration modules. Each extends the same workflo
 - **Existing customers:** Cards → Give cards to existing customers (customers with points who are not banned).
 - Use either WPLoyalty or EpassCard's own loyalty program, not both, so customers do not get two loyalty cards.
 
+## WPForms
+
+**Turn on:** Settings → Integrations, or Home → Cards from a form. Works with WPForms Lite and Pro.
+
+- **One card for each submission** of a form that uses a card design. The ready-made design covers every form; on the Design page, turn it off for forms that should not give cards (contact or newsletter forms), or give a form its own design.
+- **The card goes to the form's first Email field.** If the visitor is logged in, the card is also linked to their account (My Account, `[epc_my_passes]`).
+- **The confirmation message** gets an "Add your card to Apple Wallet or Google Wallet" link right after the visitor submits (for "Message" confirmations; a redirect skips it, the email still arrives).
+- **Fields:** name (the first Name field), email, form name, submitted date, submission number, a 10-character card code, and any field of the form ("Form: Field"). Password, file upload and layout fields are never offered.
+- **What EpassCard keeps:** WPForms Lite saves no entries on your site, so EpassCard keeps a copy of only the values the form's design shows (plus the name and email for the card email) in its own table, so a failed card can be retried and a card can be resent. **Tools → Export Personal Data** includes them; **Tools → Erase Personal Data** deletes them and voids the person's cards.
+- **Existing submissions** cannot get cards (WPForms Lite keeps none).
+
 ## WooCommerce tickets, vouchers and product cards
 
 **Turn on:** Settings → Integrations (one integration per kind of card: tickets, vouchers, product cards). Needs only WooCommerce.

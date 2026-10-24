@@ -68,7 +68,7 @@ function epasscard_uninstall_site() {
 
 	global $wpdb;
 
-	foreach ( array( 'epc_passes', 'epc_api_logs', 'epc_loyalty_accounts', 'epc_loyalty_ledger', 'epc_loyalty_claims' ) as $table ) {
+	foreach ( array( 'epc_passes', 'epc_api_logs', 'epc_loyalty_accounts', 'epc_loyalty_ledger', 'epc_loyalty_claims', 'epc_form_submissions' ) as $table ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Plugin uninstall.
 		$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . $table ) );
 	}

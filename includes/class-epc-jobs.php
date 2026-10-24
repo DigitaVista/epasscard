@@ -99,6 +99,14 @@ class EPC_Jobs {
 				'no_items' => __( 'No product has a wallet card yet', 'epasscard' ),
 				'needs'    => __( 'Needs WooCommerce', 'epasscard' ),
 			),
+			'forms'      => array(
+				'title'    => __( 'Cards from my forms', 'epasscard' ),
+				'pitch'    => __( 'Everyone who fills in your form gets a wallet card, linked on the thank-you message and sent by email.', 'epasscard' ),
+				'goal'     => __( 'Get your form cards live', 'epasscard' ),
+				'items'    => __( 'forms', 'epasscard' ),
+				'no_items' => __( 'No published forms yet', 'epasscard' ),
+				'needs'    => __( 'Needs a form plugin', 'epasscard' ),
+			),
 		);
 
 		if ( isset( $copy[ $job ] ) ) {

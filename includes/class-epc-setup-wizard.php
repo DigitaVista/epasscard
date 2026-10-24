@@ -756,6 +756,12 @@ class EPC_Setup_Wizard {
 				'icon'        => 'sell',
 				'modules'     => array( 'woocommerce-tickets', 'woocommerce-vouchers', 'woocommerce-product-cards' ),
 			),
+			'forms'      => array(
+				'label'       => __( 'Cards from a form', 'epasscard' ),
+				'description' => __( 'Everyone who fills in your form gets a wallet card: sign-ups, registrations, entries.', 'epasscard' ),
+				'icon'        => 'assignment',
+				'modules'     => array( 'wpforms' ),
+			),
 		);
 	}
 

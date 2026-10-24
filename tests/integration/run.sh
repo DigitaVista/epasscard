@@ -43,6 +43,9 @@ $WP eval-file "$HERE/test-ultimate-member.php" || status=1
 echo "== WPLoyalty loyalty cards"
 $WP eval-file "$HERE/test-wployalty.php" || status=1
 
+echo "== WPForms form cards"
+$WP eval-file "$HERE/test-wpforms.php" || status=1
+
 echo "== Account pages: Add to wallet (Paid Memberships Pro, Simple Membership)"
 $WP eval-file "$HERE/test-account-links.php" || status=1
 

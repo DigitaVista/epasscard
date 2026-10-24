@@ -298,6 +298,21 @@ class EPC_Template_Starter {
 				),
 				'barcode'   => self::field( 'Member ID', __( 'Member ID', 'epasscard' ), 'member_id', true, true, '10042' ),
 			),
+			'wpforms'                   => array(
+				'type'      => 'card',
+				'card_type' => 'Generic',
+				'header'    => array( self::field( 'Submitted', __( 'Submitted', 'epasscard' ), 'submitted_date', false, false, '2026-11-02' ) ),
+				'primary'   => array( self::field( 'Name', __( 'Name', 'epasscard' ), 'user_full_name', false, false, 'Alex Rivera' ) ),
+				'secondary' => array(
+					self::field( 'Form', __( 'Form', 'epasscard' ), 'form_title', false, false, __( 'Taster evening sign-up', 'epasscard' ) ),
+					self::field( 'Number', __( 'Number', 'epasscard' ), 'submission_id', false, false, '1042' ),
+				),
+				'auxiliary' => array(),
+				'back'      => array(
+					self::field( 'Email', __( 'Email', 'epasscard' ), 'user_email', false, false, 'alex@example.com' ),
+				),
+				'barcode'   => self::field( 'Card code', __( 'Card code', 'epasscard' ), 'card_code', true, true, 'K7M2Q9XR4T' ),
+			),
 			'woocommerce-product-cards' => array(
 				'type'      => 'card',
 				'card_type' => 'Generic',

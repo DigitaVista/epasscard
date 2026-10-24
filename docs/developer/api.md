@@ -26,6 +26,7 @@ integration uses.
 | YITH Gift Cards | `yith-gift-cards` | Gift card post id |
 | Ultimate Member | `ultimate-member` | WordPress user id |
 | WPLoyalty | `wployalty` | Row id in `wlr_users` (WPLoyalty's customer table) |
+| WPForms | `wpforms` | Row id in `epc_form_submissions` (EpassCard's copy of the submission) |
 | WooCommerce tickets | `woocommerce-tickets` | `i<order item id>_<unit>`, one per unit bought (`i57_2` = second ticket of line 57) |
 | WooCommerce vouchers | `woocommerce-vouchers` | `i<order item id>_<unit>` |
 | WooCommerce product cards | `woocommerce-product-cards` | `i<order item id>_<unit>` |

@@ -183,6 +183,19 @@ function epc_is_ultimate_member_active() {
 }
 
 /**
+ * Whether WPForms (Lite or Pro) is installed and active.
+ *
+ * @return bool
+ */
+function epc_is_wpforms_active() {
+	if ( defined( 'WPFORMS_VERSION' ) && function_exists( 'wpforms' ) ) {
+		return true;
+	}
+
+	return epc_is_plugin_active( 'wpforms-lite/wpforms.php' ) || epc_is_plugin_active( 'wpforms/wpforms.php' );
+}
+
+/**
  * Whether WPLoyalty (free or Pro) is installed and active.
  *
  * @return bool

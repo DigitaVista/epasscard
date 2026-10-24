@@ -651,6 +651,10 @@ class EPC_Admin_Setup {
 			$lines[] = __( 'The card updates whenever WPLoyalty changes the balance: orders, rewards, expiry, returns and your changes.', 'epasscard' );
 			$lines[] = __( 'Banning a customer in WPLoyalty voids the card; lifting the ban brings it back.', 'epasscard' );
 			$lines[] = __( 'Customers without an account get the card at their WPLoyalty email.', 'epasscard' );
+		} elseif ( 'wpforms' === $slug ) {
+			$lines[] = __( 'One card for each submission of a form that uses a card design. The ready-made design covers every form: turn it off on the Design page for forms that should not give cards, such as contact or newsletter forms.', 'epasscard' );
+			$lines[] = __( 'The card goes to the form\'s first Email field. A logged-in visitor\'s card is also linked to their account.', 'epasscard' );
+			$lines[] = __( 'EpassCard keeps only the values the card shows, so a card can be resent or retried. WordPress\'s Erase Personal Data tool removes them and voids the card.', 'epasscard' );
 		} elseif ( 'the-events-calendar' === $slug ) {
 			array_unshift( $lines, __( 'One ticket for each attendee.', 'epasscard' ) );
 		} elseif ( 'events-manager' === $slug ) {
@@ -711,6 +715,9 @@ class EPC_Admin_Setup {
 		$lines[] = ! empty( $email['auto_on_create'] )
 			? __( 'By email from your site when the card is created.', 'epasscard' )
 			: __( 'Not by email: the automatic email is off (Settings → Emails).', 'epasscard' );
+		if ( 'wpforms' === $module->get_slug() ) {
+			$lines[] = __( 'On the form\'s confirmation message, right after they submit.', 'epasscard' );
+		}
 		if ( function_exists( 'epc_is_woocommerce_active' ) && epc_is_woocommerce_active() ) {
 			$lines[] = __( 'In My Account on your store.', 'epasscard' );
 		}

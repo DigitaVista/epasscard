@@ -462,6 +462,7 @@ class EPC_Frontend {
 			'yith-gift-cards'           => __( 'Gift card', 'epasscard' ),
 			'ultimate-member'           => __( 'Membership', 'epasscard' ),
 			'wployalty'                 => __( 'Loyalty card', 'epasscard' ),
+			'wpforms'                   => __( 'Card', 'epasscard' ),
 			'woocommerce-tickets'       => __( 'Ticket', 'epasscard' ),
 			'woocommerce-vouchers'      => __( 'Voucher', 'epasscard' ),
 			'woocommerce-product-cards' => __( 'Card', 'epasscard' ),

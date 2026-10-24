@@ -35,6 +35,12 @@ class EPC_DB {
 	public const LOYALTY_CLAIMS_TABLE = 'epc_loyalty_claims';
 
 	/**
+	 * Form submissions table name without prefix (DB 1.7.0): the values a form card shows,
+	 * for form plugins that keep no entries on the site (WPForms Lite).
+	 */
+	public const FORM_SUBMISSIONS_TABLE = 'epc_form_submissions';
+
+	/**
 	 * Install or upgrade schema.
 	 *
 	 * @return void
@@ -69,6 +75,7 @@ class EPC_DB {
 		dbDelta( $sql );
 
 		self::install_loyalty_tables();
+		self::install_form_submissions_table();
 
 		require_once EPC_PLUGIN_DIR . 'includes/class-epc-api-log.php';
 		EPC_Api_Log::install();
@@ -148,6 +155,38 @@ class EPC_DB {
 	}
 
 	/**
+	 * Install the form submissions table (DB 1.7.0).
+	 *
+	 * One row per form submission that gets a card: only the values the card shows, the
+	 * address the card goes to and the card code. The row id is the card's record id.
+	 *
+	 * @return void
+	 */
+	private static function install_form_submissions_table() {
+		global $wpdb;
+
+		$table           = self::form_submissions_table_name();
+		$charset_collate = $wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE {$table} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			module varchar(32) NOT NULL DEFAULT '',
+			form_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			entry_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			email varchar(190) NOT NULL DEFAULT '',
+			card_code varchar(16) NOT NULL DEFAULT '',
+			field_values longtext NULL,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY module_form (module, form_id),
+			KEY email (email)
+		) {$charset_collate};";
+
+		dbDelta( $sql );
+	}
+
+	/**
 	 * Run schema upgrades when the plugin DB version changes.
 	 *
 	 * @return void
@@ -171,6 +210,7 @@ class EPC_DB {
 				self::stop_autoloading_mappings();
 			}
 			// 1.6.0: the is_test column is added by install() above (dbDelta); existing rows read 0.
+			// 1.7.0: the form submissions table is added by install() above.
 			if ( ! $unique_ok ) {
 				// Retry on the next load (a duplicate slipped in between the merge and the ALTER),
 				// at most 5 times so a database that refuses the index is not retried forever.
@@ -559,6 +599,16 @@ class EPC_DB {
 	public static function loyalty_claims_table_name() {
 		global $wpdb;
 		return $wpdb->prefix . self::LOYALTY_CLAIMS_TABLE;
+	}
+
+	/**
+	 * Full form submissions table name.
+	 *
+	 * @return string
+	 */
+	public static function form_submissions_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . self::FORM_SUBMISSIONS_TABLE;
 	}
 
 	/**
