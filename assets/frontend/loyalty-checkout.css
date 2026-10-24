@@ -43,6 +43,71 @@
 	font-weight: 600;
 }
 
-.epc-loyalty-redemption--blocks {
-	margin-top: 1em;
+/* Cart and Checkout blocks: a row of the order summary, lined up with the Discount row. */
+.wc-block-components-totals-wrapper .epc-loyalty-redemption.epc-loyalty-redemption--blocks {
+	margin: 0;
+	padding: 16px 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+}
+
+/* Same inset as WooCommerce's totals rows in a wide sidebar. */
+.is-large .wc-block-components-sidebar .epc-loyalty-redemption.epc-loyalty-redemption--blocks {
+	padding-right: 16px;
+	padding-left: 16px;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__title {
+	margin: 0 0 0.5em;
+	font-family: inherit;
+	font-size: 1em;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__balance,
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__message {
+	margin: 0;
+	line-height: 1.5;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__controls {
+	margin: 0.75em 0 0.5em;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__input {
+	flex: 1 1 6em;
+	box-sizing: border-box;
+	min-height: 2.75em;
+	padding: 0.5em 0.75em;
+	border: 1px solid #949494;
+	border-radius: 4px;
+	background: #fff;
+	color: #1e1e1e;
+	font-size: inherit;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__apply,
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__remove {
+	flex: 0 0 auto;
+	min-height: 2.75em;
+	margin: 0;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__remove:disabled,
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__apply:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__hint,
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__status {
+	margin: 0;
+	font-size: 0.875em;
+	line-height: 1.5;
+}
+
+.epc-loyalty-redemption--blocks .epc-loyalty-redemption__status:empty {
+	display: none;
 }

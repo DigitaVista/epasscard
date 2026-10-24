@@ -70,6 +70,8 @@ class EPC_Loyalty_Redemption_Service {
 		add_action( 'woocommerce_order_status_changed', array( __CLASS__, 'on_order_status_changed' ), 25, 4 );
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'on_order_refunded' ), 25, 2 );
 
+		add_action( 'woocommerce_blocks_cart_block_registration', array( __CLASS__, 'register_blocks_integration' ) );
+		add_action( 'woocommerce_blocks_checkout_block_registration', array( __CLASS__, 'register_blocks_integration' ) );
 		add_action( 'woocommerce_blocks_loaded', array( __CLASS__, 'register_store_api' ) );
 		if ( did_action( 'woocommerce_blocks_loaded' ) ) {
 			self::register_store_api();
@@ -207,7 +209,8 @@ class EPC_Loyalty_Redemption_Service {
 	}
 
 	/**
-	 * Enqueue classic and block checkout assets.
+	 * Enqueue the classic cart and checkout assets. The Cart and Checkout blocks load theirs
+	 * through EPC_Loyalty_Blocks_Integration.
 	 *
 	 * @return void
 	 */
@@ -216,10 +219,9 @@ class EPC_Loyalty_Redemption_Service {
 			return;
 		}
 
-		$on_cart     = is_cart();
-		$on_checkout = is_checkout() && ! is_order_received_page();
-		$has_blocks  = has_block( 'woocommerce/cart' ) || has_block( 'woocommerce/checkout' );
-		if ( ! $on_cart && ! $on_checkout && ! $has_blocks ) {
+		$on_cart     = is_cart() && ! has_block( 'woocommerce/cart' );
+		$on_checkout = is_checkout() && ! is_order_received_page() && ! has_block( 'woocommerce/checkout' );
+		if ( ! $on_cart && ! $on_checkout ) {
 			return;
 		}
 
@@ -227,36 +229,38 @@ class EPC_Loyalty_Redemption_Service {
 		wp_register_style( $handle, EPC_PLUGIN_URL . 'assets/frontend/loyalty-checkout.css', array(), EPC_VERSION );
 		wp_enqueue_style( $handle );
 
-		$deps = array( 'jquery' );
-		if ( wp_script_is( 'wc-blocks-checkout', 'registered' ) ) {
-			$deps[] = 'wc-blocks-checkout';
-		}
-		wp_register_script( $handle, EPC_PLUGIN_URL . 'assets/frontend/loyalty-checkout.js', $deps, EPC_VERSION, true );
+		wp_register_script( $handle, EPC_PLUGIN_URL . 'assets/frontend/loyalty-checkout.js', array( 'jquery' ), EPC_VERSION, true );
 		wp_localize_script(
 			$handle,
 			'epcLoyaltyCheckout',
 			array(
-				'ajaxUrl'   => class_exists( 'WC_AJAX' )
+				'ajaxUrl' => class_exists( 'WC_AJAX' )
 					? WC_AJAX::get_endpoint( 'epc_loyalty_set_redemption' )
 					: admin_url( 'admin-ajax.php' ),
-				'nonce'     => wp_create_nonce( 'epc_loyalty_redemption' ),
-				'namespace' => self::STORE_NAMESPACE,
-				'i18n'      => array(
-					'apply'   => __( 'Apply points', 'epasscard' ),
-					'remove'  => __( 'Remove', 'epasscard' ),
-					'balance' => __( 'Available points', 'epasscard' ),
-					'guest'   => __( 'Sign in to redeem loyalty points.', 'epasscard' ),
-					'error'   => __( 'Unable to update loyalty points.', 'epasscard' ),
-					'title'   => __( 'Redeem loyalty points', 'epasscard' ),
-					'signIn'  => __( 'Sign in', 'epasscard' ),
-					/* translators: %d: points applied to the order. */
-					'applied' => __( '(%d applied to this order)', 'epasscard' ),
-					'couponLabel' => __( 'Loyalty points', 'epasscard' ),
+				'nonce'   => wp_create_nonce( 'epc_loyalty_redemption' ),
+				'i18n'    => array(
+					'error' => __( 'Unable to update loyalty points.', 'epasscard' ),
 				),
-				'quote'     => self::get_quote_payload(),
 			)
 		);
 		wp_enqueue_script( $handle );
+	}
+
+	/**
+	 * Register the widget with the Cart and Checkout blocks.
+	 *
+	 * @param object $registry WooCommerce Blocks integration registry.
+	 * @return void
+	 */
+	public static function register_blocks_integration( $registry ) {
+		if ( ! is_object( $registry ) || ! method_exists( $registry, 'register' ) || ! interface_exists( 'Automattic\\WooCommerce\\Blocks\\Integrations\\IntegrationInterface' ) ) {
+			return;
+		}
+		if ( method_exists( $registry, 'is_registered' ) && $registry->is_registered( self::STORE_NAMESPACE ) ) {
+			return;
+		}
+		require_once EPC_PLUGIN_DIR . 'includes/loyalty/class-epc-loyalty-blocks-integration.php';
+		$registry->register( new EPC_Loyalty_Blocks_Integration() );
 	}
 
 	/**
