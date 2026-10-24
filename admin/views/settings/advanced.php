@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings → Advanced: data on uninstall, developer key, API log.
+ * Settings → Advanced: data on uninstall, support chat, developer key, API log.
  *
  * @package EpassCard
  */
@@ -30,6 +30,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</p>
 		</form>
 	</div>
+
+<?php if ( EPC_Support_Chat::site_enabled() ) : ?>
+	<div class="epc-card">
+		<h2><?php esc_html_e( 'Support chat', 'epasscard' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'The "Chat with us" button in the top bar opens a chat with EpassCard support. Nothing is sent until you start a chat. Hiding it applies to your user only, for example when your agency handles support.', 'epasscard' ); ?>
+		</p>
+		<form class="epc-ajax-form" data-epc-action="epc_support_chat_visibility" method="post" action="">
+			<p>
+				<label class="epc-toggle">
+					<input type="checkbox" name="epc_support_chat_show" value="1" <?php checked( '1' !== (string) get_user_meta( get_current_user_id(), EPC_Support_Chat::META_HIDDEN, true ) ); ?> />
+					<span class="epc-toggle__track" aria-hidden="true"></span>
+					<span class="epc-toggle__label"><?php esc_html_e( 'Show the "Chat with us" button to me', 'epasscard' ); ?></span>
+				</label>
+			</p>
+			<p style="margin-bottom:0;">
+				<button type="submit" class="button button-primary"><?php esc_html_e( 'Save', 'epasscard' ); ?></button>
+			</p>
+		</form>
+	</div>
+<?php endif; ?>
 
 <?php if ( $connected ) : ?>
 <div class="epc-card">

@@ -201,6 +201,7 @@ class EPC_Admin_Shell {
 					<?php endif; ?>
 					<?php if ( current_user_can( 'manage_options' ) ) : ?>
 						<a class="epc-topbar__link" href="<?php echo esc_url( EPC_Help::url() ); ?>"<?php echo 'help' === $section ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Help', 'epasscard' ); ?></a>
+						<?php EPC_Support_Chat::render_button(); ?>
 					<?php else : ?>
 						<a class="epc-topbar__link" href="<?php echo esc_url( epc_utm_url( self::docs_url(), 'help' ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Help', 'epasscard' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span></a>
 					<?php endif; ?>

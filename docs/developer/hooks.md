@@ -74,6 +74,13 @@ See [push-notifications.md](push-notifications.md) for API endpoint and module p
 | `epc_api_request_headers` | filter | `( $headers, $origin )` — includes `X-Request-Origin` |
 | `epc_api_timezone` | filter | Timezone sent when generating keys |
 
+## Support chat
+
+| Hook | Type | Description |
+|------|------|-------------|
+| `epc_support_chat_enabled` | filter | `false` hides "Chat with us" for every user of the site |
+| `epc_support_chat_hours` | filter | Support hours for the online dot: `timezone`, `days` (ISO-8601, 1 = Monday), `open`, `close` (`H:i`) |
+
 ## PHP helpers
 
 ```php

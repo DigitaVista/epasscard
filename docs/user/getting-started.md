@@ -32,6 +32,11 @@
 - Optional reminder pushes use native plugin timing (MemberPress, WooCommerce Subscriptions) or EpassCard’s daily cron (other modules).
 - Pass links can be emailed automatically, included in WooCommerce order emails, or viewed in My Account / MemberPress account where supported.
 
+## Getting help
+
+- **Help** in the EpassCard top bar lists the tutorials and guides.
+- **Chat with us** (next to Help) opens a chat with EpassCard support. The dot is green during support hours (10:00–19:00 Bangladesh time, Saturday to Thursday); outside them, leave a message and we reply by email. Nothing is loaded or sent until you start a chat; the panel shows what is sent (your name and email, site address, versions, EpassCard account and plan, integrations, number of designs and cards, the screen you are on and the last failed call, never the API key or your customers' data). Hide the button for yourself under Settings → Advanced. Developers can turn it off for the whole site with the `epc_support_chat_enabled` filter.
+
 ## Next steps
 
 - [Connection & email settings](connection.md)

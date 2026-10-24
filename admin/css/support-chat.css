@@ -1,0 +1,198 @@
+/**
+ * "Chat with us" button and panel in the EpassCard top bar.
+ */
+
+.epc-chat {
+	position: relative;
+}
+
+.epc-app .epc-chat__button {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px;
+	border: 1px solid var(--epc-line, #e2e8f0);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--epc-text, #1b1b1b);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.epc-app .epc-chat__button:hover,
+.epc-app .epc-chat__button[aria-expanded="true"] {
+	border-color: var(--epc-line-strong, #c1c6d7);
+}
+
+.epc-app .epc-chat__button:focus-visible,
+.epc-chat__start:focus-visible,
+.epc-chat__close:focus-visible {
+	outline: 2px solid var(--epc-accent, #007aff);
+	outline-offset: 2px;
+}
+
+.epc-chat__dot {
+	display: inline-block;
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #9ca3af;
+}
+
+.epc-chat__dot.is-online {
+	background: var(--epc-ok, #10b981);
+	box-shadow: 0 0 0 3px var(--epc-ok-soft, #ecfdf5);
+}
+
+.epc-chat__panel {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	z-index: 1000;
+	box-sizing: border-box;
+	width: 340px;
+	max-width: calc(100vw - 32px);
+	padding: 16px;
+	border: 1px solid var(--epc-line, #e2e8f0);
+	border-radius: var(--epc-r-lg, 12px);
+	background: #fff;
+	box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+	color: var(--epc-text, #1b1b1b);
+	font-size: 13px;
+	line-height: 1.5;
+	text-align: left;
+}
+
+.epc-chat__panel[hidden] {
+	display: none;
+}
+
+.epc-chat__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.epc-app .epc-chat__title {
+	margin: 0;
+	padding: 0;
+	font-family: var(--epc-font-display, inherit);
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.4;
+}
+
+.epc-chat__close {
+	margin: -4px -6px 0 0;
+	padding: 0 6px;
+	border: 0;
+	background: none;
+	color: var(--epc-muted, #414755);
+	font-size: 20px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.epc-chat__status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 6px 0 12px;
+	color: var(--epc-muted, #414755);
+}
+
+.epc-chat__status.is-online {
+	color: var(--epc-ok-text, #047857);
+}
+
+.epc-chat__label {
+	margin: 0 0 6px;
+	color: var(--epc-muted, #414755);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.epc-chat__starts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.epc-chat__start {
+	padding: 6px 12px;
+	border: 1px solid var(--epc-accent-ring, #dbeafe);
+	border-radius: 999px;
+	background: var(--epc-accent-soft, #eef4ff);
+	color: var(--epc-link, #0066d6);
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.epc-chat__start:hover {
+	border-color: var(--epc-accent, #007aff);
+}
+
+.epc-chat__start--plain {
+	border-color: var(--epc-line, #e2e8f0);
+	background: #fff;
+	color: var(--epc-text, #1b1b1b);
+}
+
+.epc-chat__consent {
+	margin: 12px 0 0;
+	color: var(--epc-muted, #414755);
+	font-size: 12px;
+}
+
+.epc-chat__details {
+	margin-top: 10px;
+	font-size: 12px;
+}
+
+.epc-chat__details summary {
+	color: var(--epc-link, #0066d6);
+	cursor: pointer;
+}
+
+.epc-chat__details dl {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 2px 10px;
+	max-height: 200px;
+	margin: 8px 0 0;
+	overflow: auto;
+}
+
+.epc-chat__details dt {
+	color: var(--epc-muted, #414755);
+}
+
+.epc-chat__details dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.epc-chat__details .description {
+	margin: 6px 0 0;
+}
+
+.epc-chat__error {
+	margin: 10px 0 0;
+	color: var(--epc-bad-text, #b91c1c);
+}
+
+@media (max-width: 600px) {
+	.epc-chat__panel {
+		position: fixed;
+		top: auto;
+		right: 16px;
+		bottom: 16px;
+		left: 16px;
+		width: auto;
+	}
+}
