@@ -257,6 +257,49 @@ epc_ump_check( 'expired (UMP daily job): card voided', 'revoked' === epc_ump_car
 \Ump\User_Subscriptions::assign( $user, $level );
 \Ump\User_Subscriptions::makeComplete( $user, $level );
 epc_ump_check( 'renewed after expiry: card live again', 'active' === epc_ump_card( $user, $level ) );
+// Statuses without a UMP hook (pause, resume, hold, cancellation pending, admin edits): the
+// rule the admin chose for each status is applied at the end of the request.
+$statuses = array_keys( $module->get_pass_behavior_statuses() );
+epc_ump_check( 'settings list On hold, Paused and Cancellation pending', array( 'pending', 'active', 'hold', 'paused', 'cancellation_pending', 'cancelled', 'expired' ) === $statuses, implode( ',', $statuses ) );
+update_option( 'epc_ump_status_rules', array( 'pending' => 'none', 'active' => 'sync', 'cancelled' => 'revoke', 'expired' => 'revoke' ) ); // Saved before 1.2.0.
+epc_ump_check( 'rules saved before: the new statuses do nothing', 'none' === $module->get_status_rule( 'paused' ) && 'none' === $module->get_status_rule( 'hold' ) && 'none' === $module->get_status_rule( 'cancellation_pending' ) );
+$live_uid = (string) EPC_DB::get_pass( $slug, (string) $row_id )->pass_uid;
+$sql      = $wpdb->prepare( "UPDATE {$wpdb->prefix}ihc_user_levels SET status=%d WHERE id=%d;", 4, $row_id );
+epc_ump_check( 'the status query is passed on unchanged', $sql === $module->watch_status_update( $sql ) );
+$module->apply_status_changes(); // Clear what that call noted.
+\Ump\User_Subscriptions::updateStatusBySubscriptionId( $row_id, 4 );
+$module->apply_status_changes(); // What runs at the end of the request.
+epc_ump_check( 'paused, rule "Do nothing": the card stays', 'active' === epc_ump_card( $user, $level ) );
+update_option( 'epc_ump_status_rules', array( 'paused' => 'revoke', 'hold' => 'revoke', 'cancellation_pending' => 'revoke' ) );
+\Ump\User_Subscriptions::updateStatusBySubscriptionId( $row_id, 4 );
+$module->apply_status_changes();
+epc_ump_check( 'paused, rule "Revoke": card voided', 'revoked' === epc_ump_card( $user, $level ) );
+\Ump\User_Subscriptions::updateStatusBySubscriptionId( $row_id, 1 ); // Resume.
+$module->apply_status_changes();
+epc_ump_check( 'resumed: the same card is live again', 'active' === epc_ump_card( $user, $level ) && $live_uid === (string) EPC_DB::get_pass( $slug, (string) $row_id )->pass_uid );
+\Ump\User_Subscriptions::updateStatus( $user, $level, 5 ); // Cancellation pending (by user and level).
+$module->apply_status_changes();
+epc_ump_check( 'cancellation pending, rule "Revoke": card voided', 'revoked' === epc_ump_card( $user, $level ) );
+\Ump\User_Subscriptions::updateStatus( $user, $level, 1 );
+$module->apply_status_changes();
+\Ump\User_Subscriptions::updateStatusBySubscriptionId( $row_id, 3 ); // On hold.
+$module->apply_status_changes();
+epc_ump_check( 'on hold, rule "Revoke": card voided', 'revoked' === epc_ump_card( $user, $level ) );
+\Ump\User_Subscriptions::updateStatusBySubscriptionId( $row_id, 1 );
+$module->apply_status_changes();
+delete_option( 'epc_ump_status_rules' );
+\Ump\User_Subscriptions::updateStatusBySubscriptionId( $row_id, 2 ); // An admin sets Expired.
+$module->apply_status_changes();
+epc_ump_check( 'set to Expired by an admin: card voided (Expired rule)', 'revoked' === epc_ump_card( $user, $level ) );
+\Ump\User_Subscriptions::updateStatusBySubscriptionId( $row_id, 1 );
+$module->apply_status_changes();
+epc_ump_check( 'set back to Active: card live', 'active' === epc_ump_card( $user, $level ) );
+$module->watch_status_update( "UPDATE {$wpdb->prefix}ihc_user_levels SET notification=1 WHERE id=" . $row_id );
+$module->watch_status_update( "SELECT status FROM {$wpdb->prefix}ihc_user_levels WHERE id=" . $row_id );
+$before = (int) $wpdb->num_queries;
+$module->apply_status_changes();
+epc_ump_check( 'other queries on the table are ignored', (int) $wpdb->num_queries === $before );
+
 \Ump\User_Subscriptions::deleteOne( $user, $level );
 $after = EPC_DB::get_pass( $slug, (string) $row_id );
 epc_ump_check( 'level removed from the member: card voided', $after && 'revoked' === (string) $after->status );

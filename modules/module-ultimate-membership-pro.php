@@ -104,10 +104,14 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 	 */
 	public function get_default_status_rules() {
 		return array(
-			'pending'   => 'none',
-			'active'    => 'sync',
-			'cancelled' => 'revoke',
-			'expired'   => 'revoke',
+			'pending'              => 'none',
+			'active'               => 'sync',
+			// UMP 12+ statuses. "Do nothing" keeps the card as it is (as before they were listed).
+			'hold'                 => 'none',
+			'paused'               => 'none',
+			'cancellation_pending' => 'none',
+			'cancelled'            => 'revoke',
+			'expired'              => 'revoke',
 		);
 	}
 
@@ -118,10 +122,13 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 	 */
 	public function get_configurable_membership_statuses() {
 		return array(
-			'pending'   => __( 'Pending payment', 'epasscard' ),
-			'active'    => __( 'Active', 'epasscard' ),
-			'cancelled' => __( 'Cancelled', 'epasscard' ),
-			'expired'   => __( 'Expired', 'epasscard' ),
+			'pending'              => __( 'Pending payment', 'epasscard' ),
+			'active'               => __( 'Active', 'epasscard' ),
+			'hold'                 => __( 'On hold', 'epasscard' ),
+			'paused'               => __( 'Paused', 'epasscard' ),
+			'cancellation_pending' => __( 'Cancellation pending (access until the end date)', 'epasscard' ),
+			'cancelled'            => __( 'Cancelled', 'epasscard' ),
+			'expired'              => __( 'Expired', 'epasscard' ),
 		);
 	}
 
@@ -210,7 +217,7 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		}
 
 		$status = $this->get_user_level_status( (int) $row->user_id, (int) $row->level_id, $row );
-		if ( 'active' !== $status ) {
+		if ( in_array( $status, array( 'pending', 'cancelled', 'expired' ), true ) ) {
 			return;
 		}
 
@@ -386,6 +393,10 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		// UMP 10.x: the level row is still present here, so the pass can be found and expired.
 		add_action( 'ihc_action_before_delete_user_subscription', array( $this, 'on_level_deleted' ), 10, 2 );
 		add_action( 'ihc_action_after_cancel_subscription', array( $this, 'on_subscription_cancelled' ), 10, 2 );
+		// UMP 12+ changes a status (pause, resume, hold, cancellation pending, an admin edit)
+		// with \Ump\User_Subscriptions::updateStatus() / updateStatusBySubscriptionId() and
+		// fires no hook: that query is noticed and the status rule applied at the end of the request.
+		add_filter( 'query', array( $this, 'watch_status_update' ) );
 
 		// Members list (Ultimate Membership Pro → Members): an "EpassCard" column.
 		// Before UMP 12.5 the list is a plain table: a header cell and a cell per row.
@@ -627,6 +638,68 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 
 		foreach ( $this->get_user_level_ids( $user_id ) as $level_id ) {
 			$this->handle_membership_event( $user_id, $level_id );
+		}
+	}
+
+	/**
+	 * Subscriptions whose status UMP changed in this request: row id or "user_id:level_id".
+	 *
+	 * @var array<string, true>
+	 */
+	private $status_changes = array();
+
+	/**
+	 * Notice UMP's status update query (UMP 12+ fires no hook for it).
+	 *
+	 * Matches only "UPDATE <prefix>ihc_user_levels SET status=N WHERE id=N" and
+	 * "... WHERE user_id=N AND level_id=N", the queries of updateStatusBySubscriptionId() and
+	 * updateStatus(). The query itself is never changed.
+	 *
+	 * @param string $query SQL.
+	 * @return string
+	 */
+	public function watch_status_update( $query ) {
+		if ( ! is_string( $query ) || false === strpos( $query, 'ihc_user_levels' ) || false === stripos( $query, 'status' ) ) {
+			return $query;
+		}
+		global $wpdb;
+		$sql   = trim( (string) preg_replace( '/\s+/', ' ', $query ) );
+		$table = preg_quote( $wpdb->prefix . 'ihc_user_levels', '/' );
+		if ( preg_match( '/^UPDATE `?' . $table . '`? SET status ?= ?\'?\d+\'? WHERE (?:id ?= ?\'?(\d+)\'?|user_id ?= ?\'?(\d+)\'? AND level_id ?= ?\'?(\d+)\'?) ?;?$/i', $sql, $m ) ) {
+			$key = '' !== $m[1] ? $m[1] : $m[2] . ':' . $m[3];
+			if ( empty( $this->status_changes ) ) {
+				add_action( 'shutdown', array( $this, 'apply_status_changes' ) );
+			}
+			$this->status_changes[ $key ] = true;
+		}
+		return $query;
+	}
+
+	/**
+	 * End of the request: apply the status rule to each subscription whose status changed.
+	 *
+	 * @return void
+	 */
+	public function apply_status_changes() {
+		$changes              = array_keys( $this->status_changes );
+		$this->status_changes = array();
+		if ( ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+		foreach ( $changes as $key ) {
+			$key = (string) $key;
+			if ( false !== strpos( $key, ':' ) ) {
+				list( $user_id, $level_id ) = array_map( 'absint', explode( ':', $key, 2 ) );
+				$row                        = $this->get_user_level_row( $user_id, $level_id );
+			} else {
+				$row = $this->get_user_level_row_by_id( absint( $key ) );
+			}
+			if ( ! $row ) {
+				continue;
+			}
+			$user_id  = absint( $row->user_id );
+			$level_id = absint( $row->level_id );
+			$this->apply_status_rule( $user_id, $level_id, $this->get_user_level_status( $user_id, $level_id, $row ) );
 		}
 	}
 
@@ -915,11 +988,18 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 			return 'pending';
 		}
 
-		if ( isset( $row->status ) && (string) $row->status === '0' ) {
-			return 'cancelled';
-		}
+		// ihc_user_levels.status (UMP 12+: \Ump\Db\Reports): 0 cancelled, 1 active, 2 expired,
+		// 3 hold, 4 pause, 5 cancellation pending. Older versions use 0 and 1 only.
+		$code = isset( $row->status ) ? (string) $row->status : '1';
+		$map  = array(
+			'0' => 'cancelled',
+			'2' => 'expired',
+			'3' => 'hold',
+			'4' => 'paused',
+			'5' => 'cancellation_pending',
+		);
 
-		return 'active';
+		return $map[ $code ] ?? 'active';
 	}
 
 	/**
