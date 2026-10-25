@@ -89,7 +89,7 @@
 				<p>Functions <code>epc_*</code> · Classes <code>EPC_*</code> · Options/tables <code>epc_*</code></p>
 
 				<h2>Boot order</h2>
-				<p><code>plugins_loaded</code> (20) → <code>EPC_Plugin::boot()</code>: DB upgrade, API log, email, frontend, crons, admin menu, enabled modules.</p>
+				<p>Classes load on first use (<code>EPC_Autoloader</code>); integration modules only when enabled. <code>plugins_loaded</code> (20) → <code>EPC_Plugin::boot()</code>: DB upgrade (only when due); on every request pass email, front-end links and profile sync; in wp-admin, WP-Cron and WP-CLI the API log, crons and background jobs; in wp-admin the admin screens; then enabled modules. A front-end page with one integration loads about 16 of the plugin's files.</p>
 				<p>Register custom modules on <code>plugins_loaded</code> priority <strong>10</strong> or earlier.</p>
 
 				<h2>Push notification flow</h2>

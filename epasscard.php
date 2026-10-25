@@ -33,13 +33,6 @@ if ( ! defined( 'EPC_APPSERO_HASH' ) ) {
 	define( 'EPC_APPSERO_HASH', '' );
 }
 
-if ( ! class_exists( 'Appsero\Client' ) ) {
-	$epc_appsero_client = EPC_PLUGIN_DIR . 'vendor/appsero/client/src/Client.php';
-	if ( file_exists( $epc_appsero_client ) ) {
-		require_once $epc_appsero_client;
-	}
-}
-
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-appsero.php';
 require_once EPC_PLUGIN_DIR . 'includes/class-epc-plugin.php';
 
@@ -71,5 +64,8 @@ function epc_plugin() {
 register_activation_hook( __FILE__, array( 'EPC_Activator', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'EPC_Activator', 'deactivate' ) );
 
-EPC_Appsero::init();
+// Appsero usage tracking: its hooks are admin, cron and plugin (de)activation hooks only.
+if ( EPC_Plugin::is_background_request() ) {
+	EPC_Appsero::init();
+}
 epc_plugin()->init();

@@ -92,14 +92,25 @@ epasscard/
 
 ## Boot order
 
+`epasscard.php` loads only `EPC_Plugin`, `EPC_Autoloader` and the helper functions
+(`includes/epc-dependencies.php`). Every other class is loaded the first time it is used
+(`EPC_Autoloader::CLASSES` maps class → file; `tests/integration/test-autoload.php` keeps the map
+in step with the code). Integration modules load only when enabled (`EPC_Module_Loader`).
+
 `plugins_loaded` (priority 20) → `EPC_Plugin::boot()`:
 
-1. DB upgrade
-2. API log, email, frontend, connection cron
-3. User pass sync
-4. Pass notifications
-5. Admin menu
-6. Load enabled modules
+1. DB upgrade (only when the stored `epc_db_version` is older)
+2. Every request: pass email, front-end links, user profile sync, pass status, default design;
+   privacy and REST hooks registered by class name (the class loads when the hook runs)
+3. wp-admin, WP-Cron and WP-CLI only (`EPC_Plugin::is_background_request()`): API log, connection
+   and notification crons, pass issues, retry and existing-customer jobs
+4. wp-admin only (`is_admin()`, which includes admin-ajax.php and admin-post.php): the admin
+   screens, setup wizard, template starter and support chat
+5. Load enabled modules
+
+A front-end page with one integration enabled loads about 16 of the plugin's files (≈230 KB of
+PHP); before 1.2.0 it was every file (≈1.2 MB). New classes go in `EPC_Autoloader::CLASSES`; hooks
+that must run on front-end requests must not be registered only from the admin group.
 
 Register custom modules on `plugins_loaded` priority **10** or earlier.
 
