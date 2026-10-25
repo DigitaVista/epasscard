@@ -101,6 +101,7 @@ function epasscard_uninstall_site() {
 		'epc_existing_results',
 		'epc_setup',
 		'epc_test_cards',
+		'epc_user_field_keys',
 		// Integration pass-behavior rules.
 		'epc_events_manager_status_rules',
 		'epc_memberpress_status_rules',

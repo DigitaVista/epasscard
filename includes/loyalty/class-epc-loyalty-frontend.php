@@ -18,8 +18,12 @@ class EPC_Loyalty_Frontend {
 
 	/**
 	 * Rewrite flush marker. Bump when the endpoint slug or mask changes.
+	 *
+	 * 3 (plugin 1.2.0): same endpoint; the marker is now autoloaded, since it is read on every
+	 * request. The bump makes sites that saved '2' (not autoloaded) store it once more, with one
+	 * soft flush (the same as saving Settings → Permalinks).
 	 */
-	private const REWRITE_VERSION = '2';
+	private const REWRITE_VERSION = '3';
 
 	/**
 	 * Register hooks when the loyalty module is active.
@@ -129,7 +133,7 @@ class EPC_Loyalty_Frontend {
 			return;
 		}
 		flush_rewrite_rules( false );
-		update_option( 'epc_loyalty_wallet_rewrite_flushed', self::REWRITE_VERSION, false );
+		update_option( 'epc_loyalty_wallet_rewrite_flushed', self::REWRITE_VERSION, true );
 	}
 
 	/**
@@ -244,7 +248,7 @@ class EPC_Loyalty_Frontend {
 			return;
 		}
 
-		$account = EPC_Loyalty_Account_Service::get_or_create( $user_id );
+		$account = EPC_Loyalty_Account_Service::find_or_create( $user_id );
 		if ( is_wp_error( $account ) ) {
 			echo '<p>' . esc_html( $account->get_error_message() ) . '</p>';
 			return;

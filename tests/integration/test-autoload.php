@@ -77,13 +77,22 @@ $check( 'every EpassCard class is in the autoloader map', empty( $missing ), imp
 $check( 'each one points at the file that declares it', empty( $wrong ), implode( '; ', $wrong ) );
 $check( 'the map lists no class that no longer exists', empty( $stale ), implode( ', ', array_keys( $stale ) ) );
 
+// Declared only when WooCommerce Blocks is there (the file returns early otherwise).
+$needs_blocks = interface_exists( '\\Automattic\\WooCommerce\\Blocks\\Integrations\\IntegrationInterface' );
 $not_loadable = array();
 foreach ( array_keys( $map ) as $class ) {
+	if ( 'EPC_Loyalty_Blocks_Integration' === $class && ! $needs_blocks ) {
+		continue;
+	}
 	if ( ! class_exists( $class ) && ! interface_exists( $class ) && ! trait_exists( $class ) ) {
 		$not_loadable[] = $class;
 	}
 }
 $check( 'every mapped class loads', empty( $not_loadable ), implode( ', ', $not_loadable ) );
+$check(
+	'the Cart and Checkout block class loads with WooCommerce Blocks, and is simply absent without it',
+	$needs_blocks ? class_exists( 'EPC_Loyalty_Blocks_Integration' ) : ! class_exists( 'EPC_Loyalty_Blocks_Integration' )
+);
 
 // The list table needs WordPress's admin list table class, so it lives in its own file and the
 // integration base class no longer loads that admin class on every request.

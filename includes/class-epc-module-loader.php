@@ -163,14 +163,47 @@ class EPC_Module_Loader {
 	 * @return array<string, EPC_Module>
 	 */
 	public static function load_modules() {
-		$loaded = array();
+		$loaded  = array();
+		$modules = self::get_enabled_modules();
 
-		foreach ( self::get_enabled_modules() as $slug => $module ) {
+		self::prime_boot_options( $modules );
+		foreach ( $modules as $slug => $module ) {
 			$module->init();
 			$loaded[ $slug ] = $module;
 		}
 
 		return $loaded;
+	}
+
+	/**
+	 * Load the options the modules read while they start in one database query.
+	 *
+	 * Options that are not autoloaded cost a query each (a missing one too: WordPress then
+	 * remembers it is missing). wp_prime_option_caches() reads them all at once and fills the
+	 * same caches get_option() uses, so the modules then read them without a query.
+	 *
+	 * @param array<string, EPC_Module> $modules Enabled modules.
+	 * @return void
+	 */
+	private static function prime_boot_options( array $modules ) {
+		if ( ! function_exists( 'wp_prime_option_caches' ) ) {
+			return;
+		}
+		$keys = array();
+		foreach ( $modules as $module ) {
+			// Only modules that start their hooks (EPC_Module::init()) read these options.
+			if ( ! method_exists( $module, 'get_boot_option_keys' ) || ! $module->is_available() ) {
+				continue;
+			}
+			foreach ( (array) $module->get_boot_option_keys() as $key ) {
+				if ( is_string( $key ) && '' !== $key ) {
+					$keys[] = $key;
+				}
+			}
+		}
+		if ( ! empty( $keys ) ) {
+			wp_prime_option_caches( array_values( array_unique( $keys ) ) );
+		}
 	}
 
 	/**

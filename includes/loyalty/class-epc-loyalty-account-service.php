@@ -52,6 +52,25 @@ class EPC_Loyalty_Account_Service {
 	}
 
 	/**
+	 * Return the account, creating it only when it does not exist yet.
+	 *
+	 * For reading (cart widget, wallet page): an existing account costs one read instead of a
+	 * write and a read. Not for use inside a ledger transaction: there get_or_create() must run
+	 * before the row is locked, so that no read happens before the lock.
+	 *
+	 * @param int $user_id WordPress user ID.
+	 * @return object|\WP_Error
+	 */
+	public static function find_or_create( $user_id ) {
+		$user_id = absint( $user_id );
+		if ( $user_id <= 0 || ! get_userdata( $user_id ) ) {
+			return self::get_or_create( $user_id ); // Same error as before.
+		}
+		$account = self::get( $user_id );
+		return $account ? $account : self::get_or_create( $user_id );
+	}
+
+	/**
 	 * Read an account by WordPress user ID.
 	 *
 	 * @param int  $user_id WordPress user ID.

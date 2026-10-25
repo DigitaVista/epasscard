@@ -192,6 +192,28 @@ $r9 = EPC_Loyalty_Ledger_Service::record( 999999999, $epc_run . 'ghost', 'order_
 epc_test_check( 'unknown user refused', is_wp_error( $r9 ) && 'epc_loyalty_invalid_user' === $r9->get_error_code() );
 epc_test_check( 'unknown user: no ledger row written', null === EPC_Loyalty_Ledger_Service::get_by_event_key( $epc_run . 'ghost' ) );
 
+// 10. Reading an account (cart widget, wallet page): no write when it exists.
+global $wpdb;
+$f       = epc_test_user();
+$created = EPC_Loyalty_Account_Service::find_or_create( $f );
+epc_test_check( 'find_or_create: a missing account is created', is_object( $created ) && (int) $created->user_id === $f && EPC_Loyalty_Account_Service::generate_member_id( $f ) === $created->member_id );
+$writes = 0;
+$watch  = static function ( $query ) use ( &$writes ) {
+	if ( preg_match( '/^\s*(INSERT|UPDATE|REPLACE|DELETE)\b/i', (string) $query ) ) {
+		++$writes;
+	}
+	return $query;
+};
+add_filter( 'query', $watch );
+$before = (int) $wpdb->num_queries;
+$found  = EPC_Loyalty_Account_Service::find_or_create( $f );
+$reads  = (int) $wpdb->num_queries - $before;
+remove_filter( 'query', $watch );
+epc_test_check( 'find_or_create: an existing account is read with one query and no write', 1 === $reads && 0 === $writes, $reads . ' queries, ' . $writes . ' writes' );
+epc_test_check( 'find_or_create: the same row as get_or_create', $found == EPC_Loyalty_Account_Service::get_or_create( $f ) ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- Compare row objects by value.
+$ghost = EPC_Loyalty_Account_Service::find_or_create( 999999999 );
+epc_test_check( 'find_or_create: unknown user, same error as get_or_create', is_wp_error( $ghost ) && 'epc_loyalty_invalid_user' === $ghost->get_error_code() );
+
 printf( "%d passed, %d failed\n", (int) EPC_Ledger_Test_Counter::$passed, (int) EPC_Ledger_Test_Counter::$failed );
 // No checks recorded means the test itself broke: never report that as success.
 exit( ( EPC_Ledger_Test_Counter::$failed > 0 || 0 === EPC_Ledger_Test_Counter::$passed ) ? 1 : 0 );

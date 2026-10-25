@@ -363,7 +363,7 @@ class EPC_Loyalty_Redemption_Service {
 		$quote = self::build_quote( $user_id, self::get_session_points() );
 		if ( is_wp_error( $quote ) ) {
 			$payload['message'] = $quote->get_error_message();
-			$account            = EPC_Loyalty_Account_Service::get_or_create( $user_id );
+			$account            = EPC_Loyalty_Account_Service::find_or_create( $user_id );
 			if ( ! is_wp_error( $account ) ) {
 				$payload['balance'] = (int) $account->points_balance;
 			}
@@ -382,7 +382,7 @@ class EPC_Loyalty_Redemption_Service {
 	 */
 	public static function build_quote( $user_id, $requested = 0 ) {
 		$settings = self::get_settings();
-		$account  = EPC_Loyalty_Account_Service::get_or_create( $user_id );
+		$account  = EPC_Loyalty_Account_Service::find_or_create( $user_id );
 		if ( is_wp_error( $account ) ) {
 			return $account;
 		}

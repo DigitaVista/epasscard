@@ -126,6 +126,50 @@ wp_clear_scheduled_hook( EPC_User_Pass_Sync::CRON_HOOK, array( $user ) );
 update_user_meta( $user, 'epc_t_not_on_card', 'x' );
 epc_uf_check( 'a profile field no design uses does not', false === wp_next_scheduled( EPC_User_Pass_Sync::CRON_HOOK, array( $user ) ) );
 
+// The list of mapped fields is cached: a profile change of another field costs no query.
+EPC_User_Fields::mapped_keys();
+global $wpdb;
+EPC_User_Fields::reset_cache();
+EPC_User_Fields::mapped_keys(); // Builds and stores the cache.
+$uf_cache = get_option( EPC_User_Fields::CACHE_OPTION );
+epc_uf_check( 'the mapped fields are cached in an autoloaded option', is_array( $uf_cache ) && in_array( 'epc_t_member_id', $uf_cache['keys'], true ) && array_key_exists( EPC_User_Fields::CACHE_OPTION, wp_load_alloptions() ) );
+$uf_reflect = new ReflectionProperty( 'EPC_User_Fields', 'mapped_keys' );
+if ( PHP_VERSION_ID < 80100 ) {
+	$uf_reflect->setAccessible( true );
+}
+$uf_reflect->setValue( null, null ); // A new request: only the option is left.
+$uf_before = (int) $wpdb->num_queries;
+EPC_User_Fields::on_user_meta( 0, $user, 'epc_t_not_on_card' );
+epc_uf_check( 'a new request reads the cached list without a query', (int) $wpdb->num_queries === $uf_before, ( (int) $wpdb->num_queries - $uf_before ) . ' queries' );
+
+// Saving a design forgets the list: a field added to a design is followed at once.
+$map['field_mapping']['aaaaaaaa-bbbb-4ccc-8ddd-444444444444'] = array(
+	'type'  => 'user_meta',
+	'value' => 'epc_t_level',
+);
+$module->save_mapping( 1, $map );
+epc_uf_check( 'saving a design clears the cached list', false === get_option( EPC_User_Fields::CACHE_OPTION ) );
+wp_clear_scheduled_hook( EPC_User_Pass_Sync::CRON_HOOK, array( $user ) );
+update_user_meta( $user, 'epc_t_level', 'Gold' );
+epc_uf_check( 'a field just added to a design schedules the update', false !== wp_next_scheduled( EPC_User_Pass_Sync::CRON_HOOK, array( $user ) ) );
+unset( $map['field_mapping']['aaaaaaaa-bbbb-4ccc-8ddd-444444444444'] );
+$module->save_mapping( 1, $map );
+
+// Rebuilt when the enabled integrations differ, or after an hour.
+EPC_User_Fields::mapped_keys();
+$uf_cache          = get_option( EPC_User_Fields::CACHE_OPTION );
+$uf_cache['slugs'] = array( 'not-enabled' );
+$uf_cache['keys']  = array( 'stale_key' );
+update_option( EPC_User_Fields::CACHE_OPTION, $uf_cache, true );
+$uf_reflect->setValue( null, null );
+epc_uf_check( 'other enabled integrations: the list is rebuilt', ! in_array( 'stale_key', EPC_User_Fields::mapped_keys(), true ) && in_array( 'epc_t_member_id', EPC_User_Fields::mapped_keys(), true ) );
+$uf_cache         = get_option( EPC_User_Fields::CACHE_OPTION );
+$uf_cache['keys'] = array( 'stale_key' );
+$uf_cache['time'] = time() - EPC_User_Fields::CACHE_TTL - 5;
+update_option( EPC_User_Fields::CACHE_OPTION, $uf_cache, true );
+$uf_reflect->setValue( null, null );
+epc_uf_check( 'an hour old: the list is rebuilt', ! in_array( 'stale_key', EPC_User_Fields::mapped_keys(), true ) );
+
 // Values: lists, account fields, no account.
 update_user_meta( $user, 'epc_t_list', array( 'Gold', 'VIP' ) );
 epc_uf_check( 'a list value is joined; account fields work', 'Gold, VIP' === EPC_User_Fields::value( $user, 'epc_t_list' ) && (string) $user === EPC_User_Fields::value( $user, 'user_id' ) && '' === EPC_User_Fields::value( $user, 'session_tokens' ) );

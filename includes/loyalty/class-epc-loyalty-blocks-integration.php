@@ -2,13 +2,19 @@
 /**
  * Cart and Checkout block integration for the loyalty points widget.
  *
- * Loaded only from the WooCommerce Blocks registration hooks, when the interface exists.
+ * Loaded from the WooCommerce Blocks registration hooks, when the interface exists.
  *
  * @package EpassCard
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
+}
+
+// Without WooCommerce Blocks the class is not declared, so class_exists() answers false
+// instead of a fatal error (the class autoloader can load this file at any time).
+if ( ! interface_exists( '\Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface' ) ) {
+	return;
 }
 
 /**

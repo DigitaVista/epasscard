@@ -369,6 +369,19 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * Options this module reads on every request while it starts (in register_event_hooks()).
+	 *
+	 * EPC_Module_Loader loads the options of all enabled modules in one database query before
+	 * the modules start, instead of one query per option. Override when register_event_hooks()
+	 * reads an option that is not autoloaded.
+	 *
+	 * @return array<int, string>
+	 */
+	public function get_boot_option_keys() {
+		return array();
+	}
+
+	/**
 	 * Pass action options for status rules.
 	 *
 	 * Modules with pass behavior settings share the same four actions; override only to change them.

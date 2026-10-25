@@ -33,6 +33,17 @@ class EPC_User_Fields {
 	const VALUE_PREFIX = '__user_meta:';
 
 	/**
+	 * Option caching the profile fields the designs use (autoloaded: read whenever user meta
+	 * changes, which some plugins do on every page view).
+	 */
+	const CACHE_OPTION = 'epc_user_field_keys';
+
+	/**
+	 * Age after which the cache is rebuilt even if no design changed (seconds).
+	 */
+	const CACHE_TTL = 3600;
+
+	/**
 	 * Account fields (not user meta) a design can use.
 	 *
 	 * @var array<int, string>
@@ -55,6 +66,10 @@ class EPC_User_Fields {
 		add_action( 'added_user_meta', array( __CLASS__, 'on_user_meta' ), 20, 3 );
 		add_action( 'updated_user_meta', array( __CLASS__, 'on_user_meta' ), 20, 3 );
 		add_action( 'deleted_user_meta', array( __CLASS__, 'on_user_meta' ), 20, 3 );
+		// A design saved, changed or removed: forget the cached field list.
+		add_action( 'added_option', array( __CLASS__, 'on_option_change' ) );
+		add_action( 'updated_option', array( __CLASS__, 'on_option_change' ) );
+		add_action( 'deleted_option', array( __CLASS__, 'on_option_change' ) );
 	}
 
 	/**
@@ -140,27 +155,57 @@ class EPC_User_Fields {
 	/**
 	 * Profile field keys used by any design of the enabled integrations.
 	 *
+	 * Reading every integration's designs takes two queries per integration, so the list is
+	 * kept in an autoloaded option. It is rebuilt when a design option changes
+	 * (on_option_change()), when the enabled integrations change, and after CACHE_TTL.
+	 *
 	 * @return array<int, string>
 	 */
 	public static function mapped_keys() {
 		if ( null !== self::$mapped_keys ) {
 			return self::$mapped_keys;
 		}
-		$keys = array();
-		foreach ( EPC_Module_Settings::get_enabled_slugs() as $slug ) {
-			$module = EPC_Module_Loader::get_module_instance( (string) $slug );
+		$slugs  = array_map( 'strval', EPC_Module_Settings::get_enabled_slugs() );
+		$cached = get_option( self::CACHE_OPTION, null );
+		if (
+			is_array( $cached )
+			&& isset( $cached['slugs'], $cached['keys'], $cached['time'] )
+			&& $slugs === $cached['slugs']
+			&& is_array( $cached['keys'] )
+			&& absint( $cached['time'] ) > time() - self::CACHE_TTL
+		) {
+			self::$mapped_keys = array_values( array_map( 'strval', $cached['keys'] ) );
+			return self::$mapped_keys;
+		}
+
+		$keys    = array();
+		$sources = array();
+		foreach ( $slugs as $slug ) {
+			$module = EPC_Module_Loader::get_module_instance( $slug );
 			if ( ! $module instanceof EPC_Module ) {
 				continue;
 			}
-			$mappings = (array) $module->get_mappings();
+			$sources[] = $module->get_mappings_option_key();
+			$mappings  = (array) $module->get_mappings();
 			if ( class_exists( 'EPC_Default_Design' ) ) {
-				$mappings[] = (array) EPC_Default_Design::get( (string) $slug );
+				$sources[]  = EPC_Default_Design::OPTION_PREFIX . sanitize_key( $slug );
+				$mappings[] = (array) EPC_Default_Design::get( $slug );
 			}
 			foreach ( $mappings as $mapping ) {
 				$keys = array_merge( $keys, self::keys_of( (array) $mapping ) );
 			}
 		}
 		self::$mapped_keys = array_values( array_unique( $keys ) );
+		update_option(
+			self::CACHE_OPTION,
+			array(
+				'slugs'   => $slugs,
+				'keys'    => self::$mapped_keys,
+				'sources' => array_values( array_unique( $sources ) ),
+				'time'    => time(),
+			),
+			true
+		);
 		return self::$mapped_keys;
 	}
 
@@ -171,6 +216,31 @@ class EPC_User_Fields {
 	 */
 	public static function reset_cache() {
 		self::$mapped_keys = null;
+		delete_option( self::CACHE_OPTION );
+	}
+
+	/**
+	 * An option changed: when it holds designs of an integration, forget the cached field list.
+	 *
+	 * @param string $option Option name.
+	 * @return void
+	 */
+	public static function on_option_change( $option ) {
+		$option = (string) $option;
+		if ( self::CACHE_OPTION === $option ) {
+			return;
+		}
+		$is_design = 0 === strpos( $option, 'epc_mappings_' ) || 0 === strpos( $option, 'epc_default_mapping_' );
+		if ( ! $is_design ) {
+			// A custom integration may keep its designs under another name (get_mappings_option_key()).
+			// Read from the autoloaded options only: no query when there is no cache yet.
+			$all       = wp_load_alloptions();
+			$cached    = isset( $all[ self::CACHE_OPTION ] ) ? maybe_unserialize( $all[ self::CACHE_OPTION ] ) : null;
+			$is_design = is_array( $cached ) && in_array( $option, (array) ( $cached['sources'] ?? array() ), true );
+		}
+		if ( $is_design ) {
+			self::reset_cache();
+		}
 	}
 
 	/**

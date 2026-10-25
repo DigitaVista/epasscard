@@ -10,6 +10,9 @@ status=0
 echo "== Class autoloader map"
 $WP eval-file "$HERE/test-autoload.php" || status=1
 
+echo "== Start-up options: one query"
+$WP eval-file "$HERE/test-boot-options.php" || status=1
+
 echo "== Loyalty ledger"
 $WP eval-file "$HERE/test-loyalty-ledger.php" || status=1
 

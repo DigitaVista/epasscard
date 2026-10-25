@@ -185,6 +185,15 @@ abstract class EPC_Module_WC_Product_Cards extends EPC_Module {
 	}
 
 	/**
+	 * register_event_hooks() reads the status rules.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_boot_option_keys() {
+		return array( $this->get_status_rules_option_key() );
+	}
+
+	/**
 	 * @inheritDoc
 	 */
 	public function has_pass_behavior_settings() {
