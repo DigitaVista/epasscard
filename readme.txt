@@ -12,13 +12,14 @@ Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty
 
 == Description ==
 
-**EpassCard turns your WordPress data into Apple Wallet and Google Wallet passes.** Loyalty cards for WooCommerce, membership cards for MemberPress and Paid Memberships Pro, event tickets, and gift cards are issued, updated and pushed to your customers' phones automatically. No code, no Zapier.
+**EpassCard turns your WordPress data into Apple Wallet and Google Wallet passes.** Loyalty cards for WooCommerce, membership cards, event tickets, appointment cards, vouchers, gift cards and cards from form entries are issued, updated and pushed to your customers' phones automatically. No code, no Zapier.
 
 [youtube https://www.youtube.com/watch?v=-Xg8wzQ5lVw]
 
 = Why EpassCard =
 
-* **Built for WordPress.** One plugin with 10 integrations. Most wallet pass tools reach WordPress only through Zapier or cover a single plugin.
+* **Built for WordPress.** One plugin with 19 integrations. Most wallet pass tools reach WordPress only through Zapier or cover a single plugin.
+* **Set up in minutes.** A guided Home screen walks you through connect, choose what to give, design the card, try it on your own phone, and go live.
 * **A loyalty program with a wallet card, built in.** Points, tiers and rewards for WooCommerce, with the card living in Apple Wallet and Google Wallet.
 * **Both wallets from one template.** Apple Wallet (`.pkpass` for iPhone, iPad and Apple Watch) and Google Wallet (Android).
 * **Passes stay up to date.** When points, a balance, a membership level or an expiry date changes, the pass on the phone changes too, and you can send push notifications.
@@ -36,6 +37,8 @@ Give every customer a loyalty card that lives on their phone, not in a forgotten
 * The wallet card shows the current points balance and updates automatically
 * Push notifications to bring customers back
 
+Already use **WPLoyalty**? EpassCard puts its points, level and referral link on a wallet card too.
+
 Full setup walkthrough (16 minutes, with chapters):
 
 [youtube https://youtu.be/-arN8Db3fjA]
@@ -47,13 +50,25 @@ Turn memberships into **digital membership cards** members save to their phone w
 * **MemberPress** – issue a membership wallet pass on signup, renewal and profile updates; expire it on refund or expiry
 * **Paid Memberships Pro** – issue passes when a level is assigned, renewed, cancelled or expires
 * **Simple Membership** – issue passes when members register, change level or change account state
-* **Ultimate Membership Pro** – issue passes for UMP members with the same template-mapping workflow
+* **Ultimate Membership Pro** – a card per membership level; you choose what happens when a membership is on hold, paused, cancelled or expired
+* **Ultimate Member** – a member card per user, with a design per role
 * **WooCommerce Subscriptions** – create a subscription wallet pass when a subscription activates or renews
+
+Members find their card on their account page (a "Wallet passes" tab or an "Add to wallet" link, depending on the plugin).
 
 = Event tickets in Apple Wallet and Google Wallet =
 
 * **The Events Calendar** (with Event Tickets) – map events to pass templates and issue a wallet ticket to each attendee
 * **Events Manager** – issue wallet passes when bookings are approved, and update them when the status changes
+* **Tickera** – a wallet ticket per attendee; Tickera's check-in apps scan it
+* **Amelia** – a card per event booking, voided when the booking is canceled
+* **WooCommerce** – sell a ticket as a product; each ticket bought becomes a wallet ticket (no other plugin needed)
+
+= Appointments, vouchers and form cards =
+
+* **Amelia appointments** – a card per appointment with the date, time and service, updated when it is rescheduled
+* **WooCommerce vouchers and product cards** – sell a voucher or any card as a WooCommerce product
+* **WPForms** – a wallet card for each form submission (Lite or Pro), sent to the email on the form
 
 = Gift cards in the wallet =
 
@@ -85,29 +100,35 @@ Looking for a **PassKit**, **Passcreator** or **Pass2U alternative** that works 
 = Features =
 
 * **Apple Wallet and Google Wallet** – one integration, both wallets
-* **Automatic pass issuing** – on signup, renewal, purchase, booking or points earned
+* **Automatic pass issuing** – on signup, renewal, purchase, booking, form submission or points earned
 * **Pass updates** – passes stay in sync when the source data changes
-* **Template mapping** – map your plugin's fields to pass fields, including QR codes and barcodes
+* **Ready-made card designs** – your logo, strip image, colors and labels with a live preview, no template building needed; one design can cover every plan, event or product
+* **Template mapping** – map your plugin's fields to pass fields, including QR codes, barcodes and any field of the customer's WordPress profile
+* **Status rules** – choose what happens to the card for each membership, order or booking status
+* **Try it** – send a test card to your own phone before customers get theirs
+* **Cards** – one list of every card from every integration, with search, filters, CSV export, retry for failed cards and "give cards to existing customers"
 * **Push notifications** – reminders before expiry, renewal or an event
-* **Built-in WooCommerce loyalty program** – points, tiers, rewards and checkout redemption
-* **Issued passes list** – searchable table of passes and delivery links, with retry for failed actions
+* **Built-in WooCommerce loyalty program** – points, tiers, rewards and checkout redemption, including the Cart and Checkout blocks
 * **My Account access** – customers open their passes from their account area
 * **Email delivery** – the pass link is emailed automatically
+* **Developer API** – issue, update, void and read cards from PHP or the REST API
 
 = Who is it for? =
 
 * **WooCommerce stores** that want a loyalty program customers actually use
 * **Membership sites** – gyms, clubs, associations and online courses
 * **Subscription businesses** using WooCommerce Subscriptions
-* **Event organisers** using The Events Calendar or Events Manager
-* **Gift card sellers** using PW or YITH gift cards
+* **Event organisers** using The Events Calendar, Events Manager, Tickera, Amelia or plain WooCommerce products
+* **Salons, clinics and studios** taking appointments with Amelia
+* **Gift card and voucher sellers** using PW or YITH gift cards, or WooCommerce products
+* **Anyone collecting sign-ups** with WPForms
 * **Agencies** that build WordPress sites and want to offer wallet passes to clients
 
 = Requirements =
 
 * An [EpassCard](https://epasscard.com/) account (free plan available – sign up from the plugin or at [app.epasscard.com](https://app.epasscard.com))
 * For the loyalty program: WooCommerce
-* For other passes: at least one supported plugin (MemberPress, Paid Memberships Pro, Simple Membership, Ultimate Membership Pro, WooCommerce Subscriptions, The Events Calendar + Event Tickets, Events Manager, PW Gift Cards or YITH Gift Cards)
+* For other passes: at least one supported plugin (MemberPress, Paid Memberships Pro, Simple Membership, Ultimate Membership Pro, Ultimate Member, WooCommerce Subscriptions, The Events Calendar + Event Tickets, Events Manager, Tickera, Amelia, PW Gift Cards, YITH Gift Cards, WPLoyalty or WPForms). Tickets, vouchers and product cards need only WooCommerce.
 
 = External services =
 
@@ -126,7 +147,7 @@ This plugin relies on the following third-party services. Nothing is sent to the
 
 **Crisp** (`https://client.crisp.chat`) — EpassCard's support chat. Nothing is loaded from Crisp until an administrator clicks "Chat with us" in the EpassCard top bar and starts a chat; the panel says what is sent before that. Starting a chat loads Crisp's chat window and sends the administrator's name and email and these site details: site address, WordPress, PHP and plugin versions, the connected EpassCard email and plan, the integrations turned on, the number of card designs and active cards, the EpassCard screen in use, and the last failed call to EpassCard (endpoint and error, never the API key). No data about the site's customers is sent. Each administrator can hide the button under Settings → Advanced. [Crisp Terms of Use](https://crisp.chat/en/terms/) and [Crisp Privacy Policy](https://crisp.chat/en/privacy/).
 
-**Google Fonts** (`https://fonts.googleapis.com`) — the integration pages (one per connected plugin, e.g. EpassCard → MemberPress) load the Material Symbols icon font. Your browser requests it from Google when you open one of those pages. The other EpassCard screens make no request to Google. The DM Sans and Inter text fonts are bundled with the plugin. [Google Privacy Policy](https://policies.google.com/privacy).
+**Google Fonts** (`https://fonts.googleapis.com`) — the WooCommerce Loyalty program page (EpassCard → Customers) loads the Material Symbols icon font. Your browser requests it from Google when you open that page. The other EpassCard screens make no request to Google. The DM Sans and Inter text fonts are bundled with the plugin. [Google Privacy Policy](https://policies.google.com/privacy).
 
 **YouTube** (`https://www.youtube-nocookie.com`) — when a tutorial video is available in a "How this works" panel or on EpassCard → Help, it plays from YouTube's privacy-enhanced player. Nothing is requested from YouTube until you click play; then your browser loads the video from YouTube. [Google Privacy Policy](https://policies.google.com/privacy).
 
@@ -144,11 +165,12 @@ Learn more about how [Appsero collects and uses this data](https://appsero.com/p
 
 == Installation ==
 
-1. Easily install the EpassCard plugin by uploading the plugin folder to /wp-content/plugins/epasscard/ or by installing it directly from the WordPress.org repository, and follow the simple activation and setup process.
-2. Activate through the **Plugins** screen.
-3. Go to **EpassCard → Connection** and connect your account.
-4. Open **Connection → Integrations** and enable the modules you need.
-5. Map pass templates under each enabled integration.
+1. Install EpassCard from **Plugins → Add New**, or upload the plugin folder to `/wp-content/plugins/epasscard/`.
+2. Activate it through the **Plugins** screen.
+3. Open **EpassCard → Home** and connect: create a free EpassCard account or sign in, right from the plugin.
+4. **Setup:** choose what you want to give (loyalty cards, member cards, tickets, ...). EpassCard detects the plugins you use.
+5. **Design:** make the card with the ready-made designer (logo, colors, labels).
+6. **Try it:** send a test card to your phone, then go live. Cards are created automatically from then on.
 
 == Frequently Asked Questions ==
 
@@ -170,18 +192,18 @@ Enable the WooCommerce Loyalty module, set how customers earn points, and add ti
 
 = Do I need an EpassCard account? =
 
-Yes. Create a free account at [app.epasscard.com](https://app.epasscard.com), then connect it in **EpassCard → Connection**.
+Yes. Create a free account from **EpassCard → Home** (or at [app.epasscard.com](https://app.epasscard.com)) and connect it there. You can change the connection later under **Settings → Account & plan**.
 
 = Which plugins are supported? =
 
-WooCommerce (built-in loyalty program), MemberPress, Paid Memberships Pro, Simple Membership, Ultimate Membership Pro, WooCommerce Subscriptions, The Events Calendar (with Event Tickets), Events Manager, PW Gift Cards and YITH Gift Cards. Enable only the modules you use.
+WooCommerce (built-in loyalty program, plus tickets, vouchers and cards sold as products), WPLoyalty, MemberPress, Paid Memberships Pro, Simple Membership, Ultimate Membership Pro, Ultimate Member, WooCommerce Subscriptions, The Events Calendar (with Event Tickets), Events Manager, Tickera, Amelia (appointments and events), PW Gift Cards, YITH Gift Cards and WPForms. Turn on only the ones you use.
 
 = How do I create an Apple Wallet pass on WordPress? =
 
-1. Create a pass template in your EpassCard account (membership card, loyalty card, event ticket, or other pass type).
-2. Install and activate the EpassCard WordPress plugin, then connect your API key.
-3. Enable the integration module for your plugin (membership or events).
-4. Map source fields to pass template fields.
+1. Install and activate the EpassCard plugin, then connect your EpassCard account from **EpassCard → Home**.
+2. Choose what you want to give in **Setup** (membership card, loyalty card, event ticket and more).
+3. Design the card in **Design**: the ready-made designer creates the pass template for you. You can also map a template you made in EpassCard.
+4. Send yourself a test card with **Try it**.
 5. When a member subscribes, a ticket is purchased, or a booking is approved, they receive a link to add the pass to **Apple Wallet** or **Google Wallet**.
 
 = How do I add a Google Wallet pass to my WordPress site? =
@@ -194,7 +216,7 @@ Yes. EpassCard is a **WordPress wallet pass plugin** designed for membership and
 
 = Does EpassCard work with WooCommerce Apple Wallet and Google Wallet? =
 
-Yes. Enable the WooCommerce Subscriptions module to issue a **WooCommerce wallet pass** when subscriptions activate, renew, or update. This is ideal for subscription boxes, SaaS products, and recurring membership products sold through WooCommerce.
+Yes. Enable the WooCommerce Subscriptions integration to issue a **WooCommerce wallet pass** when subscriptions activate, renew, or update. You can also sell tickets, vouchers or any card as a WooCommerce product: each one bought becomes a pass in the buyer's wallet. And the built-in loyalty program gives every customer a points card.
 
 = What is PKPass and does EpassCard support it? =
 
@@ -226,7 +248,7 @@ Passbook was renamed to Apple Wallet in 2015. The underlying `.pkpass` format is
 
 = Can I manually create or resend a pass? =
 
-Yes. From the admin **Issued passes** table or member screens, you can create a pass, update an existing pass, or email the pass link to a member.
+Yes. From **EpassCard → Cards** (or the member screens of your membership plugin) you can update a pass, view it, email the pass link again or expire it. **Cards** can also give cards to customers who joined before you set up EpassCard.
 
 == Screenshots ==
 
@@ -235,6 +257,67 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 3. Issued passes — searchable list of wallet passes and delivery links.
 
 == Changelog ==
+= 1.2.0 =
+**New integrations**
+
+* New: WooCommerce tickets, vouchers and product cards. Mark a product as a "Wallet card" (ticket, voucher or card); each unit bought becomes a card in the buyer's wallet, guests included. No other plugin needed.
+* New: Tickera. A wallet ticket per attendee; the barcode carries Tickera's ticket code, so Tickera's check-in apps scan it.
+* New: Amelia appointments and Amelia events. A card per booking (or one per person), updated when it is rescheduled and voided when it is canceled.
+* New: Ultimate Member. A member card per user with a design per role and a "Wallet card" tab on the account page.
+* New: WPLoyalty. A loyalty card with the customer's points, level and referral link, updated on every balance change.
+* New: WPForms (Lite or Pro). A wallet card for each submission of a form that has a card design.
+
+**A new admin**
+
+* New: Home with a five-step checklist (Connect, Setup, Design, Try it, Go live), then an overview of active cards, new cards and failures.
+* New: Setup. Choose what you want to give; EpassCard detects the plugins you use and lets you edit the rules (loyalty points, rewards, status rules) before confirming.
+* New: Design. The ready-made card designer (logo, strip, colors, labels, live preview) on its own page, and one design per integration that covers every plan, event or product, including the ones you add later.
+* New: Try it. A test card with your own name, shown as a QR code or emailed. It counts as one card on your EpassCard plan until you delete it.
+* New: Cards. Every card from every integration in one list, with search, filters, Update / View / Email / Expire, Export CSV, and "Give cards to existing customers" in background batches with a check first.
+* New: "Retry all failed cards" runs in the background with progress and a result.
+* New: Settings with Account & plan (with a forecast of when the plan runs out), Emails, Reminders & push, Integrations, Advanced and the API log.
+* New: "How this works" panels on every section and a Help page with the guides.
+* New: "Chat with us" in the EpassCard top bar (administrators only). Nothing loads from the chat service until you start a chat.
+* New: Card statuses in plain words (Created, Emailed, Update failed, Revoke pending, Revoked).
+* The integration pages are retired: their settings are on Design and Settings, and old links redirect there.
+
+**Cards and integrations**
+
+* New: "User profile field" in the mapping puts any field of the customer's WordPress profile on a card (for example a member ID). Fields holding passwords, tokens or keys are refused.
+* New: Account pages. "Add to wallet" for Paid Memberships Pro and Simple Membership members, and a "Wallet passes" tab on the Ultimate Membership Pro account page.
+* New: Ultimate Membership Pro. Choose what happens to the card when a membership is on hold, paused or has a cancellation pending (default: nothing changes). Pausing, resuming and setting a membership as canceled in UMP's admin now update the card right away.
+* Fix: Ultimate Membership Pro. On current versions the design screen could list no membership levels (9.4 and newer), the EpassCard column in Members shifted the other columns (12.5 and newer), and the latest transaction ID was empty.
+* Fix: A record can no longer get two billable passes when two requests handle it at the same moment. Existing duplicates are merged on update; nothing is deleted on EpassCard.
+* Fix: Paid Memberships Pro voids the old level's card when a member switches level, and sends one request per checkout instead of two.
+* Fix: The Events Calendar voids tickets when the order is refunded, canceled or failed, and sends one request per purchase.
+* Fix: Events Manager shows the correct event time on the card, sends the "before the event" reminder, and sets the correct expiry.
+* Gift cards: optional card email to the gift recipient instead of the buyer (Settings → Emails, off by default).
+
+**Loyalty**
+
+* New: "Get my loyalty card" on the My Account loyalty page before the first points are earned.
+* New: The points widget is a real Cart and Checkout block integration. Points apply without a page reload and are kept when the cart changes.
+* New: "Your reward codes" in My Account, and the reward code shown when a reward is claimed and in the reward email ({reward_code}).
+* Fix: A free-product reward gives exactly one free unit.
+* Fix: Customers no longer get "points removed" or "you earned" emails for points reserved and released at checkout.
+* Fix: A Cancel clicked while past orders are being synced is no longer lost.
+
+**For developers**
+
+* New: Developer API. epc_issue_pass(), epc_update_pass(), epc_void_pass() and epc_get_pass() in PHP, and REST routes under epasscard/v1/passes.
+* New: Hooks epc_job_went_live, epc_loyalty_notify_balance_change, epc_manage_passes_cap, epc_support_chat_enabled and more (see the developer docs).
+
+**Security, privacy and performance**
+
+* Security: The stored API key uses authenticated encryption (AES-256 with a random IV and HMAC). Keys saved by 1.1 are converted on first use; after that, going back to 1.1 needs a reconnect.
+* Security: One access model. Settings are for administrators; card work also for staff who can manage WooCommerce, such as Shop Managers (filter epc_manage_passes_cap). CSV exports neutralize spreadsheet formulas.
+* Privacy: Sign-up, sign-in and API key forms say what they send and link to the EpassCard Terms and Privacy Policy.
+* New: Optional "Delete all EpassCard data when the plugin is deleted" (Settings → Advanced, off by default).
+* Performance: EpassCard loads only the code a request needs (with one integration on, a front-end page reads about 16 files instead of 65), reads its settings in one database query, and no longer autoloads template mappings. The daily reminder job runs in batches, with flat memory use on large sites.
+* Accessibility: unique names for screen readers on Design, readable status badges, correct heading levels.
+* Requires PHP 7.2 or newer (was 8.1).
+* Removed: the Halloween 2026 notice and the "Our Products" page.
+
 = 1.1.0 =
 * New: "Create pass design for me". On the Paid Memberships Pro, MemberPress, Simple Membership, Ultimate Membership Pro, WooCommerce Subscriptions, The Events Calendar, Events Manager, PW Gift Cards and YITH Gift Cards pages, one click creates a ready-made pass template in your EpassCard account (fields, QR code, colors and logo) and maps it to every plan, event or product that is not mapped yet. Existing mappings are never changed.
 * New: Customize the ready-made pass before or after it is created: your own logo and strip image (from the Media Library or a URL), background, value and label colors, every field label on the front and back, and the QR/barcode format, with a live front and back preview. "Edit design" updates the template in EpassCard and keeps all mappings.
@@ -311,6 +394,9 @@ Yes. From the admin **Issued passes** table or member screens, you can create a 
 * Initial release: Connection, MemberPress module, WooCommerce Subscriptions module.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+A new admin (Home, Setup, Design, Try it, Cards, Settings) and six new integrations (WooCommerce tickets/vouchers/cards, Tickera, Amelia, Ultimate Member, WPLoyalty, WPForms). Existing connections, mappings and cards are kept. After updating, going back to 1.1 needs a reconnect.
 
 = 1.1.0 =
 Adds one-click, customizable pass designs (logo, strip, colors, labels) for membership, subscription, event and gift card integrations. Safe update; existing connections, mappings and passes are kept.
