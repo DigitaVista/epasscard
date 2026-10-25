@@ -17,6 +17,11 @@ class EPC_Frontend {
 	public const WC_ENDPOINT = 'wallet-passes';
 
 	/**
+	 * Tab of the "Wallet passes" section on the Ultimate Membership Pro account page.
+	 */
+	public const UMP_TAB = 'wallet_passes';
+
+	/**
 	 * Register hooks.
 	 *
 	 * @return void
@@ -37,6 +42,11 @@ class EPC_Frontend {
 		add_filter( 'pmpro_member_action_links', array( __CLASS__, 'pmpro_member_action_links' ), 10, 2 );
 		// Simple Membership: above the logged-in member box of [swpm_login_form].
 		add_action( 'swpm_before_loggedin_widget', array( __CLASS__, 'swpm_loggedin_card' ) );
+		// Ultimate Membership Pro account page ([ihc-user-page]): a "Wallet passes" tab, on the
+		// versions that have these filters (14.x does). Older versions: a custom tab in UMP's
+		// account page settings with the [epc_my_passes] shortcode shows the same list.
+		add_filter( 'ihc_public_account_page_menu_standard_tabs', array( __CLASS__, 'ump_account_tab' ) );
+		add_filter( 'ihc_account_page_custom_tab_content', array( __CLASS__, 'ump_account_tab_content' ), 10, 2 );
 	}
 
 	/**
@@ -93,6 +103,16 @@ class EPC_Frontend {
 			return;
 		}
 
+		self::enqueue_pass_list_style();
+	}
+
+	/**
+	 * Load the pass list styles (also from inside page content: WordPress then prints them in
+	 * the footer).
+	 *
+	 * @return void
+	 */
+	public static function enqueue_pass_list_style() {
 		$style_path = EPC_PLUGIN_DIR . 'assets/frontend/wallet-passes.css';
 		wp_enqueue_style(
 			'epc-frontend',
@@ -276,6 +296,90 @@ class EPC_Frontend {
 			return;
 		}
 		echo '<p class="epc-swpm-card"><a class="epc-swpm-card__link" href="' . esc_url( (string) $card->pass_link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Add your membership card to your wallet', 'epasscard' ) . '</a></p>';
+	}
+
+	/**
+	 * Ultimate Membership Pro account page: add the "Wallet passes" tab before "Log out".
+	 *
+	 * @param mixed $menu Menu items: slug => title, class, url.
+	 * @return mixed
+	 */
+	public static function ump_account_tab( $menu ) {
+		if ( ! is_array( $menu ) || ! is_user_logged_in() || ! EPC_Module_Settings::is_enabled( 'ultimate-membership-pro' ) ) {
+			return $menu;
+		}
+
+		// The account page URL without a tab, as UMP builds its own tab links.
+		$account_page = (int) get_option( 'ihc_general_user_page', 0 );
+		$base         = $account_page > 0 ? (string) get_permalink( $account_page ) : '';
+		if ( '' === $base ) {
+			// No account page set (UMP then uses the page being viewed).
+			$host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_HOST'] ) ) : '';
+			$path = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['REQUEST_URI'] ) ) : '/';
+			$base = remove_query_arg( 'ihc_ap_menu', ( is_ssl() ? 'https://' : 'http://' ) . $host . $path );
+		}
+		$url = add_query_arg( 'ihc_ap_menu', self::UMP_TAB, $base );
+		// Ultimate Membership Pro's own filter, applied as UMP does for its tabs (its "pretty links"
+		// setting turns ?ihc_ap_menu=tab into /account/tab/).
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- UMP's own filter, applied as UMP does.
+		$url = (string) apply_filters( 'ihc_filter_public_account_page_tab_link', $url, $base, self::UMP_TAB );
+
+		// Tab icon, as UMP sets its own (its Font Awesome 4 font; \f09d is the card icon).
+		wp_register_style( 'epc-ump-account', false, array(), EPC_VERSION );
+		wp_enqueue_style( 'epc-ump-account' );
+		wp_add_inline_style( 'epc-ump-account', '.fa-' . self::UMP_TAB . '-account-ihc:before{content:"\\f09d";}' );
+
+		$item = array(
+			'title' => __( 'Wallet passes', 'epasscard' ),
+			'class' => 'ihc-ap-menu-item' . ( self::ump_current_tab() === self::UMP_TAB ? ' ihc-ap-menu-item-selected' : '' ),
+			'url'   => $url,
+		);
+
+		$out = array();
+		foreach ( $menu as $slug => $entry ) {
+			if ( 'logout' === $slug ) {
+				$out[ self::UMP_TAB ] = $item;
+			}
+			$out[ $slug ] = $entry;
+		}
+		if ( ! isset( $out[ self::UMP_TAB ] ) ) {
+			$out[ self::UMP_TAB ] = $item;
+		}
+		return $out;
+	}
+
+	/**
+	 * Ultimate Membership Pro account page: content of the "Wallet passes" tab.
+	 *
+	 * @param mixed  $content Content of the tab (empty for tabs UMP does not know).
+	 * @param string $tab     Tab slug.
+	 * @return mixed
+	 */
+	public static function ump_account_tab_content( $content, $tab = '' ) {
+		if ( self::UMP_TAB !== (string) $tab || ! is_user_logged_in() || ! EPC_Module_Settings::is_enabled( 'ultimate-membership-pro' ) ) {
+			return $content;
+		}
+
+		self::enqueue_pass_list_style();
+		ob_start();
+		echo '<div class="ihc-ap-wrap epc-ump-wallet-passes"><h3>' . esc_html__( 'Wallet passes', 'epasscard' ) . '</h3>';
+		self::render_passes_list( get_current_user_id() );
+		echo '</div>';
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Tab open on the Ultimate Membership Pro account page (?ihc_ap_menu= or a pretty link).
+	 *
+	 * @return string
+	 */
+	private static function ump_current_tab() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading which tab is open.
+		$tab = isset( $_GET['ihc_ap_menu'] ) ? sanitize_key( wp_unslash( (string) $_GET['ihc_ap_menu'] ) ) : '';
+		if ( '' === $tab ) {
+			$tab = sanitize_key( (string) get_query_var( 'iump-account-tab', '' ) );
+		}
+		return $tab;
 	}
 
 	/**

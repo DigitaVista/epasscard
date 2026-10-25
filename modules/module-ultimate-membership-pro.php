@@ -277,8 +277,8 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 	 * @inheritDoc
 	 */
 	public function get_mappable_entities() {
-		$levels = get_option( 'ihc_levels', array() );
-		if ( ! is_array( $levels ) || empty( $levels ) ) {
+		$levels = $this->get_all_levels();
+		if ( empty( $levels ) ) {
 			return array();
 		}
 
@@ -301,6 +301,27 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		);
 
 		return $out;
+	}
+
+	/**
+	 * All membership levels, level id => level data.
+	 *
+	 * UMP 9.4 and later keep levels in their own table (read through the Memberships class:
+	 * \Ump\Db\Memberships since 14, \Indeed\Ihc\Db\Memberships before; UMP 14 maps the old
+	 * name to the new one). Older versions keep them in the ihc_levels option, which newer
+	 * versions only read once to migrate.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function get_all_levels() {
+		foreach ( array( '\Ump\Db\Memberships', '\Indeed\Ihc\Db\Memberships' ) as $class ) {
+			if ( class_exists( $class ) && method_exists( $class, 'getAll' ) ) {
+				$levels = call_user_func( array( $class, 'getAll' ) );
+				return is_array( $levels ) ? $levels : array();
+			}
+		}
+		$levels = get_option( 'ihc_levels', array() );
+		return is_array( $levels ) ? $levels : array();
 	}
 
 	/**
@@ -366,21 +387,83 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		add_action( 'ihc_action_before_delete_user_subscription', array( $this, 'on_level_deleted' ), 10, 2 );
 		add_action( 'ihc_action_after_cancel_subscription', array( $this, 'on_subscription_cancelled' ), 10, 2 );
 
+		// Members list (Ultimate Membership Pro → Members): an "EpassCard" column.
+		// Before UMP 12.5 the list is a plain table: a header cell and a cell per row.
 		add_action( 'ump_action_admin_list_user_column_name_after_total_spend', array( $this, 'ump_users_list_column' ) );
 		add_action( 'ump_action_admin_list_user_row_after_total_spend', array( $this, 'ump_users_list_cell' ) );
+		// UMP 12.5 and later load the rows into a DataTables table: the column is declared here
+		// (the header cell above must match it) and each row gets its value.
+		add_filter( 'ihc_admin_filter_members_datatable_column_names', array( $this, 'ump_datatable_columns' ) );
+		add_filter( 'ihc_admin_filter_datatable_members_each_row_data', array( $this, 'ump_datatable_row' ), 10, 2 );
 	}
+
+	/**
+	 * Whether this members list is the DataTables one (UMP 12.5+), and whether the EpassCard
+	 * column was added to it. Null until the column filter ran.
+	 *
+	 * @var bool|null
+	 */
+	private $ump_datatable_column = null;
 
 	/**
 	 * Add EpassCard column header on UMP members list.
 	 *
+	 * In the DataTables list (UMP 12.5+) the header is printed only when the column was added,
+	 * so the header and the columns always match.
+	 *
 	 * @return void
 	 */
 	public function ump_users_list_column() {
-		if ( ! $this->current_user_can_manage_passes() ) {
+		if ( ! $this->current_user_can_manage_passes() || false === $this->ump_datatable_column ) {
 			return;
 		}
 
 		echo '<th class="manage-column">' . esc_html__( 'EpassCard', 'epasscard' ) . '</th>';
+	}
+
+	/**
+	 * DataTables members list (UMP 12.5+): add the EpassCard column right after "Total Spend",
+	 * where the header cell is printed.
+	 *
+	 * @param mixed $columns Column definitions.
+	 * @return mixed
+	 */
+	public function ump_datatable_columns( $columns ) {
+		$this->ump_datatable_column = false;
+		if ( ! is_array( $columns ) || ! $this->current_user_can_manage_passes() ) {
+			return $columns;
+		}
+		$out = array();
+		foreach ( $columns as $column ) {
+			$out[] = $column;
+			if ( is_array( $column ) && 'total_spend' === ( $column['data'] ?? '' ) ) {
+				$out[]                      = array(
+					'data'      => 'epasscard',
+					'orderable' => false,
+					'sortable'  => false,
+					'className' => 'epc-ump-members-col',
+				);
+				$this->ump_datatable_column = true;
+			}
+		}
+		return $this->ump_datatable_column ? $out : $columns;
+	}
+
+	/**
+	 * DataTables members list (UMP 12.5+): the EpassCard cell of one member.
+	 *
+	 * @param mixed $row     Row data.
+	 * @param int   $user_id User id.
+	 * @return mixed
+	 */
+	public function ump_datatable_row( $row, $user_id = 0 ) {
+		if ( ! is_array( $row ) ) {
+			return $row;
+		}
+		$row['epasscard'] = $this->current_user_can_manage_passes()
+			? wp_kses( (string) $this->render_pass_actions_for_user( (int) $user_id ), self::get_pass_action_allowed_html() )
+			: '';
+		return $row;
 	}
 
 	/**
@@ -927,6 +1010,27 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 	private function get_latest_transaction_id( $user_id, $level_id ) {
 		global $wpdb;
 
+		// UMP 9.5 and later: orders, with the transaction id in the order meta.
+		$orders = $wpdb->prefix . 'ihc_orders';
+		$meta   = $wpdb->prefix . 'ihc_orders_meta';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Third-party plugin table; existence check.
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $meta ) ) === $meta ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Third-party plugin table read.
+			$txn = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT m.meta_value FROM %i o INNER JOIN %i m ON m.order_id = o.id AND m.meta_key = 'transaction_id' WHERE o.uid = %d AND o.lid = %d AND m.meta_value <> '' ORDER BY o.id DESC LIMIT 1",
+					$orders,
+					$meta,
+					absint( $user_id ),
+					absint( $level_id )
+				)
+			);
+			if ( is_string( $txn ) && '' !== $txn ) {
+				return $txn;
+			}
+		}
+
+		// Older versions: the payments table.
 		$table = $wpdb->prefix . 'indeed_members_payments';
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Third-party plugin table; existence check.
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
@@ -955,6 +1059,8 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 			$row_level_id = 0;
 			if ( isset( $data['level'] ) ) {
 				$row_level_id = absint( $data['level'] );
+			} elseif ( isset( $data['lid'] ) ) {
+				$row_level_id = absint( $data['lid'] );
 			} elseif ( isset( $data['custom'] ) ) {
 				$custom = json_decode( (string) $data['custom'], true );
 				if ( is_array( $custom ) && isset( $custom['level_id'] ) ) {
