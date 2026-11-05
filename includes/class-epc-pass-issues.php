@@ -405,6 +405,38 @@ class EPC_Pass_Issues {
 	}
 
 	/**
+	 * Who a failed record belongs to, the way the Cards list shows customers: name and email
+	 * when a WordPress user or a guest buyer is known, otherwise the record id.
+	 *
+	 * @param EPC_Module $module    Module.
+	 * @param string     $source_id Source record id.
+	 * @return string HTML (strong, br, span.description).
+	 */
+	private static function record_html( $module, $source_id ) {
+		$user_id = 0;
+		$pass    = EPC_DB::get_pass( $module->get_slug(), $source_id );
+		if ( $pass && ! empty( $pass->user_id ) ) {
+			$user_id = (int) $pass->user_id;
+		} else {
+			$resolved = $module->get_backfill_user_id( $source_id );
+			$user_id  = is_numeric( $resolved ) ? (int) $resolved : 0;
+		}
+
+		$user = $user_id > 0 ? get_userdata( $user_id ) : false;
+		if ( $user ) {
+			return '<strong>' . esc_html( $user->display_name ) . '</strong><br /><span class="description">' . esc_html( $user->user_email ) . '</span>';
+		}
+
+		$guest = $module->get_record_customer( $source_id );
+		if ( is_array( $guest ) && '' !== trim( (string) ( $guest['name'] ?? '' ) . (string) ( $guest['email'] ?? '' ) ) ) {
+			return '<strong>' . esc_html( (string) $guest['name'] ) . '</strong> <span class="description">' . esc_html__( '(guest)', 'epasscard' ) . '</span><br /><span class="description">' . esc_html( (string) $guest['email'] ) . '</span>';
+		}
+
+		/* translators: %s: record id in the integration (booking, attendee, gift card) */
+		return esc_html( sprintf( __( 'Record %s', 'epasscard' ), $source_id ) );
+	}
+
+	/**
 	 * Render the failures panel above a module's issued passes table.
 	 *
 	 * @param EPC_Module $module     Module.
@@ -451,7 +483,7 @@ class EPC_Pass_Issues {
 					$retry_action = 'expire' === ( $issue['action'] ?? '' ) ? 'expire' : 'sync';
 					?>
 					<tr>
-						<td><?php echo esc_html( $source_id ); ?></td>
+						<td><?php echo wp_kses( self::record_html( $module, $source_id ), array( 'strong' => array(), 'br' => array(), 'span' => array( 'class' => true ) ) ); ?></td>
 						<td><?php echo esc_html( self::action_label( (string) ( $issue['action'] ?? '' ) ) ); ?><?php echo (int) ( $issue['count'] ?? 1 ) > 1 ? ' &times;' . (int) $issue['count'] : ''; ?></td>
 						<td><?php echo esc_html( (string) ( $issue['message'] ?? '' ) ); ?></td>
 						<td><?php echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) ( $issue['time'] ?? time() ) ) ); ?></td>
