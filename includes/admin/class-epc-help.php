@@ -62,6 +62,8 @@ class EPC_Help {
 				'what'  => __( 'A card in Apple Wallet and Google Wallet, filled in from WordPress.', 'epasscard' ),
 				'how'   => __( 'Follow the steps on Home: connect, choose, design, try it, go live.', 'epasscard' ),
 				'doc'   => self::DOCS . '#quick-setup',
+				'video'  => 'BjdEhCPCmKI',
+				'length' => '1:13',
 			),
 			'connect'       => array(
 				'group' => 'start',
@@ -71,6 +73,8 @@ class EPC_Help {
 				'what'  => __( 'One API key per site. It is extended automatically.', 'epasscard' ),
 				'how'   => __( 'Sign up, sign in, or paste a key from app.epasscard.com.', 'epasscard' ),
 				'doc'   => self::DOCS . '#api-connection',
+				'video'  => 'pBCxX-rOkP8',
+				'length' => '0:59',
 			),
 			'job'           => array(
 				'group' => 'start',
@@ -80,6 +84,8 @@ class EPC_Help {
 				'what'  => __( 'We check the plugins on this site and turn on the matching integration.', 'epasscard' ),
 				'how'   => __( 'Pick a card type and confirm the rules.', 'epasscard' ),
 				'doc'   => self::DOCS . '#setup-wizard',
+				'video'  => 'yxgq_kxuzns',
+				'length' => '1:30',
 			),
 			'design'        => array(
 				'group' => 'start',
@@ -89,6 +95,8 @@ class EPC_Help {
 				'what'  => __( 'Logo, colours and the fields the card shows.', 'epasscard' ),
 				'how'   => __( 'Edit, check the preview, save.', 'epasscard' ),
 				'doc'   => self::DOCS . '#template-designer',
+				'video'  => '3_6dnSEE38Y',
+				'length' => '1:32',
 			),
 			'try'           => array(
 				'group' => 'start',
@@ -98,6 +106,8 @@ class EPC_Help {
 				'what'  => __( 'A test card with your name and sample data.', 'epasscard' ),
 				'how'   => __( 'Scan the code with your phone and add it to your wallet.', 'epasscard' ),
 				'doc'   => self::DOCS . '#quick-setup',
+				'video'  => 'bH3Ae-aQn-I',
+				'length' => '1:12',
 			),
 			'live'          => array(
 				'group' => 'start',
@@ -107,6 +117,8 @@ class EPC_Help {
 				'what'  => __( 'New customers get a card automatically.', 'epasscard' ),
 				'how'   => __( 'Wait for the next customer, or give cards to the ones you already have.', 'epasscard' ),
 				'doc'   => self::DOCS . '#quick-setup',
+				'video'  => 'cAN6AHXVrnY',
+				'length' => '1:30',
 			),
 			'cards'         => array(
 				'group' => 'daily',
@@ -116,6 +128,8 @@ class EPC_Help {
 				'what'  => __( 'Every card this site issued, active or revoked, with test cards kept apart.', 'epasscard' ),
 				'how'   => __( 'Search and filter, retry the cards under Need attention, export to CSV.', 'epasscard' ),
 				'doc'   => self::DOCS,
+				'video'  => 'cKVJpxI9uGk',
+				'length' => '1:12',
 			),
 			'design-change' => array(
 				'group' => 'daily',
@@ -125,6 +139,8 @@ class EPC_Help {
 				'what'  => __( 'One design for each kind of card you give.', 'epasscard' ),
 				'how'   => __( 'Open a design, edit it, check the preview, save.', 'epasscard' ),
 				'doc'   => self::DOCS . '#template-designer',
+				'video'  => 'UIGrUO2Rlq0',
+				'length' => '0:48',
 			),
 			'customers'     => array(
 				'group' => 'daily',
@@ -134,6 +150,8 @@ class EPC_Help {
 				'what'  => __( 'Earning rules, tiers, rewards and paying with points at checkout.', 'epasscard' ),
 				'how'   => __( 'Set the rules, save, then place a test order.', 'epasscard' ),
 				'doc'   => self::DOCS . '#mod-wc-loyalty',
+				'video'  => 'wyy58Xa4CLc',
+				'length' => '1:31',
 			),
 			'account'       => array(
 				'group' => 'daily',
@@ -143,6 +161,8 @@ class EPC_Help {
 				'what'  => __( 'This site\'s cards against the plan, and how long they last at the current rate.', 'epasscard' ),
 				'how'   => __( 'Change the plan on EpassCard when you need more.', 'epasscard' ),
 				'doc'   => 'https://www.epasscard.com/pricing/',
+				'video'  => 'KdbpnnfYBfc',
+				'length' => '0:58',
 			),
 			'emails'        => array(
 				'group' => 'daily',
@@ -152,6 +172,8 @@ class EPC_Help {
 				'what'  => __( 'Whether it goes out on its own, and its subject and text.', 'epasscard' ),
 				'how'   => __( 'Edit the subject and text, keep {pass_link}, save.', 'epasscard' ),
 				'doc'   => self::DOCS . '#email-settings',
+				'video'  => '46YqGjU1woo',
+				'length' => '1:00',
 			),
 			'push'          => array(
 				'group' => 'daily',
@@ -161,6 +183,8 @@ class EPC_Help {
 				'what'  => __( 'Reminders before a card expires or an event starts.', 'epasscard' ),
 				'how'   => __( 'Turn a reminder on, choose how many days before, save.', 'epasscard' ),
 				'doc'   => self::DOCS . '#push-notifications',
+				'video'  => 'N6m6YuzBAsE',
+				'length' => '0:53',
 			),
 			'integrations'  => array(
 				'group' => 'daily',
@@ -170,6 +194,8 @@ class EPC_Help {
 				'what'  => __( 'The plugins on this site that EpassCard works with.', 'epasscard' ),
 				'how'   => __( 'Turn one on, save, then give it a design.', 'epasscard' ),
 				'doc'   => self::DOCS,
+				'video'  => 'g81pei6yuGI',
+				'length' => '1:03',
 			),
 			'advanced'      => array(
 				'group' => 'daily',
@@ -179,6 +205,8 @@ class EPC_Help {
 				'what'  => __( 'Every call this site makes to EpassCard, with the answer.', 'epasscard' ),
 				'how'   => __( 'Open the API log, find the failed call, send it to support if you need help.', 'epasscard' ),
 				'doc'   => self::DOCS . '#api-logs',
+				'video'  => 'EF-CqsOeM7o',
+				'length' => '1:08',
 			),
 		);
 
