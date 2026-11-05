@@ -22,7 +22,7 @@ class EPC_Card_Preview {
 	 * Preview data for a module.
 	 *
 	 * @param string $slug Module slug.
-	 * @return array{org: string, logo: string, background: string, text: string, label: string, kind: string, primary: array{label: string, value: string}, fields: array<int, array{label: string, value: string}>, own_template: bool}
+	 * @return array{org: string, logo: string, background: string, text: string, label: string, kind: string, primary: array{label: string, value: string}, fields: array<int, array{label: string, value: string}>, own_template: bool, code: string}
 	 */
 	public static function get_data( $slug ) {
 		$slug = sanitize_key( (string) $slug );
@@ -40,6 +40,7 @@ class EPC_Card_Preview {
 			),
 			'fields'       => array(),
 			'own_template' => false,
+			'code'         => 'QR',
 		);
 
 		if ( 'woocommerce-loyalty' === $slug && class_exists( 'EPC_Loyalty_Pass_Design_Service' ) ) {
@@ -71,6 +72,7 @@ class EPC_Card_Preview {
 				),
 			);
 			$data['own_template'] = 'builder' === (string) $design['design_source'];
+			$data['code']         = (string) $design['barcode_format'];
 			return $data;
 		}
 
@@ -99,6 +101,7 @@ class EPC_Card_Preview {
 		$data['kind']       = isset( $kinds[ $preset['type'] ] ) ? $kinds[ $preset['type'] ] : '';
 		$data['org']        = (string) $design['organization_name'];
 		$data['logo']       = (string) $design['logo_url'];
+		$data['code']       = (string) ( $design['barcode_format'] ?? 'QR' );
 		$data['background'] = (string) $design['colors']['background'];
 		$data['text']       = (string) $design['colors']['text'];
 		$data['label']      = (string) $design['colors']['label'];
@@ -125,6 +128,45 @@ class EPC_Card_Preview {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * A decorative square code (not scannable) for QR and Aztec designs.
+	 *
+	 * @param string $format QR or AZTEC.
+	 * @return string SVG markup.
+	 */
+	private static function square_code_svg( $format ) {
+		$cells = array();
+		if ( 'AZTEC' === $format ) {
+			// Bullseye in the middle, a few data modules around it.
+			foreach ( array( 1, 3, 5 ) as $ring ) {
+				$cells[] = sprintf( '<rect x="%1$d.5" y="%1$d.5" width="%2$d" height="%2$d" fill="none" stroke="#1b1b1b" stroke-width="1"/>', 10 - $ring - 1, 2 * $ring + 1 );
+			}
+			$cells[] = '<rect x="10" y="10" width="1" height="1" fill="#1b1b1b"/>';
+			$pattern = array( '1101001011101001011', '0100110100101101001', '1011010011010010110' );
+			foreach ( $pattern as $row => $bits ) {
+				foreach ( str_split( $bits ) as $col => $bit ) {
+					if ( '1' === $bit ) {
+						$cells[] = sprintf( '<rect x="%d" y="%d" width="1" height="1" fill="#1b1b1b"/>', $col + 1, $row + 1 );
+						$cells[] = sprintf( '<rect x="%d" y="%d" width="1" height="1" fill="#1b1b1b"/>', $col + 1, 19 - $row );
+					}
+				}
+			}
+		} else {
+			foreach ( array( array( 0, 0 ), array( 14, 0 ), array( 0, 14 ) ) as $corner ) {
+				$cells[] = sprintf( '<rect x="%1$d.5" y="%2$d.5" width="6" height="6" fill="none" stroke="#1b1b1b" stroke-width="1"/><rect x="%3$d" y="%4$d" width="3" height="3" fill="#1b1b1b"/>', $corner[0], $corner[1], $corner[0] + 2, $corner[1] + 2 );
+			}
+			$pattern = array( '00000000101101000000', '00000000010010100000', '00000000110100100000', '10110101001011010110', '01001011100100101001', '11010010011010110100', '00101101010100101011', '10100110101101010010', '00000000100101101001', '00000000011010010110', '00000000101100101011', '00000000010011010100', '00000000110101001011', '00000000001010110101' );
+			foreach ( $pattern as $row => $bits ) {
+				foreach ( str_split( $bits ) as $col => $bit ) {
+					if ( '1' === $bit ) {
+						$cells[] = sprintf( '<rect x="%d" y="%d" width="1" height="1" fill="#1b1b1b"/>', $col, $row + 7 );
+					}
+				}
+			}
+		}
+		return '<svg viewBox="0 0 21 21" width="44" height="44" shape-rendering="crispEdges" focusable="false">' . implode( '', $cells ) . '</svg>';
 	}
 
 	/**
@@ -169,7 +211,11 @@ class EPC_Card_Preview {
 					<?php endforeach; ?>
 				</div>
 			<?php endif; ?>
-			<div class="epc-card-preview__code" aria-hidden="true"><span></span></div>
+			<?php if ( in_array( strtoupper( $data['code'] ), array( 'QR', 'AZTEC' ), true ) ) : ?>
+				<div class="epc-card-preview__code epc-card-preview__code--square" aria-hidden="true"><?php echo self::square_code_svg( strtoupper( $data['code'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Fixed markup built in this class. ?></div>
+			<?php else : ?>
+				<div class="epc-card-preview__code" aria-hidden="true"><span></span></div>
+			<?php endif; ?>
 		</div>
 		<?php if ( $data['own_template'] ) : ?>
 			<p class="epc-card-preview__note"><?php esc_html_e( 'You use your own EpassCard template; this is a sample layout.', 'epasscard' ); ?></p>

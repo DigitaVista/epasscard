@@ -732,6 +732,12 @@ fieldset.epc-panel {
 	background: #fff;
 }
 
+.epc-card-preview__code--square {
+	width: 64px;
+	height: 64px;
+	margin: 0 auto;
+}
+
 .epc-card-preview__code span {
 	width: 56%;
 	height: 30px;
