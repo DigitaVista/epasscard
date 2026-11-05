@@ -74,7 +74,7 @@ class EPC_Loyalty_Pass_Design_Service {
 				$blog
 			),
 			'organization_name'  => $blog,
-			'certificate'        => 'pass.com.epasscard.public',
+			'certificate'        => EPC_Api_Client::DEFAULT_CERTIFICATE,
 			'card_type'          => 'StoreCard',
 			'logo_id'            => 0,
 			'logo_url'           => '',
@@ -148,7 +148,7 @@ class EPC_Loyalty_Pass_Design_Service {
 		$design['organization_name'] = sanitize_text_field( (string) ( $raw['organization_name'] ?? $defaults['organization_name'] ) );
 		$design['certificate']       = sanitize_text_field( (string) ( $raw['certificate'] ?? $defaults['certificate'] ) );
 		if ( '' === $design['certificate'] ) {
-			$design['certificate'] = 'pass.com.epasscard.public';
+			$design['certificate'] = EPC_Api_Client::DEFAULT_CERTIFICATE;
 		}
 
 		$card_type = sanitize_text_field( (string) ( $raw['card_type'] ?? 'StoreCard' ) );

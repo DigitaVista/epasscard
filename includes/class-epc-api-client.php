@@ -21,6 +21,13 @@ class EPC_Api_Client {
 	const REFERENCE = 'wp-plugin';
 
 	/**
+	 * Signing certificate sent when the plugin creates a pass template. EpassCard renamed the
+	 * shared certificate from pass.com.epasscard.public; template calls retry once with the
+	 * name EpassCard says it accepts (see template_request()).
+	 */
+	const DEFAULT_CERTIFICATE = 'pass.com.epasscard.default';
+
+	/**
 	 * Filterable API base (no trailing slash).
 	 *
 	 * @return string
@@ -812,23 +819,8 @@ class EPC_Api_Client {
 			EPC_Api_Log::set_request_context( '' !== $context ? sanitize_text_field( $context ) : 'loyalty:create_pass_template_v2' );
 		}
 
-		$url       = self::api_base_v2() . '/create-pass-template';
-		$body_json = wp_json_encode( $payload );
-		$body      = self::remote_request(
-			'POST',
-			$url,
-			array(
-				'timeout' => 90,
-				'headers' => array(
-					'X-Api-Key'    => EPC_Connection::get_api_key(),
-					'Content-Type' => 'application/json',
-					'Accept'       => 'application/json',
-				),
-				'body'    => $body_json,
-			),
-			$body_json,
-			true
-		);
+		$url  = self::api_base_v2() . '/create-pass-template';
+		$body = self::template_request( 'POST', $url, $payload, '' !== $context ? $context : 'loyalty:create_pass_template_v2' );
 
 		if ( is_wp_error( $body ) ) {
 			return $body;
@@ -878,23 +870,8 @@ class EPC_Api_Client {
 			EPC_Api_Log::set_request_context( '' !== $context ? sanitize_text_field( $context ) : 'loyalty:update_pass_template_v2' );
 		}
 
-		$url       = self::api_base_v2() . '/update-pass-template/' . rawurlencode( $san );
-		$body_json = wp_json_encode( $payload );
-		$body      = self::remote_request(
-			'PUT',
-			$url,
-			array(
-				'timeout' => 90,
-				'headers' => array(
-					'X-Api-Key'    => EPC_Connection::get_api_key(),
-					'Content-Type' => 'application/json',
-					'Accept'       => 'application/json',
-				),
-				'body'    => $body_json,
-			),
-			$body_json,
-			true
-		);
+		$url  = self::api_base_v2() . '/update-pass-template/' . rawurlencode( $san );
+		$body = self::template_request( 'PUT', $url, $payload, '' !== $context ? $context : 'loyalty:update_pass_template_v2' );
 
 		if ( is_wp_error( $body ) ) {
 			$status = (int) ( $body->get_error_data()['status'] ?? 0 );
@@ -1408,6 +1385,81 @@ class EPC_Api_Client {
 	}
 
 	/**
+	 * Send a create/update pass template request. When EpassCard rejects the signing
+	 * certificate ("certificate must be one of: …"), send it once more with the first
+	 * certificate EpassCard lists.
+	 *
+	 * @param string               $method  POST or PUT.
+	 * @param string               $url     Full URL.
+	 * @param array<string, mixed> $payload Template payload.
+	 * @param string               $context API log context for the retry.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	private static function template_request( $method, $url, array $payload, $context ) {
+		$attempts = 0;
+		do {
+			if ( $attempts > 0 && class_exists( 'EPC_Api_Log' ) ) {
+				EPC_Api_Log::set_request_context( sanitize_text_field( $context ) );
+			}
+			$body_json = (string) wp_json_encode( $payload );
+			$body      = self::remote_request(
+				$method,
+				$url,
+				array(
+					'timeout' => 90,
+					'headers' => array(
+						'X-Api-Key'    => EPC_Connection::get_api_key(),
+						'Content-Type' => 'application/json',
+						'Accept'       => 'application/json',
+					),
+					'body'    => $body_json,
+				),
+				$body_json,
+				true
+			);
+			++$attempts;
+
+			$accepted = self::accepted_certificate( $body, (string) ( $payload['certificate'] ?? '' ) );
+			if ( '' === $accepted ) {
+				break;
+			}
+			$payload['certificate'] = $accepted;
+		} while ( $attempts < 2 );
+
+		return $body;
+	}
+
+	/**
+	 * The certificate EpassCard asks for when it rejected the one sent.
+	 *
+	 * @param mixed  $result Parsed response or error.
+	 * @param string $sent   Certificate that was sent.
+	 * @return string Empty when the error is not about the certificate.
+	 */
+	private static function accepted_certificate( $result, $sent ) {
+		if ( ! is_wp_error( $result ) ) {
+			return '';
+		}
+		$data = $result->get_error_data();
+		if ( ! is_array( $data ) || 400 !== (int) ( $data['status'] ?? 0 ) || empty( $data['errors'] ) || ! is_array( $data['errors'] ) ) {
+			return '';
+		}
+		foreach ( $data['errors'] as $error ) {
+			if ( ! is_array( $error ) || 'certificate' !== ( $error['field'] ?? '' ) ) {
+				continue;
+			}
+			if ( ! preg_match( '/one of:\s*(.+?)(?:,\s*got:.*)?$/i', (string) ( $error['message'] ?? '' ), $match ) ) {
+				continue;
+			}
+			$first = trim( (string) strtok( $match[1], ',' ) );
+			if ( '' !== $first && $first !== $sent && preg_match( '/^[A-Za-z0-9._-]+$/', $first ) ) {
+				return $first;
+			}
+		}
+		return '';
+	}
+
+	/**
 	 * Parse HTTP response.
 	 *
 	 * @param array<string,mixed>|\WP_Error $response Remote response.
@@ -1428,10 +1480,29 @@ class EPC_Api_Client {
 				$msg = sanitize_text_field( $data['message'] );
 			}
 
+			// Field errors ("Validation failed" alone does not say what to fix).
+			$errors = array();
+			if ( is_array( $data ) && isset( $data['errors'] ) && is_array( $data['errors'] ) ) {
+				foreach ( $data['errors'] as $error ) {
+					if ( is_array( $error ) && isset( $error['message'] ) && is_string( $error['message'] ) && '' !== trim( $error['message'] ) ) {
+						$errors[] = array(
+							'field'   => isset( $error['field'] ) && is_string( $error['field'] ) ? sanitize_key( $error['field'] ) : '',
+							'message' => sanitize_text_field( $error['message'] ),
+						);
+					}
+				}
+			}
+			if ( ! empty( $errors ) ) {
+				$msg .= ': ' . implode( '; ', wp_list_pluck( $errors, 'message' ) );
+			}
+
 			return new WP_Error(
 				'epc_http',
 				$msg,
-				array( 'status' => $code )
+				array(
+					'status' => $code,
+					'errors' => $errors,
+				)
 			);
 		}
 

@@ -701,7 +701,7 @@ class EPC_Template_Starter {
 		$payload = array(
 			'template_name'     => (string) $design['template_name'],
 			'organization_name' => (string) $design['organization_name'],
-			'certificate'       => 'pass.com.epasscard.public',
+			'certificate'       => EPC_Api_Client::DEFAULT_CERTIFICATE,
 			'card_type'         => (string) $preset['card_type'],
 			'logo'              => $logo,
 			'icon'              => $logo,

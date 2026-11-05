@@ -1906,7 +1906,7 @@ class EPC_Setup_Wizard {
 		$base = array(
 			'template_name'     => (string) ( $opts['template_name'] ?? 'Pass' ),
 			'organization_name' => (string) ( $opts['organization_name'] ?? 'EpassCard' ),
-			'certificate'       => 'pass.com.epasscard.public',
+			'certificate'       => EPC_Api_Client::DEFAULT_CERTIFICATE,
 			'logo'              => (string) ( $opts['logo_url'] ?? '' ),
 			'icon'              => (string) ( $opts['logo_url'] ?? '' ),
 			'strip_image'       => (string) ( $opts['strip_url'] ?? '' ),
