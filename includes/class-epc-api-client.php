@@ -680,6 +680,14 @@ class EPC_Api_Client {
 		if ( self::is_timeout_error( $result ) ) {
 			$result = self::post_json( self::sign_up_url(), $payload, false, 45 );
 		}
+		if ( self::is_timeout_error( $result ) ) {
+			// The account may have been created even though the answer never arrived.
+			return new WP_Error(
+				'epc_timeout',
+				__( 'EpassCard took too long to respond. If a password email arrived, use Sign in and connect. Otherwise try again in a moment.', 'epasscard' ),
+				array( 'timeout' => true )
+			);
+		}
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -1461,7 +1469,7 @@ class EPC_Api_Client {
 		if ( $timeout ) {
 			return new WP_Error(
 				'epc_timeout',
-				__( 'EpassCard took too long to respond. If a password email arrived, use Sign in and connect. Otherwise try again in a moment.', 'epasscard' ),
+				__( 'EpassCard took too long to respond. Try again in a moment.', 'epasscard' ),
 				array( 'timeout' => true )
 			);
 		}
