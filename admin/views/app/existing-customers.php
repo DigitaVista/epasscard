@@ -203,7 +203,7 @@ $epc_control = static function ( $command, $label, $class = 'button' ) use ( $ep
 			<?php if ( 'woocommerce-loyalty' === $epc_check_mod->get_slug() ) : ?>
 				<p class="description">
 					<?php esc_html_e( 'Customers who bought before loyalty was on have no points yet, so they are not counted.', 'epasscard' ); ?>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=epc-woocommerce-loyalty#epc-section-loyalty-program' ) ); ?>"><?php esc_html_e( 'Credit their past orders first', 'epasscard' ); ?></a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=epc-woocommerce-loyalty#epc-tab-loyalty-history' ) ); ?>"><?php esc_html_e( 'Credit their past orders first', 'epasscard' ); ?></a>
 				</p>
 			<?php endif; ?>
 			<?php if ( ! empty( $check['truncated'] ) ) : ?>

@@ -1120,6 +1120,16 @@
 			activateLoyaltyTab( $( this ) );
 		} );
 
+		// A link such as "#epc-tab-loyalty-history" opens that tab (Cards → Credit past orders).
+		var hashTab = /^#epc-(?:tab|panel)-loyalty-([a-z]+)$/.exec( window.location.hash || '' );
+		if ( hashTab ) {
+			var $hashTab = $( '#epc-tab-loyalty-' + hashTab[ 1 ] );
+			if ( $hashTab.length ) {
+				activateLoyaltyTab( $hashTab );
+				$hashTab[ 0 ].scrollIntoView( { block: 'start' } );
+			}
+		}
+
 		$( document ).on( 'click', '[data-epc-repeater-add]', function ( event ) {
 			event.preventDefault();
 			var $repeater = $( this ).closest( '[data-epc-repeater]' );
