@@ -63,6 +63,11 @@ class EPC_Pass_Service {
 
 			$type  = $types[ $pass_uid ] ?? '';
 			$value = self::resolve_mapped_value_for_module( $normalized, $source_values, $module_slug );
+			if ( 'date' !== $type && self::is_no_expiry_date( $value ) ) {
+				// No end date is a date 99 years ahead, which showed as e.g. "Expires: November 6,
+				// 2125". A text field says so in words, as voucher cards do; a date field keeps it.
+				$value = __( 'No expiry', 'epasscard' );
+			}
 			$value = self::coerce_field_value( $value, $type );
 			/*
 			 * An empty value is sent as a blank so the pass hides the field. Leaving it out
@@ -80,6 +85,21 @@ class EPC_Pass_Service {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Whether a field value is the date that stands for "no end date"
+	 * (epc_format_pass_expiry_timestamp( 0 ), 99 years ahead).
+	 *
+	 * @param string $value Field value.
+	 * @return bool
+	 */
+	private static function is_no_expiry_date( $value ) {
+		static $lifetime = null;
+		if ( null === $lifetime ) {
+			$lifetime = function_exists( 'epc_format_pass_expiry_timestamp' ) ? (string) epc_format_pass_expiry_timestamp( 0 ) : '';
+		}
+		return '' !== $lifetime && (string) $value === $lifetime;
 	}
 
 	/**

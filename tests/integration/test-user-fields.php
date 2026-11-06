@@ -184,6 +184,36 @@ $map['field_mapping'][ $secret ] = array(
 $sent = EPC_Pass_Service::build_create_fields( $map, EPC_User_Fields::attach( $map, array( 'name' => 'X' ), $user ), $slug );
 epc_uf_check( 'a secret field never reaches a card, even if saved directly', ! in_array( $secret, wp_list_pluck( $sent, 'uid' ), true ) );
 
+// No end date: a text field says "No expiry"; a date field still gets a date (the API needs one).
+$text_uid = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e5e5';
+$date_uid = 'f6f6f6f6-a7a7-4b8b-8c9c-d0d0d0d0d0d0';
+$expiry   = array(
+	'field_mapping' => array(
+		$text_uid => array(
+			'type'   => 'source',
+			'source' => 'expire_date',
+		),
+		$date_uid => array(
+			'type'   => 'source',
+			'source' => 'expire_date',
+		),
+	),
+	'pass_fields'   => array(
+		array(
+			'uid'        => $text_uid,
+			'field_type' => 'text',
+		),
+		array(
+			'uid'        => $date_uid,
+			'field_type' => 'date',
+		),
+	),
+);
+$lifetime = wp_list_pluck( EPC_Pass_Service::build_create_fields( $expiry, array( 'expire_date' => epc_format_pass_expiry_timestamp( 0 ) ), $slug ), 'fieldValue', 'uid' );
+$dated    = wp_list_pluck( EPC_Pass_Service::build_create_fields( $expiry, array( 'expire_date' => wp_date( (string) get_option( 'date_format' ), strtotime( '2031-03-31 12:00:00' ) ) ), $slug ), 'fieldValue', 'uid' );
+epc_uf_check( 'no end date: "No expiry" in a text field, a date in a date field', 'No expiry' === ( $lifetime[ $text_uid ] ?? '' ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $lifetime[ $date_uid ] ?? '' ) ), wp_json_encode( $lifetime ) );
+epc_uf_check( 'a real end date is shown as before', '2031-03-31' === ( $dated[ $date_uid ] ?? '' ) && false !== strpos( (string) ( $dated[ $text_uid ] ?? '' ), '2031' ) );
+
 wp_clear_scheduled_hook( EPC_User_Pass_Sync::CRON_HOOK, array( $user ) );
 epc_test_fixture_teardown();
 
