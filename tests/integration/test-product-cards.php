@@ -118,7 +118,9 @@ update_option( EPC_Pass_Email::OPTION, array_merge( EPC_Pass_Email::get_settings
 add_filter(
 	'pre_wp_mail',
 	static function ( $short, $atts ) {
-		if ( false !== strpos( (string) $atts['subject'], 'wallet pass' ) ) {
+		// Card emails of these products only: on a site with the loyalty card on, a first
+		// order also brings the loyalty card's email.
+		if ( false !== strpos( (string) $atts['subject'], 'wallet pass' ) && false === stripos( (string) $atts['subject'], 'loyalty' ) ) {
 			EPC_Product_Cards_Test_State::$mail[] = array(
 				'to'      => (string) $atts['to'],
 				'subject' => (string) $atts['subject'],

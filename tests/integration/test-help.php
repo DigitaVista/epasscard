@@ -87,11 +87,11 @@ foreach ( $topics as $id => $topic ) {
 	if ( 0 !== strpos( $topic['doc'], 'https://www.epasscard.com/' ) ) {
 		$incomplete[] = "$id.doc";
 	}
-	if ( '' !== $topic['video'] ) {
-		$incomplete[] = "$id.video (none recorded yet)";
+	if ( 1 !== preg_match( '/^[A-Za-z0-9_-]{11}$/', (string) $topic['video'] ) ) {
+		$incomplete[] = "$id.video";
 	}
 }
-epc_hp_check( 'every topic has its lines and an EpassCard guide link, and no video yet', array() === $incomplete, implode( ',', $incomplete ) );
+epc_hp_check( 'every topic has its lines, an EpassCard guide link and a tutorial video', array() === $incomplete, implode( ',', $incomplete ) );
 $missing = array_diff( array_keys( EPC_Onboarding::get_steps() ), array_keys( $topics ) );
 epc_hp_check( 'every Home step has a topic', array() === $missing, implode( ',', $missing ) );
 
@@ -132,10 +132,11 @@ $html = epc_hp_panel( 'cards' );
 epc_hp_check( 'video: poster button with the id, no iframe', false !== strpos( $html, 'data-epc-help-play="abcDEF12345"' ) && false === strpos( $html, '<iframe' ) && false !== strpos( $html, 'Play: Reading the Cards list (1:05)' ) );
 epc_hp_check( 'a video value that is not a YouTube id is dropped', '' === EPC_Help::topic( 'emails' )['video'] );
 EPC_Help::update( $admin, 'cards', 'watched' );
+$with_video = count( array_filter( wp_list_pluck( EPC_Help::topics(), 'video' ) ) );
 ob_start();
 EPC_Help::render_page();
 $page = (string) ob_get_clean();
-epc_hp_check( 'Tutorials page: watched count and tick', false !== strpos( $page, '1 of 1 videos watched.' ) && 1 === substr_count( $page, 'epc-badge--ok' ) );
+epc_hp_check( 'Tutorials page: watched count and tick', false !== strpos( $page, '1 of ' . $with_video . ' videos watched.' ) && 1 === substr_count( $page, 'epc-badge--ok' ), (string) $with_video );
 remove_filter( 'epc_help_topics', $video );
 
 ob_start();
@@ -145,7 +146,8 @@ $titles = 0;
 foreach ( EPC_Help::topics() as $topic ) {
 	$titles += false !== strpos( $page, esc_html( $topic['title'] ) ) ? 1 : 0;
 }
-epc_hp_check( 'Tutorials page lists all fourteen', 14 === $titles && 14 === substr_count( $page, 'Video coming soon' ), $titles . ' titles' );
+$no_video = count( EPC_Help::topics() ) - count( array_filter( wp_list_pluck( EPC_Help::topics(), 'video' ) ) );
+epc_hp_check( 'Tutorials page lists all fourteen; "coming soon" only without a video', 14 === $titles && $no_video === substr_count( $page, 'Video coming soon' ), $titles . ' titles' );
 epc_hp_check( 'Tutorials page: two groups in setup order', strpos( $page, 'Getting started' ) < strpos( $page, 'Running it day to day' ) && strpos( $page, esc_html( $topics['live']['title'] ) ) < strpos( $page, esc_html( $topics['cards']['title'] ) ) );
 
 // Clean up.
