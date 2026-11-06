@@ -169,6 +169,47 @@ $module->save_mapping( $shopper_item, $mapping );
 $users->set_status( $shopper, 'inactive' );
 $users->set_status( $shopper, 'approved' );
 epc_um_check( 'the merchant picks the design for the role: the shopper gets a card', 'active' === epc_um_card( $shopper ) );
+
+// Sites that saved the design before 1.2.0 had every role set to it: once, roles that are not
+// member roles, use EpassCard's design and have no cards go back to "No card".
+add_role( 'epc_test_staff', 'Test staff', array( 'read' => true ) );
+add_role( 'epc_test_vip', 'Test VIP', array( 'read' => true ) );
+$staff_item = $module->role_id( 'epc_test_staff' );
+$vip_item   = $module->role_id( 'epc_test_vip' );
+$cache->setValue( $module, null );
+$module->save_mapping( $staff_item, $mapping );
+$module->save_mapping( $vip_item, array_merge( $mapping, array( 'template_uid' => '99999999-2222-4333-8444-555555555555' ) ) );
+$module->save_mapping( $member_item, $mapping );
+$saved_limited = get_option( EPC_Module_Ultimate_Member::ROLES_LIMITED_OPTION, null );
+delete_option( EPC_Module_Ultimate_Member::ROLES_LIMITED_OPTION );
+$admins = get_users(
+	array(
+		'role'   => 'administrator',
+		'number' => 1,
+		'fields' => 'ID',
+	)
+);
+wp_set_current_user( (int) $admins[0] );
+$module->maybe_limit_roles_once();
+$after = $module->get_mappings();
+epc_um_check( 'once: a non-member role with the design and no cards goes to No card', ! isset( $after[ (string) $staff_item ] ) );
+epc_um_check( 'once: a role with cards, another design, or a member role keeps it', isset( $after[ (string) $shopper_item ], $after[ (string) $vip_item ], $after[ (string) $member_item ] ) );
+ob_start();
+$module->render_roles_limited_notice();
+$notice = (string) ob_get_clean();
+epc_um_check( 'once: the notice names the changed roles only', false !== strpos( $notice, 'Test staff' ) && false === strpos( $notice, 'Test shopper' ) && false === strpos( $notice, 'Test VIP' ) );
+$module->save_mapping( $staff_item, $mapping );
+$module->maybe_limit_roles_once();
+epc_um_check( 'once: it does not run again', isset( $module->get_mappings()[ (string) $staff_item ] ) );
+wp_set_current_user( 0 );
+if ( null === $saved_limited ) {
+	delete_option( EPC_Module_Ultimate_Member::ROLES_LIMITED_OPTION );
+} else {
+	update_option( EPC_Module_Ultimate_Member::ROLES_LIMITED_OPTION, $saved_limited );
+}
+remove_role( 'epc_test_staff' );
+remove_role( 'epc_test_vip' );
+
 if ( null === $saved_starter ) {
 	delete_option( $starter_key );
 } else {

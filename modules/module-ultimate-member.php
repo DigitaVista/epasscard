@@ -27,6 +27,11 @@ class EPC_Module_Ultimate_Member extends EPC_Module {
 	const ROLE_IDS_OPTION = 'epc_um_role_ids';
 
 	/**
+	 * Option: the one-time 1.2.0 change of non-member roles has run (roles it changed, notice).
+	 */
+	const ROLES_LIMITED_OPTION = 'epc_um_roles_limited';
+
+	/**
 	 * Member roles of this request (see member_roles()).
 	 *
 	 * @var array<int, string>|null
@@ -375,6 +380,89 @@ class EPC_Module_Ultimate_Member extends EPC_Module {
 		add_action( 'delete_user', array( $this, 'on_delete_user' ), 10, 1 );
 		add_filter( 'um_account_page_default_tabs_hook', array( $this, 'add_account_tab' ) );
 		add_filter( 'um_account_content_hook_epasscard', array( $this, 'render_account_tab' ) );
+		add_action( 'admin_init', array( $this, 'maybe_limit_roles_once' ) );
+		add_action( 'admin_notices', array( $this, 'render_roles_limited_notice' ) );
+		add_action( 'admin_post_epc_um_roles_notice_dismiss', array( $this, 'handle_roles_notice_dismiss' ) );
+	}
+
+	/**
+	 * Once (1.2.0): before, saving the design set every role to it, so shop customers that
+	 * Ultimate Member approves got member cards. Roles that are not member roles, still use the
+	 * design EpassCard made and have no cards yet go back to "No card". A role that has cards,
+	 * or that the merchant gave another design, is left as it is; no card is changed.
+	 *
+	 * @return void
+	 */
+	public function maybe_limit_roles_once() {
+		if ( false !== get_option( self::ROLES_LIMITED_OPTION, false ) || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$saved   = class_exists( 'EPC_Template_Starter' ) ? EPC_Template_Starter::get_saved( $this->get_slug() ) : null;
+		$changed = array();
+		if ( null !== $saved ) {
+			$mappings = $this->get_mappings();
+			$cards    = EPC_DB::count_active_real_passes_by_entity( $this->get_slug() );
+			foreach ( $this->card_roles() as $role => $name ) {
+				$id   = $this->role_id( $role );
+				$own  = isset( $mappings[ (string) $id ] ) && is_array( $mappings[ (string) $id ] ) ? $mappings[ (string) $id ] : array();
+				$keep = ! $this->starts_without_card( $id )
+					|| (string) ( $own['template_uid'] ?? '' ) !== (string) $saved['template_uid']
+					|| (int) ( $cards[ $id ] ?? 0 ) > 0;
+				if ( ! $keep ) {
+					unset( $mappings[ (string) $id ] );
+					$changed[] = (string) $name;
+				}
+			}
+			if ( ! empty( $changed ) ) {
+				update_option( $this->get_mappings_option_key(), $mappings, false );
+			}
+		}
+		update_option(
+			self::ROLES_LIMITED_OPTION,
+			array(
+				'roles'  => $changed,
+				'notice' => ! empty( $changed ),
+			)
+		);
+	}
+
+	/**
+	 * Say once which roles the 1.2.0 change set to "No card".
+	 *
+	 * @return void
+	 */
+	public function render_roles_limited_notice() {
+		$state = get_option( self::ROLES_LIMITED_OPTION, array() );
+		if ( ! is_array( $state ) || empty( $state['notice'] ) || empty( $state['roles'] ) || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$dismiss = wp_nonce_url( admin_url( 'admin-post.php?action=epc_um_roles_notice_dismiss' ), 'epc_um_roles_notice_dismiss' );
+		echo '<div class="notice notice-info"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: %s: role names, e.g. "Customer, Shop manager" */
+				__( 'EpassCard: Ultimate Member member cards now go to member roles only. These roles get no new member cards: %s. Cards already issued are unchanged. To give one of them cards, choose "This design" under Design → Applies to.', 'epasscard' ),
+				implode( ', ', array_map( 'strval', (array) $state['roles'] ) )
+			)
+		);
+		echo '</p><p><a class="button" href="' . esc_url( EPC_Admin_Design::url_for_module( $this->get_slug() ) ) . '">' . esc_html__( 'Review roles', 'epasscard' ) . '</a> <a href="' . esc_url( $dismiss ) . '">' . esc_html__( 'Dismiss', 'epasscard' ) . '</a></p></div>';
+	}
+
+	/**
+	 * Admin-post: hide the notice.
+	 *
+	 * @return void
+	 */
+	public function handle_roles_notice_dismiss() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'epasscard' ) );
+		}
+		check_admin_referer( 'epc_um_roles_notice_dismiss' );
+		$state = get_option( self::ROLES_LIMITED_OPTION, array() );
+		$state = is_array( $state ) ? $state : array();
+		update_option( self::ROLES_LIMITED_OPTION, array_merge( $state, array( 'notice' => false ) ) );
+		wp_safe_redirect( wp_get_referer() ? wp_get_referer() : admin_url() );
+		exit;
 	}
 
 	/**
