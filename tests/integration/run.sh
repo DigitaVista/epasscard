@@ -43,6 +43,9 @@ $WP eval-file "$HERE/test-loyalty-order-email.php" || status=1
 echo "== Gift cards: card email to the gift recipient"
 $WP eval-file "$HERE/test-gift-recipient.php" || status=1
 
+echo "== The Events Calendar: a guest's RSVP card goes to the attendee"
+$WP eval-file "$HERE/test-tec-guest.php" || status=1
+
 echo "== YITH gift cards: codes made by hand"
 $WP eval-file "$HERE/test-yith-gift-cards.php" || status=1
 

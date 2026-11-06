@@ -1304,4 +1304,32 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		$data = $this->get_attendee_data( absint( $source_id ) );
 		return $data ? $this->resolve_attendee_user_id( $data ) : 0;
 	}
+
+	/**
+	 * An attendee without an account (a guest RSVP or ticket): the card email goes to the
+	 * attendee's email.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_guest_recipient( $source_id ) {
+		$data  = $this->get_attendee_data( absint( $source_id ) );
+		$email = $data ? (string) ( $data['holder_email'] ?? '' ) : '';
+		return is_email( $email ) ? array(
+			'email' => $email,
+			'name'  => (string) ( $data['holder_name'] ?? '' ),
+		) : null;
+	}
+
+	/**
+	 * Who a card without an account is for, on Cards.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_record_customer( $source_id ) {
+		$guest = $this->get_guest_recipient( $source_id );
+		return null === $guest ? null : array(
+			'name'  => (string) $guest['name'],
+			'email' => (string) $guest['email'],
+		);
+	}
 }
