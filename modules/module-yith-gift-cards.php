@@ -261,7 +261,7 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		$email          = (string) $card->recipient;
 
 		return array(
-			'product_name'      => ! empty( $card->product_id ) ? get_the_title( (int) $card->product_id ) : '',
+			'product_name'      => ! empty( $card->product_id ) ? epc_plain_title( (int) $card->product_id ) : '',
 			'card_number'       => method_exists( $card, 'get_code' ) ? (string) $card->get_code() : '',
 			'expire_date'       => epc_format_pass_expiry_timestamp( ! empty( $card->expiration ) ? (int) $card->expiration : 0 ),
 			'balance_formatted' => $this->format_money( (float) $card->get_balance() ),
@@ -343,7 +343,7 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 	 */
 	public function get_entity_label( $entity_id ) {
 		$entity_id = absint( $entity_id );
-		$title     = $entity_id ? get_the_title( $entity_id ) : '';
+		$title     = $entity_id ? epc_plain_title( $entity_id ) : '';
 
 		return $title ? $title : ( '#' . $entity_id );
 	}

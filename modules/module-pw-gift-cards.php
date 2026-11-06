@@ -254,7 +254,7 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 		$product_id = $this->resolve_product_id( $card, $meta );
 
 		return array(
-			'product_name'      => $product_id ? get_the_title( $product_id ) : '',
+			'product_name'      => $product_id ? epc_plain_title( $product_id ) : '',
 			'card_number'       => (string) $card->get_number(),
 			'expire_date'       => epc_format_pass_expiry_datetime( (string) $card->get_expiration_date() ),
 			'balance_formatted' => $this->format_money( (float) $card->get_balance() ),
@@ -336,7 +336,7 @@ class EPC_Module_PW_Gift_Cards extends EPC_Module {
 	 */
 	public function get_entity_label( $entity_id ) {
 		$entity_id = absint( $entity_id );
-		$title     = $entity_id ? get_the_title( $entity_id ) : '';
+		$title     = $entity_id ? epc_plain_title( $entity_id ) : '';
 
 		return $title ? $title : ( '#' . $entity_id );
 	}

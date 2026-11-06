@@ -141,7 +141,7 @@ abstract class EPC_Module_WC_Product_Cards extends EPC_Module {
 	 */
 	public function get_entity_label( $entity_id ) {
 		$entity_id = absint( $entity_id );
-		$title     = $entity_id ? get_the_title( $entity_id ) : '';
+		$title     = $entity_id ? epc_plain_title( $entity_id ) : '';
 		return '' !== $title ? $title : ( '#' . $entity_id );
 	}
 

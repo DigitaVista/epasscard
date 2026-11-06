@@ -327,6 +327,9 @@ add_filter( 'woocommerce_currency', $sample_filter );
 $voucher_sample = (string) EPC_Template_Starter::get_preset( 'woocommerce-vouchers' )['primary'][0]['sample'];
 remove_filter( 'woocommerce_currency', $sample_filter );
 epc_pc_check( 'the voucher preview uses the store currency', false === strpos( $voucher_sample, '$' ) && false !== strpos( $voucher_sample, '25.00' ), $voucher_sample );
+$amp_id = epc_pc_product( 'Tea & "Cake"', '5', array() );
+epc_pc_check( 'a product name with & or quotes reaches the card as plain text, not HTML entities', 0 === strpos( $cards->get_entity_label( $amp_id ), 'Tea & ' ) && false === strpos( $cards->get_entity_label( $amp_id ), '&#' ), $cards->get_entity_label( $amp_id ) );
+wp_delete_post( $amp_id, true );
 epc_pc_check( 'each kind has its own title on Design and Cards', 'Tickets I sell' === EPC_Jobs::get_module_title( 'woocommerce-tickets' ) && 'Vouchers I sell' === EPC_Jobs::get_module_title( 'woocommerce-vouchers' ) && 'Passes and cards I sell' === EPC_Jobs::get_module_title( 'woocommerce-product-cards' ) && EPC_Jobs::get_copy( 'gift-cards' )['title'] === EPC_Jobs::get_module_title( 'yith-gift-cards' ) );
 
 // Clean up: this test's cards only (the site may have its own).

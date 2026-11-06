@@ -307,7 +307,7 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		$name     = isset( $data['holder_name'] ) ? (string) $data['holder_name'] : '';
 
 		return array(
-			'event_title'    => $event_id ? get_the_title( $event_id ) : '',
+			'event_title'    => $event_id ? epc_plain_title( $event_id ) : '',
 			'event_start'    => $this->format_event_datetime( $event_id, 'start' ),
 			'venue_name'     => $this->get_venue_name( $event_id ),
 			'ticket_name'    => isset( $data['ticket'] ) ? (string) $data['ticket'] : ( isset( $data['ticket_name'] ) ? (string) $data['ticket_name'] : '' ),
@@ -342,7 +342,7 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 				continue;
 			}
 
-			$label = get_the_title( $event_id );
+			$label = epc_plain_title( $event_id );
 			$start = $this->format_event_datetime( $event_id, 'start' );
 			if ( $start ) {
 				$label .= ' (' . $start . ')';
@@ -393,7 +393,7 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 	 */
 	public function get_entity_label( $entity_id ) {
 		$entity_id = absint( $entity_id );
-		$title     = $entity_id ? get_the_title( $entity_id ) : '';
+		$title     = $entity_id ? epc_plain_title( $entity_id ) : '';
 
 		return $title ? $title : ( '#' . $entity_id );
 	}
@@ -850,7 +850,7 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 
 		$ticket_name = isset( $data['ticket'] ) ? (string) $data['ticket'] : '';
 		if ( '' === $ticket_name && $ticket_id > 0 ) {
-			$ticket_name = get_the_title( $ticket_id );
+			$ticket_name = epc_plain_title( $ticket_id );
 		}
 
 		$event_end = $this->get_event_end_raw( $event_id );
@@ -865,7 +865,7 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 			'ticket_id'         => (string) $ticket_id,
 			'ticket_name'       => $ticket_name,
 			'event_id'          => (string) $event_id,
-			'event_title'       => get_the_title( $event_id ),
+			'event_title'       => epc_plain_title( $event_id ),
 			'event_start'       => $this->format_event_datetime( $event_id, 'start' ),
 			'event_end'         => $this->format_event_datetime( $event_id, 'end' ),
 			'expire_date'       => epc_format_pass_expiry_datetime( $event_end ),

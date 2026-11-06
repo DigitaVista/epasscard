@@ -386,6 +386,17 @@ function epc_format_user_full_name( $first_name, $last_name, $fallback = '' ) {
 }
 
 /**
+ * A post's title as plain text, for card fields and emails: get_the_title() returns it formatted
+ * for HTML ("Brew &#038; Butter", curly quotes as entities).
+ *
+ * @param int $post_id Post id.
+ * @return string
+ */
+function epc_plain_title( $post_id ) {
+	return trim( html_entity_decode( wp_strip_all_tags( (string) get_the_title( absint( $post_id ) ) ), ENT_QUOTES, 'UTF-8' ) );
+}
+
+/**
  * A user's name for screens and emails: first and last name from their profile, else their
  * display name (often the username, e.g. for shop customers).
  *
