@@ -857,7 +857,7 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 			'user_last_name'      => $last_name,
 			'user_full_name'      => $this->get_user_full_name( $first_name, $last_name, $user->display_name ),
 			'subscription_id'     => (string) $subscription->get_id(),
-			'subscription_status' => (string) $subscription->get_status(),
+			'subscription_status' => $this->status_label( (string) $subscription->get_status() ),
 			'product_name'        => $product_name,
 			'start_date'          => $start ? mysql2date( get_option( 'date_format' ), $start ) : '',
 			'next_payment_date'   => $next ? mysql2date( get_option( 'date_format' ), $next ) : '',

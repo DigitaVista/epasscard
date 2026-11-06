@@ -112,6 +112,19 @@ abstract class EPC_Module {
 	abstract public function get_entity_label( $entity_id );
 
 	/**
+	 * A status as the card shows it: its name from get_pass_behavior_statuses() ("Active"),
+	 * not the stored key ("active"); an unknown status is shown as it is.
+	 *
+	 * @param string $status Status key.
+	 * @return string
+	 */
+	protected function status_label( $status ) {
+		$labels = $this->get_pass_behavior_statuses();
+		$status = (string) $status;
+		return isset( $labels[ $status ] ) ? (string) $labels[ $status ] : $status;
+	}
+
+	/**
 	 * Name of a card in its email ("Your {pass_name} wallet pass"): the plan, product, event or
 	 * form, i.e. the item's label.
 	 *

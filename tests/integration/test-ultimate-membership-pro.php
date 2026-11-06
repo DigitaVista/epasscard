@@ -153,6 +153,10 @@ $module->save_mapping(
 	)
 );
 
+$label = new ReflectionMethod( $module, 'status_label' );
+$label->setAccessible( true );
+epc_ump_check( 'cards show the status name ("Active"), not its key', 'Active' === $label->invoke( $module, 'active' ) && 'On hold' === $label->invoke( $module, 'hold' ) && 'something-new' === $label->invoke( $module, 'something-new' ) );
+
 // A member gets the level the way UMP's checkout and admin do.
 $user = epc_test_fixture_user();
 \Ump\User_Subscriptions::assign( $user, $level );

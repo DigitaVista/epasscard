@@ -672,7 +672,7 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 			'user_name'         => isset( $member->user_name ) ? (string) $member->user_name : '',
 			'level_id'          => (string) $level_id,
 			'level_name'        => $this->get_entity_label( $level_id ),
-			'membership_status' => $this->normalize_status( isset( $member->account_state ) ? (string) $member->account_state : '' ),
+			'membership_status' => $this->status_label( $this->normalize_status( isset( $member->account_state ) ? (string) $member->account_state : '' ) ),
 			'start_date'        => $this->format_db_date( isset( $member->subscription_starts ) ? (string) $member->subscription_starts : '' ),
 			'expire_date'       => $this->format_member_expire_date( $member ),
 			'pass_expire_mysql' => epc_pass_expire_mysql_timestamp( $this->get_member_expiry_timestamp( $member ) ),

@@ -581,7 +581,7 @@ class EPC_Module_Paid_Memberships_Pro extends EPC_Module {
 			'membership_row_id' => (string) $row_id,
 			'level_id'          => (string) $level_id,
 			'level_name'        => $this->get_entity_label( $level_id ),
-			'membership_status' => $this->normalize_status( isset( $row->status ) ? (string) $row->status : '' ),
+			'membership_status' => $this->status_label( $this->normalize_status( isset( $row->status ) ? (string) $row->status : '' ) ),
 			'start_date'        => $this->format_db_date( isset( $row->startdate ) ? (string) $row->startdate : '' ),
 			'expire_date'       => epc_format_pass_expiry_datetime( isset( $row->enddate ) ? (string) $row->enddate : '' ),
 			'pass_expire_mysql' => epc_pass_expire_mysql_datetime( isset( $row->enddate ) ? (string) $row->enddate : '' ),
