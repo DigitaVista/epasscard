@@ -150,8 +150,8 @@ class EPC_Help {
 				'what'  => __( 'Earning rules, tiers, rewards and paying with points at checkout.', 'epasscard' ),
 				'how'   => __( 'Set the rules, save, then place a test order.', 'epasscard' ),
 				'doc'   => self::DOCS . '#mod-wc-loyalty',
-				'video'  => 'wyy58Xa4CLc',
-				'length' => '1:31',
+				'video'  => 'qOOEVORhTy8',
+				'length' => '1:32',
 			),
 			'account'       => array(
 				'group' => 'daily',
