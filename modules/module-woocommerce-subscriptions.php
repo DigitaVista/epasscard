@@ -436,7 +436,7 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 		}
 
 		if ( ! empty( $out ) ) {
-			return $out;
+			return $this->add_products_with_subscription_plans( $out, $statuses );
 		}
 
 		$query = new WP_Query(
@@ -463,6 +463,72 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 			}
 			$out[] = array(
 				'id'    => (int) $product->get_id(),
+				'label' => (string) $product->get_name(),
+			);
+		}
+
+		return $this->add_products_with_subscription_plans( $out, $statuses );
+	}
+
+	/**
+	 * Add the ordinary products sold on subscription. WooCommerce Subscriptions 9 sells simple
+	 * and variable products on subscription through their "Purchase options" (custom or
+	 * storewide plans) instead of the Simple/Variable subscription product types, which are
+	 * off by default for new stores.
+	 *
+	 * @param array<int, array{id: int, label: string}> $out      Entities found so far.
+	 * @param array<int, string>                        $statuses Post statuses.
+	 * @return array<int, array{id: int, label: string}>
+	 */
+	private function add_products_with_subscription_plans( array $out, array $statuses ) {
+		if ( ! class_exists( 'WCS_ATT_Product_Schemes' ) || ! method_exists( 'WCS_ATT_Product_Schemes', 'has_subscription_schemes' ) ) {
+			return $out;
+		}
+
+		$seen = array();
+		foreach ( $out as $entity ) {
+			$seen[ (int) $entity['id'] ] = true;
+		}
+
+		$query = new WP_Query(
+			array(
+				'post_type'      => 'product',
+				'post_status'    => $statuses,
+				'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- Same cap as the other plan lists.
+				'fields'         => 'ids',
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'no_found_rows'  => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Products with a subscription plan; WooCommerce Subscriptions keeps the mode in product meta.
+				'meta_query'     => array(
+					'relation' => 'OR',
+					array(
+						'key'     => '_wcsatt_schemes_status',
+						'value'   => array( 'override', 'inherit' ),
+						'compare' => 'IN',
+					),
+					// Products saved before the mode key existed.
+					array(
+						'key'     => '_wcsatt_schemes',
+						'compare' => 'EXISTS',
+					),
+				),
+			)
+		);
+
+		foreach ( $query->posts as $product_id ) {
+			$product_id = (int) $product_id;
+			if ( isset( $seen[ $product_id ] ) ) {
+				continue;
+			}
+			$product = wc_get_product( $product_id );
+			// The plugin's own check: a product set to "Use storewide plans" with none defined is one-time only.
+			if ( ! $product instanceof WC_Product || ! WCS_ATT_Product_Schemes::has_subscription_schemes( $product ) ) {
+				continue;
+			}
+			$seen[ $product_id ] = true;
+			$out[]               = array(
+				'id'    => $product_id,
 				'label' => (string) $product->get_name(),
 			);
 		}
