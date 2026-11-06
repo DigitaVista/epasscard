@@ -411,7 +411,7 @@ class EPC_Admin_Design {
 				</p>
 				<p class="epc-step__actions">
 					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save', 'epasscard' ); ?></button>
-					<span class="description"><?php esc_html_e( 'A plan set to No card gets no new cards; cards already issued stay as they are.', 'epasscard' ); ?></span>
+					<span class="description"><?php esc_html_e( 'Anything set to No card gets no new cards; cards already issued stay as they are.', 'epasscard' ); ?></span>
 				</p>
 			</form>
 		</section>
