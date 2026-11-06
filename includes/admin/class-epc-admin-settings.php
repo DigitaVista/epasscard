@@ -21,6 +21,28 @@ class EPC_Admin_Settings {
 	 */
 	public static function init() {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 20 );
+		add_action( 'admin_notices', array( __CLASS__, 'render_two_loyalty_notice' ) );
+	}
+
+	/**
+	 * Both loyalty integrations on: the same order earns points in both programs and the customer
+	 * gets two loyalty cards. Shown on the Dashboard and EpassCard screens until one is off.
+	 *
+	 * @return void
+	 */
+	public static function render_two_loyalty_notice() {
+		if ( ! current_user_can( 'manage_options' ) || ! EPC_Module_Settings::is_enabled( 'woocommerce-loyalty' ) || ! EPC_Module_Settings::is_enabled( 'wployalty' ) ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+		if ( ( $screen ? (string) $screen->id : '' ) !== 'dashboard' && 0 !== strpos( $page, 'epc-' ) && 'epasscard' !== $page ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p>';
+		esc_html_e( 'EpassCard: two loyalty programs are on, WooCommerce Loyalty and WPLoyalty. Each order earns points in both and customers get two loyalty cards. Keep one of them on.', 'epasscard' );
+		echo ' <a href="' . esc_url( EPC_Admin_App::url( 'settings', array( 'tab' => 'integrations' ) ) ) . '">' . esc_html__( 'Integrations', 'epasscard' ) . '</a></p></div>';
 	}
 
 	/**

@@ -184,6 +184,30 @@ wp_set_current_user( $other );
 ob_start();
 do_action( 'wlr_after_customer_reward_page_content' );
 epc_wlr_check( 'rewards page: no card, no block', '' === (string) ob_get_clean() );
+
+// Both loyalty integrations on: a warning on the Dashboard; with one on, none.
+require_once ABSPATH . 'wp-admin/includes/class-wp-screen.php';
+require_once ABSPATH . 'wp-admin/includes/screen.php';
+$wlr_admins = get_users(
+	array(
+		'role'   => 'administrator',
+		'number' => 1,
+		'fields' => 'ID',
+	)
+);
+wp_set_current_user( (int) $wlr_admins[0] );
+set_current_screen( 'dashboard' );
+$wlr_notice = static function () {
+	ob_start();
+	EPC_Admin_Settings::render_two_loyalty_notice();
+	return (string) ob_get_clean();
+};
+$wlr_enabled = get_option( 'epc_enabled_modules', array() );
+update_option( 'epc_enabled_modules', array_values( array_unique( array_merge( (array) $wlr_enabled, array( 'woocommerce-loyalty' ) ) ) ) );
+$both = $wlr_notice();
+update_option( 'epc_enabled_modules', array_values( array_diff( (array) $wlr_enabled, array( 'woocommerce-loyalty' ) ) ) );
+epc_wlr_check( 'both loyalty programs on: a warning; one on: none', false !== strpos( $both, 'two loyalty programs are on' ) && '' === $wlr_notice() );
+update_option( 'epc_enabled_modules', $wlr_enabled );
 wp_set_current_user( 0 );
 
 // Ban and unban, through WPLoyalty's own save in its ban request.
