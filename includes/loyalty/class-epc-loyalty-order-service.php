@@ -22,6 +22,15 @@ class EPC_Loyalty_Order_Service {
 	public static function init() {
 		add_action( 'woocommerce_payment_complete', array( __CLASS__, 'on_payment_complete' ), 20 );
 		add_action( 'woocommerce_order_status_changed', array( __CLASS__, 'on_order_status_changed' ), 20, 4 );
+		/*
+		 * Award before WooCommerce sends the status email. Its customer emails run on
+		 * woocommerce_order_status_{status} and _{from}_to_{status}, both before
+		 * woocommerce_order_status_changed, so a first order's Processing email had no points
+		 * yet and so no loyalty card. Awarding is idempotent: the later call does nothing.
+		 */
+		foreach ( self::get_settings()['qualifying_statuses'] as $status ) {
+			add_action( 'woocommerce_order_status_' . $status, array( __CLASS__, 'on_qualifying_status' ), 5, 2 );
+		}
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'on_order_refunded' ), 20, 2 );
 		add_action( 'epc_loyalty_balance_changed', array( __CLASS__, 'add_order_note_for_entry' ), 20, 2 );
 	}
@@ -35,6 +44,22 @@ class EPC_Loyalty_Order_Service {
 	public static function on_payment_complete( $order_id ) {
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( absint( $order_id ) ) : null;
 		if ( $order && self::is_qualifying_status( $order->get_status() ) ) {
+			self::award_order( $order );
+		}
+	}
+
+	/**
+	 * An order reached a status that earns points: award it now, ahead of the status email.
+	 *
+	 * @param int           $order_id WooCommerce order ID.
+	 * @param WC_Order|null $order    Order object.
+	 * @return void
+	 */
+	public static function on_qualifying_status( $order_id, $order = null ) {
+		if ( ! $order instanceof WC_Order && function_exists( 'wc_get_order' ) ) {
+			$order = wc_get_order( absint( $order_id ) );
+		}
+		if ( $order instanceof WC_Order ) {
 			self::award_order( $order );
 		}
 	}

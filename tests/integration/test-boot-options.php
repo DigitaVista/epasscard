@@ -64,7 +64,7 @@ $check(
 	&& array( 'epc_woocommerce_vouchers_status_rules' ) === $modules['woocommerce-vouchers']->get_boot_option_keys()
 	&& array( 'epc_woocommerce_product_cards_status_rules' ) === $modules['woocommerce-product-cards']->get_boot_option_keys()
 );
-$check( 'loyalty names its starter pack version', array( EPC_Loyalty_Starter::OPTION_KEY ) === $modules['woocommerce-loyalty']->get_boot_option_keys() );
+$check( 'loyalty names its starter pack version and program settings', array( EPC_Loyalty_Starter::OPTION_KEY, 'epc_loyalty_program' ) === $modules['woocommerce-loyalty']->get_boot_option_keys() );
 $others = EPC_Module_Loader::get_module_instance( 'tickera' );
 $check( 'other integrations read none by default', ! $others instanceof EPC_Module || array() === $others->get_boot_option_keys() );
 

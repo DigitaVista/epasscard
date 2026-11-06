@@ -37,6 +37,9 @@ $WP eval-file "$HERE/test-loyalty-blocks.php" || status=1
 echo "== Loyalty: a customer without points gets the card from My Account"
 $WP eval-file "$HERE/test-loyalty-get-card.php" || status=1
 
+echo "== Loyalty: the first order's Processing email carries the card"
+$WP eval-file "$HERE/test-loyalty-order-email.php" || status=1
+
 echo "== Gift cards: card email to the gift recipient"
 $WP eval-file "$HERE/test-gift-recipient.php" || status=1
 

@@ -889,12 +889,13 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	}
 
 	/**
-	 * register_event_hooks() reads the starter pack version (EPC_Loyalty_Starter::maybe_install()).
+	 * register_event_hooks() reads the starter pack version (EPC_Loyalty_Starter::maybe_install())
+	 * and the program settings (EPC_Loyalty_Order_Service::init(): the statuses that earn points).
 	 *
 	 * @inheritDoc
 	 */
 	public function get_boot_option_keys() {
-		return array( EPC_Loyalty_Starter::OPTION_KEY );
+		return array( EPC_Loyalty_Starter::OPTION_KEY, 'epc_loyalty_program' );
 	}
 
 	/**
