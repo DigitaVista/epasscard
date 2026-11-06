@@ -536,10 +536,12 @@ class EPC_Pass_Email {
 		}
 
 		$entity_label = '';
+		$pass_name    = '';
 		if ( ! empty( $pass_row->module ) && ! empty( $pass_row->entity_id ) && function_exists( 'epc_plugin' ) ) {
 			$mod = epc_plugin()->get_module( (string) $pass_row->module );
 			if ( $mod ) {
 				$entity_label = $mod->get_entity_label( (int) $pass_row->entity_id );
+				$pass_name    = $mod->get_pass_name( (int) $pass_row->entity_id );
 			}
 		}
 
@@ -563,7 +565,7 @@ class EPC_Pass_Email {
 			'membership_title'  => $entity_label,
 			'module_label'      => $module_label,
 			// Plan, product, event or card name; falls back to the integration name.
-			'pass_name'         => '' !== $entity_label ? $entity_label : $module_label,
+			'pass_name'         => '' !== $pass_name ? $pass_name : $module_label,
 		);
 	}
 

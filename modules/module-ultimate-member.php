@@ -240,6 +240,16 @@ class EPC_Module_Ultimate_Member extends EPC_Module {
 	}
 
 	/**
+	 * A card's item is a role, which is no name for the card ("Your Subscriber wallet pass").
+	 *
+	 * @inheritDoc
+	 */
+	public function get_pass_name( $entity_id ) {
+		unset( $entity_id );
+		return __( 'Membership', 'epasscard' );
+	}
+
+	/**
 	 * @inheritDoc
 	 */
 	public function get_entity_column_label() {

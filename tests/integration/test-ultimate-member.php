@@ -129,6 +129,8 @@ epc_um_check( 'a role without a design gets no card', 'none' === epc_um_card( $e
 epc_um_check( 'becoming an administrator voids the card', 'revoked' === epc_um_card( $user ) );
 ( new WP_User( $user ) )->set_role( 'subscriber' );
 epc_um_check( 'back to a member role: card live', 'active' === epc_um_card( $user ) );
+$mail = EPC_Pass_Email::compose( EPC_DB::get_pass( 'ultimate-member', (string) $user ) );
+epc_um_check( 'card email subject names the membership, not the role', is_array( $mail ) && false !== strpos( $mail['subject'], 'Membership' ) && false === strpos( $mail['subject'], 'Subscriber' ), is_wp_error( $mail ) ? $mail->get_error_message() : $mail['subject'] );
 
 // Existing members.
 $old = epc_test_fixture_user();

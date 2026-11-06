@@ -112,6 +112,17 @@ abstract class EPC_Module {
 	abstract public function get_entity_label( $entity_id );
 
 	/**
+	 * Name of a card in its email ("Your {pass_name} wallet pass"): the plan, product, event or
+	 * form, i.e. the item's label.
+	 *
+	 * @param int $entity_id Entity id.
+	 * @return string
+	 */
+	public function get_pass_name( $entity_id ) {
+		return $this->get_entity_label( $entity_id );
+	}
+
+	/**
 	 * Manually create, update, or sync a pass for a source record.
 	 *
 	 * @param int|string $source_id Subscription/membership record id.
