@@ -967,4 +967,40 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 			'name'  => (string) $card->recipient_name,
 		) : null;
 	}
+
+	/**
+	 * A card that belongs to no account: the buyer of a guest order, else (a code made by hand)
+	 * the code's recipient. The card email goes there.
+	 *
+	 * @inheritDoc
+	 */
+	public function get_guest_recipient( $source_id ) {
+		$card = $this->get_card( absint( $source_id ) );
+		if ( ! $card ) {
+			return null;
+		}
+		$order_id = isset( $card->order_id ) ? absint( $card->order_id ) : 0;
+		$order    = ( $order_id > 0 && function_exists( 'wc_get_order' ) ) ? wc_get_order( $order_id ) : null;
+		if ( $order instanceof WC_Order ) {
+			$email = (string) $order->get_billing_email();
+			return is_email( $email ) ? array(
+				'email' => $email,
+				'name'  => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
+			) : null;
+		}
+		return $this->get_gift_recipient( $source_id );
+	}
+
+	/**
+	 * Who a card without an account is for, on Cards (see get_guest_recipient()).
+	 *
+	 * @inheritDoc
+	 */
+	public function get_record_customer( $source_id ) {
+		$guest = $this->get_guest_recipient( $source_id );
+		return null === $guest ? null : array(
+			'name'  => (string) $guest['name'],
+			'email' => (string) $guest['email'],
+		);
+	}
 }

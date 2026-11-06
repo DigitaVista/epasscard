@@ -140,6 +140,9 @@ if ( 1 === count( $existing ) ) {
 	$row = epc_yith_row( $card->ID );
 	epc_yith_check( 'one gift card product: a code made by hand gets a card', null !== $row && 'active' === $row->status );
 	epc_yith_check( 'the card is listed under the gift card product', null !== $row && $only === (int) $row->entity_id );
+	$mail = null !== $row ? EPC_Pass_Email::compose( $row ) : null;
+	epc_yith_check( 'no account: the card email goes to the code\'s recipient', is_array( $mail ) && $card->recipient === $mail['to'], is_wp_error( $mail ) ? $mail->get_error_message() : wp_json_encode( $mail ) );
+	epc_yith_check( 'Cards shows who it is for', array( 'name' => 'Hana', 'email' => (string) $card->recipient ) === $module->get_record_customer( $card->ID ) );
 
 	// Give cards to existing customers finds codes made by hand too.
 	$old     = epc_yith_code_by_hand( 20 );
