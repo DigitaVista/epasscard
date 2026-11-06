@@ -27,6 +27,13 @@ class EPC_Module_Ultimate_Member extends EPC_Module {
 	const ROLE_IDS_OPTION = 'epc_um_role_ids';
 
 	/**
+	 * Member roles of this request (see member_roles()).
+	 *
+	 * @var array<int, string>|null
+	 */
+	private $member_roles = null;
+
+	/**
 	 * @inheritDoc
 	 */
 	public function get_slug() {
@@ -147,6 +154,61 @@ class EPC_Module_Ultimate_Member extends EPC_Module {
 		$names = function_exists( 'wp_roles' ) ? wp_roles()->get_names() : array();
 		unset( $names['administrator'] );
 		return array_map( 'translate_user_role', $names );
+	}
+
+	/**
+	 * Roles people get by registering, and Ultimate Member's own roles. Other roles (shop
+	 * customers, shop managers, booking customers, editors) are often given to everyone who
+	 * buys or works on the site, and Ultimate Member approves those accounts too, so they get
+	 * no member card unless the merchant picks the design for them under Design → Applies to.
+	 *
+	 * @return array<int, string> Role keys.
+	 */
+	private function member_roles() {
+		if ( null !== $this->member_roles ) {
+			return $this->member_roles;
+		}
+		$roles = array( (string) get_option( 'default_role', 'subscriber' ) );
+		if ( function_exists( 'UM' ) ) {
+			$roles[] = (string) UM()->options()->get( 'register_role' );
+			if ( method_exists( UM()->form(), 'assigned_role' ) ) {
+				$forms = get_posts(
+					array(
+						'post_type'   => 'um_form',
+						'post_status' => 'publish',
+						'numberposts' => 50,
+						'fields'      => 'ids',
+						// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Registration forms only; a site has a few forms.
+						'meta_query'  => array(
+							array(
+								'key'   => '_um_mode',
+								'value' => 'register',
+							),
+						),
+					)
+				);
+				foreach ( $forms as $form_id ) {
+					$roles[] = (string) UM()->form()->assigned_role( (int) $form_id );
+				}
+			}
+		}
+		foreach ( array_keys( $this->card_roles() ) as $role ) {
+			if ( 0 === strpos( (string) $role, 'um_' ) ) {
+				$roles[] = (string) $role;
+			}
+		}
+		$this->member_roles = array_values( array_unique( array_filter( $roles ) ) );
+		return $this->member_roles;
+	}
+
+	/**
+	 * Roles that are not member roles get no card until the merchant picks the design for them.
+	 *
+	 * @inheritDoc
+	 */
+	public function starts_without_card( $entity_id ) {
+		$role = $this->role_for_id( $entity_id );
+		return '' !== $role && ! in_array( $role, $this->member_roles(), true );
 	}
 
 	/**

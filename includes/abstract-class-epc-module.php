@@ -1118,6 +1118,19 @@ abstract class EPC_Module {
 	}
 
 	/**
+	 * Whether an item gets no card until the merchant picks a design for it under Design →
+	 * Applies to: the integration's design does not reach it by itself. False for most
+	 * integrations; Ultimate Member says true for roles that are not member roles.
+	 *
+	 * @param int $entity_id Entity id.
+	 * @return bool
+	 */
+	public function starts_without_card( $entity_id ) {
+		unset( $entity_id );
+		return false;
+	}
+
+	/**
 	 * Get mapping for one entity: its own mapping, else the integration's default design
 	 * (EPC_Default_Design), else an empty array.
 	 *

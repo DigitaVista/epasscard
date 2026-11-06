@@ -993,7 +993,7 @@ class EPC_Template_Starter {
 
 		foreach ( $module->get_filtered_mappable_entities() as $entity ) {
 			$eid = isset( $entity['id'] ) ? absint( $entity['id'] ) : 0;
-			if ( $eid <= 0 || ( $entity_id > 0 && $eid !== (int) $entity_id ) ) {
+			if ( $eid <= 0 || ( $entity_id > 0 && $eid !== (int) $entity_id ) || $module->starts_without_card( $eid ) ) {
 				continue;
 			}
 			$current = isset( $mappings[ (string) $eid ] ) && is_array( $mappings[ (string) $eid ] ) ? $mappings[ (string) $eid ] : array();

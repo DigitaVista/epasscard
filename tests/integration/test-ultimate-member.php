@@ -141,6 +141,43 @@ $listed = array_filter( (array) $module->get_backfill_source_ids( $subscriber_it
 epc_um_check( 'existing members: approved ones, and users without a status', in_array( (string) $old, $listed, true ) && in_array( (string) $no_status, $listed, true ) && ! in_array( (string) $pending, $listed, true ), wp_json_encode( array_values( $listed ) ) );
 epc_um_check( 'existing members: their card goes to their own account', $old === $module->get_backfill_user_id( (string) $old ) );
 
+// The integration's design reaches member roles only. Ultimate Member approves every account,
+// so a shop customer would otherwise get a member card.
+add_role( 'epc_test_shopper', 'Test shopper', array( 'read' => true ) );
+add_role( 'um_epc-test-member', 'Test member', array( 'read' => true ) );
+$cache = new ReflectionProperty( $module, 'member_roles' );
+$cache->setAccessible( true );
+$cache->setValue( $module, null );
+$shopper_item = $module->role_id( 'epc_test_shopper' );
+$member_item  = $module->role_id( 'um_epc-test-member' );
+$join_item    = $module->role_id( (string) get_option( 'default_role', 'subscriber' ) );
+epc_um_check( 'other roles start without a card; registration and Ultimate Member roles do not', $module->starts_without_card( $shopper_item ) && ! $module->starts_without_card( $member_item ) && ! $module->starts_without_card( $join_item ) );
+EPC_Default_Design::set( 'ultimate-member', array_merge( $mapping, array( 'template_name' => 'Test member card' ) ) );
+epc_um_check( 'default design: reaches an Ultimate Member role', '11111111-2222-4333-8444-555555555555' === (string) ( $module->get_mapping( $member_item )['template_uid'] ?? '' ) );
+epc_um_check( 'default design: not a role of another plugin', array() === $module->get_mapping( $shopper_item ) );
+$shopper = epc_test_fixture_user();
+( new WP_User( $shopper ) )->set_role( 'epc_test_shopper' );
+$users->set_status( $shopper, 'approved' );
+epc_um_check( 'an approved shopper gets no member card', 'none' === epc_um_card( $shopper ) );
+$starter_key   = EPC_Template_Starter::OPTION_PREFIX . 'ultimate-member';
+$saved_starter = get_option( $starter_key, null );
+update_option( $starter_key, array_merge( $mapping, array( 'template_name' => 'Test member card' ) ), false );
+EPC_Template_Starter::apply_to_unmapped( $module );
+$after = $module->get_mappings();
+epc_um_check( 'saving the design maps member roles, not the others', isset( $after[ (string) $member_item ] ) && ! isset( $after[ (string) $shopper_item ] ) );
+$module->save_mapping( $shopper_item, $mapping );
+$users->set_status( $shopper, 'inactive' );
+$users->set_status( $shopper, 'approved' );
+epc_um_check( 'the merchant picks the design for the role: the shopper gets a card', 'active' === epc_um_card( $shopper ) );
+if ( null === $saved_starter ) {
+	delete_option( $starter_key );
+} else {
+	update_option( $starter_key, $saved_starter, false );
+}
+delete_option( EPC_Default_Design::OPTION_PREFIX . 'ultimate-member' );
+remove_role( 'epc_test_shopper' );
+remove_role( 'um_epc-test-member' );
+
 // Deleting the user voids the card.
 require_once ABSPATH . 'wp-admin/includes/user.php';
 wp_delete_user( $user );
@@ -149,8 +186,8 @@ epc_um_check( 'user deleted: card voided', 'revoked' === epc_um_card( $user ) );
 // Clean up.
 global $wpdb;
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test cleanup.
-$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE module = %s AND source_id IN (%s, %s, %s, %s, %s)', EPC_DB::table_name(), 'ultimate-member', (string) $user, (string) $editor_user, (string) $old, (string) $pending, (string) $no_status ) );
-foreach ( array( $user, $editor_user, $old, $pending, $no_status ) as $id ) {
+$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE module = %s AND source_id IN (%s, %s, %s, %s, %s, %s)', EPC_DB::table_name(), 'ultimate-member', (string) $user, (string) $editor_user, (string) $old, (string) $pending, (string) $no_status, (string) $shopper ) );
+foreach ( array( $user, $editor_user, $old, $pending, $no_status, $shopper ) as $id ) {
 	EPC_Pass_Issues::clear( 'ultimate-member', (string) $id );
 }
 update_option( $module->get_mappings_option_key(), $saved_maps );

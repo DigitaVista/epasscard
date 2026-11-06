@@ -53,6 +53,10 @@ class EPC_Default_Design {
 		if ( null === $saved || $entity_id <= 0 || in_array( $entity_id, $saved['excluded'], true ) ) {
 			return array();
 		}
+		$module = class_exists( 'EPC_Module_Loader' ) ? EPC_Module_Loader::get_module_instance( $slug ) : null;
+		if ( $module instanceof EPC_Module && $module->starts_without_card( $entity_id ) ) {
+			return array();
+		}
 		unset( $saved['excluded'] );
 		$saved['is_default'] = true;
 		return $saved;
