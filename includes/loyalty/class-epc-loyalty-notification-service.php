@@ -405,7 +405,7 @@ class EPC_Loyalty_Notification_Service {
 		$rule = $settings[ $type ];
 		$tags = array_merge(
 			array(
-				'customer_name' => (string) $user->display_name,
+				'customer_name' => epc_user_name( $user ),
 				'customer_email'=> (string) $user->user_email,
 			),
 			$replacements

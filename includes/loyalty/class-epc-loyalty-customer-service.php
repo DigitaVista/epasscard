@@ -457,7 +457,7 @@ class EPC_Loyalty_Customer_Service {
 		return array(
 			'user_id'           => $user_id,
 			'member_id'         => (string) $account->member_id,
-			'display_name'      => (string) $user->display_name,
+			'display_name'      => epc_user_name( $user ),
 			'email'             => (string) $user->user_email,
 			'points_balance'    => (int) $account->points_balance,
 			'lifetime_points'   => (int) $account->lifetime_points,
@@ -784,7 +784,7 @@ class EPC_Loyalty_Customer_Service {
 			array(
 				'customer'    => array(
 					'user_id'      => $user_id,
-					'display_name' => (string) $user->display_name,
+					'display_name' => epc_user_name( $user ),
 					'email'        => (string) $user->user_email,
 				),
 				'entries'     => $entries,

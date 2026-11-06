@@ -130,7 +130,7 @@ class EPC_Admin_Cards {
 					array_map(
 						$safe,
 						array(
-							$user ? $user->display_name : '',
+							$user ? epc_user_name( $user ) : '',
 							$user ? $user->user_email : '',
 							$copy['title'],
 							$module->get_label(),

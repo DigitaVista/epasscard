@@ -190,7 +190,7 @@ class EPC_Module_List_Table extends WP_List_Table {
 			case 'user':
 				$user = get_userdata( (int) $item->user_id );
 				if ( $user ) {
-					return esc_html( $user->display_name ) . '<br /><small>' . esc_html( $user->user_email ) . '</small>';
+					return esc_html( epc_user_name( $user ) ) . '<br /><small>' . esc_html( $user->user_email ) . '</small>';
 				}
 				return esc_html( (string) $item->user_id );
 			case 'entity':

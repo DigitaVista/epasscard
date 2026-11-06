@@ -163,7 +163,7 @@ class EPC_Cards_List_Table extends WP_List_Table {
 			case 'customer':
 				$user = (int) $item->user_id > 0 ? get_userdata( (int) $item->user_id ) : false;
 				if ( $user ) {
-					return '<strong>' . esc_html( $user->display_name ) . '</strong><br /><span class="description">' . esc_html( $user->user_email ) . '</span>';
+					return '<strong>' . esc_html( epc_user_name( $user ) ) . '</strong><br /><span class="description">' . esc_html( $user->user_email ) . '</span>';
 				}
 				$guest = (int) $item->user_id > 0 ? null : $module->get_record_customer( (string) $item->source_id );
 				if ( is_array( $guest ) && '' !== trim( (string) ( $guest['name'] ?? '' ) . (string) ( $guest['email'] ?? '' ) ) ) {

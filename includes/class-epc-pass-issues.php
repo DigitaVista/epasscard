@@ -424,7 +424,7 @@ class EPC_Pass_Issues {
 
 		$user = $user_id > 0 ? get_userdata( $user_id ) : false;
 		if ( $user ) {
-			return '<strong>' . esc_html( $user->display_name ) . '</strong><br /><span class="description">' . esc_html( $user->user_email ) . '</span>';
+			return '<strong>' . esc_html( epc_user_name( $user ) ) . '</strong><br /><span class="description">' . esc_html( $user->user_email ) . '</span>';
 		}
 
 		$guest = $module->get_record_customer( $source_id );

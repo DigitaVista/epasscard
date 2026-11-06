@@ -30,7 +30,7 @@ $epc_settings    = EPC_Admin_App::url( 'settings', array( 'tab' => 'emails' ) );
 $epc_customer = static function ( $source_id, $user_id ) {
 	$user = $user_id > 0 ? get_userdata( $user_id ) : false;
 	if ( $user ) {
-		return '' !== (string) $user->user_email ? $user->display_name . ' (' . $user->user_email . ')' : $user->display_name;
+		return '' !== (string) $user->user_email ? epc_user_name( $user ) . ' (' . $user->user_email . ')' : epc_user_name( $user );
 	}
 	/* translators: %s: record id in the integration (member, attendee, gift card) */
 	return sprintf( __( 'Record %s', 'epasscard' ), $source_id );

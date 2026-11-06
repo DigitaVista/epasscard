@@ -89,6 +89,10 @@ wp_update_user(
 		'display_name' => 'Brew Customer Unique',
 	)
 );
+update_user_meta( $test, 'first_name', 'Rahim' );
+update_user_meta( $test, 'last_name', 'Uddin' );
+clean_user_cache( $test );
+epc_cl_check( 'names: first and last name from the profile, else the display name', 'Rahim Uddin' === epc_user_name( get_userdata( $test ) ) && 'Brew Customer Unique' === epc_user_name( get_userdata( $real ) ) && '' === epc_user_name( false ) );
 $module->sync_by_source_id( $real, 'sync' );
 EPC_Pass_Status::run_as_test(
 	static function () use ( $module, $test ) {

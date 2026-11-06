@@ -889,7 +889,7 @@ class EPC_Existing_Customers {
 					array(
 						$label,
 						(string) $result[0],
-						$user ? (string) $user->display_name : '',
+						$user ? epc_user_name( $user ) : '',
 						$user ? (string) $user->user_email : '',
 						self::outcome_label( (string) $result[1] ),
 						(string) $result[2],

@@ -386,6 +386,20 @@ function epc_format_user_full_name( $first_name, $last_name, $fallback = '' ) {
 }
 
 /**
+ * A user's name for screens and emails: first and last name from their profile, else their
+ * display name (often the username, e.g. for shop customers).
+ *
+ * @param WP_User|false|null $user User.
+ * @return string
+ */
+function epc_user_name( $user ) {
+	if ( ! $user instanceof WP_User ) {
+		return '';
+	}
+	return epc_format_user_full_name( (string) $user->first_name, (string) $user->last_name, (string) $user->display_name );
+}
+
+/**
  * Resolve the WordPress user that should own a gift card wallet pass.
  *
  * Prefers a user matching the recipient email. If none exists, falls back to
