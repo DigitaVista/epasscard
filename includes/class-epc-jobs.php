@@ -134,6 +134,26 @@ class EPC_Jobs {
 	}
 
 	/**
+	 * Title of one integration's card (Design, Cards). Tickets, vouchers and product cards share
+	 * a job, so each gets its own title; the others use their job's title.
+	 *
+	 * @param string $module_slug Module slug.
+	 * @return string
+	 */
+	public static function get_module_title( $module_slug ) {
+		$module_slug = sanitize_key( (string) $module_slug );
+		$titles      = array(
+			'woocommerce-tickets'       => __( 'Tickets I sell', 'epasscard' ),
+			'woocommerce-vouchers'      => __( 'Vouchers I sell', 'epasscard' ),
+			'woocommerce-product-cards' => __( 'Passes and cards I sell', 'epasscard' ),
+		);
+		if ( isset( $titles[ $module_slug ] ) ) {
+			return $titles[ $module_slug ];
+		}
+		return (string) self::get_copy( self::get_job_for_module( $module_slug ) )['title'];
+	}
+
+	/**
 	 * Job a module belongs to.
 	 *
 	 * @param string $module_slug Module slug.

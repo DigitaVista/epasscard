@@ -124,7 +124,6 @@ class EPC_Admin_Cards {
 				$module = $modules[ (string) $item->module ];
 				$user   = (int) $item->user_id > 0 ? get_userdata( (int) $item->user_id ) : false;
 				$status = EPC_Pass_Status::get_display_status( $item );
-				$copy   = EPC_Jobs::get_copy( EPC_Jobs::get_job_for_module( (string) $item->module ) );
 				fputcsv(
 					$output,
 					array_map(
@@ -132,7 +131,7 @@ class EPC_Admin_Cards {
 						array(
 							$user ? epc_user_name( $user ) : '',
 							$user ? $user->user_email : '',
-							$copy['title'],
+							EPC_Jobs::get_module_title( (string) $item->module ),
 							$module->get_label(),
 							$status['label'] . ( $status['is_test'] ? ' (' . __( 'Test', 'epasscard' ) . ')' : '' ),
 							self::shows( $item, $module ),

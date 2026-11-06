@@ -172,8 +172,7 @@ class EPC_Cards_List_Table extends WP_List_Table {
 				/* translators: %s: record id in the integration (booking, attendee, gift card) */
 				return esc_html( sprintf( __( 'Record %s', 'epasscard' ), (string) $item->source_id ) );
 			case 'card_type':
-				$copy = EPC_Jobs::get_copy( EPC_Jobs::get_job_for_module( $slug ) );
-				return esc_html( $copy['title'] ) . '<br /><span class="description">' . esc_html( $module->get_label() ) . '</span>';
+				return esc_html( EPC_Jobs::get_module_title( $slug ) ) . '<br /><span class="description">' . esc_html( $module->get_label() ) . '</span>';
 			case 'status':
 				return EPC_Pass_Status::render_status_html( $item );
 			case 'shows':
