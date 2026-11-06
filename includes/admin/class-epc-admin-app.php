@@ -28,9 +28,14 @@ class EPC_Admin_App {
 	const PAGE_TRY      = 'epc-try';
 
 	/**
-	 * Loyalty program page (the Customers section while loyalty is enabled).
+	 * Customer list, the landing page of the Customers section (shown while loyalty is enabled).
 	 */
-	const PAGE_CUSTOMERS = 'epc-woocommerce-loyalty';
+	const PAGE_CUSTOMERS = 'epc-woocommerce-loyalty-customers';
+
+	/**
+	 * Loyalty rules and rewards, the second page of the Customers section.
+	 */
+	const PAGE_LOYALTY_RULES = 'epc-woocommerce-loyalty';
 
 	/**
 	 * Register hooks.
@@ -78,20 +83,21 @@ class EPC_Admin_App {
 	/**
 	 * Admin URL of a section.
 	 *
-	 * @param string               $section home|cards|design|customers|settings|setup|try|api-log.
+	 * @param string               $section home|cards|design|customers|loyalty-rules|settings|setup|try|api-log.
 	 * @param array<string, mixed> $args    Extra query args.
 	 * @return string
 	 */
 	public static function url( $section, array $args = array() ) {
 		$pages = array(
-			'home'      => self::PAGE_HOME,
-			'cards'     => self::PAGE_CARDS,
-			'design'    => self::PAGE_DESIGN,
-			'customers' => self::PAGE_CUSTOMERS,
-			'settings'  => self::PAGE_SETTINGS,
-			'setup'     => self::PAGE_SETUP,
-			'try'       => self::PAGE_TRY,
-			'api-log'   => 'epc-api-log',
+			'home'          => self::PAGE_HOME,
+			'cards'         => self::PAGE_CARDS,
+			'design'        => self::PAGE_DESIGN,
+			'customers'     => self::PAGE_CUSTOMERS,
+			'loyalty-rules' => self::PAGE_LOYALTY_RULES,
+			'settings'      => self::PAGE_SETTINGS,
+			'setup'         => self::PAGE_SETUP,
+			'try'           => self::PAGE_TRY,
+			'api-log'       => 'epc-api-log',
 		);
 		$page = isset( $pages[ $section ] ) ? $pages[ $section ] : self::PAGE_HOME;
 		return add_query_arg( array_merge( array( 'page' => $page ), $args ), admin_url( 'admin.php' ) );
@@ -213,7 +219,7 @@ class EPC_Admin_App {
 			case 'epc-api-log':
 				return 'settings';
 			case self::PAGE_CUSTOMERS:
-			case 'epc-woocommerce-loyalty-customers':
+			case self::PAGE_LOYALTY_RULES:
 				return 'customers';
 			case EPC_Help::PAGE:
 				return 'help';

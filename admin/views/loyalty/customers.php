@@ -20,7 +20,7 @@ $table->prepare_items();
 
 $customers_page = ( $module && method_exists( $module, 'get_customers_page_slug' ) )
 	? $module->get_customers_page_slug()
-	: 'epc-woocommerce-loyalty';
+	: 'epc-woocommerce-loyalty-customers';
 
 $export_url = wp_nonce_url(
 	add_query_arg(
@@ -40,9 +40,15 @@ $export_url = wp_nonce_url(
 	<div class="epc-page-header">
 		<h2 class="epc-page-title"><?php esc_html_e( 'Customers', 'epasscard' ); ?></h2>
 		<p class="description">
-			<?php esc_html_e( 'Search loyalty members, look up a barcode membership ID for POS, adjust points, sync passes, and export CSV. The barcode itself is a non-secret membership ID and never reveals balances.', 'epasscard' ); ?>
+			<?php esc_html_e( 'Everyone in your loyalty program, with their points, tier and wallet card. Scan a customer\'s card to look them up, adjust points, or export the list. The barcode on the card holds only the member ID, never the balance.', 'epasscard' ); ?>
 		</p>
 	</div>
+
+	<?php
+	if ( current_user_can( 'manage_options' ) && class_exists( 'EPC_Help' ) ) {
+		EPC_Help::render( 'customers', array( 'level' => 2 ) );
+	}
+	?>
 
 	<div class="epc-card epc-loyalty-lookup">
 		<h3><?php esc_html_e( 'Staff barcode lookup', 'epasscard' ); ?></h3>

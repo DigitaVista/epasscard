@@ -138,29 +138,33 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	}
 
 	/**
-	 * @inheritDoc
+	 * Side menu of the Customers section: the customer list and the program's rules. The card
+	 * design is on Design and the issued cards on Cards, so they are not repeated here.
+	 *
+	 * @return array<int, array<string, string>>
 	 */
-	public function get_extra_admin_nav_items() {
+	public function get_customers_subnav() {
 		return array(
 			array(
-				'id'    => 'loyalty-pass-design',
-				'label' => __( 'Pass Design', 'epasscard' ),
-				'section' => 'loyalty-pass-design',
-				'icon'  => 'palette',
-			),
-			array(
-				'id'      => 'loyalty-program',
-				'label'   => __( 'Rules & Rewards', 'epasscard' ),
-				'section' => 'loyalty-program',
-				'icon'    => 'rule',
-			),
-			array(
 				'id'    => 'loyalty-customers',
-				'label' => __( 'Customers', 'epasscard' ),
+				'label' => __( 'Customer list', 'epasscard' ),
 				'url'   => $this->get_customers_admin_url(),
-				'icon'  => 'group',
+			),
+			array(
+				'id'    => 'loyalty-program',
+				'label' => __( 'Rules & rewards', 'epasscard' ),
+				'url'   => $this->get_rules_admin_url(),
 			),
 		);
+	}
+
+	/**
+	 * Admin URL of the rules and rewards page (the loyalty program settings).
+	 *
+	 * @return string
+	 */
+	public function get_rules_admin_url() {
+		return admin_url( 'admin.php?page=epc-' . $this->get_slug() );
 	}
 
 	/**
@@ -369,6 +373,15 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		$preview = EPC_Loyalty_Pass_Design_Service::preview_sample_values();
 		include EPC_PLUGIN_DIR . 'admin/views/loyalty/pass-design.php';
 
+		$this->render_program_settings();
+	}
+
+	/**
+	 * The loyalty program settings: earning, tiers, rewards, checkout redeem, notifications.
+	 *
+	 * @return void
+	 */
+	public function render_program_settings() {
 		$program            = EPC_Loyalty_Order_Service::get_settings();
 		$email              = EPC_Loyalty_Customer_Service::get_email_settings();
 		$rules              = EPC_Loyalty_Rule_Service::get_rules();
@@ -734,8 +747,8 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	public function register_submenu() {
 		add_submenu_page(
 			'epasscard',
-			$this->get_label(),
-			$this->get_label(),
+			__( 'Rules & rewards', 'epasscard' ),
+			__( 'Rules & rewards', 'epasscard' ),
 			epc_manage_passes_menu_capability(),
 			'epc-' . $this->get_slug(),
 			array( $this, 'render_admin_page' )
@@ -743,8 +756,8 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 
 		add_submenu_page(
 			'epasscard',
-			__( 'Loyalty Customers', 'epasscard' ),
-			__( 'Loyalty Customers', 'epasscard' ),
+			__( 'Customers', 'epasscard' ),
+			__( 'Customers', 'epasscard' ),
 			epc_manage_passes_menu_capability(),
 			$this->get_customers_page_slug(),
 			array( $this, 'render_customers_page' )
@@ -772,8 +785,8 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	public function filter_submenu_file( $submenu_file ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection.
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
-		if ( $page === $this->get_customers_page_slug() || $page === $this->get_issued_passes_page_slug() ) {
-			return 'epc-' . $this->get_slug();
+		if ( $page === 'epc-' . $this->get_slug() || $page === $this->get_issued_passes_page_slug() ) {
+			return $this->get_customers_page_slug();
 		}
 
 		return $submenu_file;
@@ -787,9 +800,52 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 	 * @return void
 	 */
 	public function hide_extra_wp_submenu_css() {
-		$customers = $this->get_customers_page_slug();
-		$passes    = $this->get_issued_passes_page_slug();
-		echo '<style id="epc-loyalty-hidden-submenus">#adminmenu .wp-submenu li:has(> a[href*="page=' . esc_attr( $customers ) . '"]),#adminmenu .wp-submenu li:has(> a[href*="page=' . esc_attr( $passes ) . '"]){display:none}</style>';
+		$passes = $this->get_issued_passes_page_slug();
+		echo '<style id="epc-loyalty-hidden-submenus">#adminmenu .wp-submenu li:has(> a[href*="page=' . esc_attr( $passes ) . '"]){display:none}</style>';
+	}
+
+	/**
+	 * Rules & rewards (Customers section). Replaces the 1.1 dashboard: its overview, card
+	 * designer and template mapping repeated Cards and Design.
+	 *
+	 * @return void
+	 */
+	public function render_admin_page() {
+		if ( ! $this->current_user_can_manage_passes() ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'epasscard' ) );
+		}
+
+		if ( ! $this->is_available() ) {
+			$this->render_unavailable_screen( __( 'Rules & rewards', 'epasscard' ) );
+			return;
+		}
+
+		EPC_Admin_Shell::render_open(
+			array(
+				'context'        => 'module',
+				'title'          => __( 'Rules & rewards', 'epasscard' ),
+				'module'         => $this,
+				'active_section' => 'loyalty-program',
+				'subnav'         => $this->get_customers_subnav(),
+			)
+		);
+		if ( ! EPC_Connection::is_connected() ) {
+			?>
+			<div class="epc-connection-alert">
+				<p>
+					<?php
+					printf(
+						/* translators: %s: settings page link */
+						esc_html__( 'Connect your EpassCard account first on the %s page.', 'epasscard' ),
+						'<a href="' . esc_url( EPC_Admin_App::url( 'settings', array( 'tab' => 'account' ) ) ) . '">' . esc_html__( 'Account & plan', 'epasscard' ) . '</a>'
+					);
+					?>
+				</p>
+			</div>
+			<?php
+		}
+		$this->render_program_settings();
+		EPC_Admin_Shell::render_close();
 	}
 
 	/**
@@ -803,7 +859,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		}
 
 		if ( ! $this->is_available() ) {
-			$this->render_unavailable_screen( __( 'Loyalty Customers', 'epasscard' ) );
+			$this->render_unavailable_screen( __( 'Customers', 'epasscard' ) );
 			return;
 		}
 
@@ -815,9 +871,10 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		EPC_Admin_Shell::render_open(
 			array(
 				'context'        => 'module',
-				'title'          => __( 'Loyalty Customers', 'epasscard' ),
+				'title'          => __( 'Customers', 'epasscard' ),
 				'module'         => $this,
 				'active_section' => 'loyalty-customers',
+				'subnav'         => $this->get_customers_subnav(),
 			)
 		);
 		include EPC_PLUGIN_DIR . 'admin/views/loyalty/customers.php';
@@ -864,6 +921,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 				'context' => 'module',
 				'title'   => $title,
 				'module'  => $this,
+				'subnav'  => $this->get_customers_subnav(),
 			)
 		);
 		?>

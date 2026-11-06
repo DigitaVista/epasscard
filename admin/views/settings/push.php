@@ -16,8 +16,8 @@ $epc_push_module  = EPC_Admin_Settings::current_push_module();
 
 <?php if ( EPC_Admin_App::loyalty_enabled() ) : ?>
 	<p class="description">
-		<?php esc_html_e( 'Loyalty emails and push messages are on Customers, in the Notifications tab.', 'epasscard' ); ?>
-		<a href="<?php echo esc_url( EPC_Admin_App::url( 'customers' ) . '#epc-tab-loyalty-notify' ); ?>"><?php esc_html_e( 'Open', 'epasscard' ); ?></a>
+		<?php esc_html_e( 'Loyalty emails and push messages are on Customers, Rules & rewards, in the Notifications tab.', 'epasscard' ); ?>
+		<a href="<?php echo esc_url( EPC_Admin_App::url( 'loyalty-rules' ) . '#epc-tab-loyalty-notify' ); ?>"><?php esc_html_e( 'Open', 'epasscard' ); ?></a>
 	</p>
 <?php endif; ?>
 

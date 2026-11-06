@@ -42,7 +42,7 @@ $strip_field   = $strip_inline ? '' : $strip_url;
 	<div class="epc-page-header">
 		<h2 class="epc-page-title"><?php esc_html_e( 'Pass Design', 'epasscard' ); ?></h2>
 		<p class="description">
-			<?php esc_html_e( 'Design the loyalty StoreCard template remotely through EpassCard API v2. The preview is representative — Apple and Google layout rules differ, so positioning is not pixel-identical.', 'epasscard' ); ?>
+			<?php esc_html_e( 'The design is saved to your EpassCard account. The preview is close to the real card; Apple Wallet and Google Wallet place things slightly differently.', 'epasscard' ); ?>
 		</p>
 	</div>
 
@@ -164,7 +164,7 @@ $strip_field   = $strip_inline ? '' : $strip_url;
 								<button type="button" class="button epc-loyalty-media-pick" data-target="strip"><?php esc_html_e( 'Select strip', 'epasscard' ); ?></button>
 								<button type="button" class="button-link-delete epc-loyalty-media-clear" data-target="strip"><?php esc_html_e( 'Clear', 'epasscard' ); ?></button>
 							</div>
-							<p class="description"><?php esc_html_e( 'Wide banner under the header on StoreCard layouts. Public https URL required. Best view size is 1125 × 432 px.', 'epasscard' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Wide banner under the header of the card. It needs a public https link. Best size: 1125 × 432 px.', 'epasscard' ); ?></p>
 						</td>
 					</tr>
 					<tr data-epc-design-panel="form">
@@ -232,7 +232,7 @@ $strip_field   = $strip_inline ? '' : $strip_url;
 
 		<aside class="epc-card epc-loyalty-designer__preview" aria-label="<?php esc_attr_e( 'Loyalty pass preview', 'epasscard' ); ?>">
 			<h3><?php esc_html_e( 'Preview', 'epasscard' ); ?></h3>
-			<p class="description"><?php esc_html_e( 'Representative layout for Apple/Google StoreCard style passes.', 'epasscard' ); ?></p>
+			<p class="description"><?php esc_html_e( 'How the card looks in the wallet. Apple Wallet and Google Wallet differ slightly.', 'epasscard' ); ?></p>
 
 			<div
 				class="epc-loyalty-preview-card"
