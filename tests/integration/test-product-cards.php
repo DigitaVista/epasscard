@@ -244,6 +244,47 @@ epc_pc_check( 'the order email lists the voucher card', 1 === count( $listed ) &
 $guest->update_status( 'cancelled' );
 epc_pc_check( 'cancelled: the voucher is voided', 'revoked' === EPC_DB::get_pass( 'woocommerce-vouchers', key( $vrows ) )->status );
 
+// A product whose kind has no design: no card, and the merchant is told on the order,
+// under Cards → Need attention and on the product.
+$no_default  = static function () {
+	return null;
+};
+add_filter( 'option_' . EPC_Default_Design::OPTION_PREFIX . 'woocommerce-product-cards', $no_default );
+$nodesign_id = epc_pc_product( 'Test day pass', '7', array( EPC_WC_Product_Cards::META_TYPE => 'card' ) );
+$nd          = wc_create_order( array( 'customer_id' => $buyer ) );
+$nd->add_product( wc_get_product( $nodesign_id ), 1 );
+$nd->calculate_totals();
+$nd->save();
+$nd->update_status( 'processing' );
+$nd->update_status( 'completed' );
+$nd_ids   = $cards->order_source_ids( wc_get_order( $nd->get_id() ) );
+$nd_notes = array_filter(
+	wc_get_order_notes( array( 'order_id' => $nd->get_id() ) ),
+	static function ( $note ) {
+		return false !== strpos( $note->content, 'no wallet card was made for Test day pass' );
+	}
+);
+$nd_issue = EPC_Pass_Issues::get( 'woocommerce-product-cards', $nd_ids[0] );
+epc_pc_check( 'no design: no card', array( null ) === array_values( epc_pc_rows( $cards, $nd ) ) );
+epc_pc_check( 'no design: one order note, though paid and then completed', 1 === count( $nd_notes ), (string) count( $nd_notes ) );
+epc_pc_check( 'no design: listed under Need attention', is_array( $nd_issue ) && 'epc_product_no_design' === $nd_issue['code'] && false !== strpos( $nd_issue['message'], 'Test day pass' ), wp_json_encode( $nd_issue ) );
+if ( ! function_exists( 'woocommerce_wp_checkbox' ) ) {
+	require_once WC()->plugin_path() . '/includes/admin/wc-meta-box-functions.php';
+}
+$panel = static function ( $product_id ) {
+	global $post;
+	$post = get_post( $product_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Test: the product being edited.
+	ob_start();
+	EPC_WC_Product_Cards::render_product_fields();
+	return (string) ob_get_clean();
+};
+epc_pc_check( 'no design: the product says so', false !== strpos( $panel( $nodesign_id ), 'epc-product-card__warning' ) );
+epc_pc_check( 'a product with a design has no warning', false === strpos( $panel( $card_id ), 'epc-product-card__warning' ) );
+$cards->save_mapping( $nodesign_id, $mapping );
+$cards->sync_by_source_id( $nd_ids[0], 'sync' );
+epc_pc_check( 'design saved: Retry makes the card and clears the issue', 1 === count( array_filter( epc_pc_rows( $cards, $nd ) ) ) && null === EPC_Pass_Issues::get( 'woocommerce-product-cards', $nd_ids[0] ) );
+remove_filter( 'option_' . EPC_Default_Design::OPTION_PREFIX . 'woocommerce-product-cards', $no_default );
+
 // Existing customers: units of paid orders bought before cards were turned on.
 global $wpdb;
 $old = wc_create_order( array( 'customer_id' => $buyer ) );
@@ -279,7 +320,7 @@ $_POST = array();
 
 // Clean up: this test's cards only (the site may have its own).
 $test_cards = array();
-foreach ( array( $order, $guest, $old ) as $o ) {
+foreach ( array( $order, $guest, $old, $nd ) as $o ) {
 	foreach ( $modules as $slug => $module ) {
 		foreach ( $module->order_source_ids( wc_get_order( $o->get_id() ) ) as $source_id ) {
 			$test_cards[] = array( $slug, $source_id );
@@ -297,15 +338,15 @@ foreach ( $test_cards as $card ) {
 	);
 	EPC_Pass_Issues::clear( $card[0], $card[1] );
 }
-foreach ( array( $order, $guest, $old ) as $o ) {
+foreach ( array( $order, $guest, $old, $nd ) as $o ) {
 	$o->delete( true );
 }
-foreach ( array( $ticket_id, $voucher_id, $card_id, $plain_id ) as $pid ) {
+foreach ( array( $ticket_id, $voucher_id, $card_id, $plain_id, $nodesign_id ) as $pid ) {
 	wp_delete_post( $pid, true );
 }
 foreach ( $slugs as $slug ) {
 	$all_maps = $modules[ $slug ]->get_mappings();
-	foreach ( array( $ticket_id, $voucher_id, $card_id ) as $pid ) {
+	foreach ( array( $ticket_id, $voucher_id, $card_id, $nodesign_id ) as $pid ) {
 		unset( $all_maps[ (string) $pid ] );
 	}
 	update_option( $modules[ $slug ]->get_mappings_option_key(), $all_maps );

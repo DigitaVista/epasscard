@@ -259,6 +259,7 @@ class EPC_WC_Product_Cards {
 				'description' => __( 'Each kind has its own design under EpassCard → Design.', 'epasscard' ),
 			)
 		);
+		self::render_missing_design_warning( $product_id, $type );
 		if ( isset( $types['ticket'] ) ) {
 			woocommerce_wp_text_input(
 				array(
@@ -294,6 +295,40 @@ class EPC_WC_Product_Cards {
 			);
 		}
 		echo '</div>';
+	}
+
+	/**
+	 * Under the kind of card: a warning when that kind has no design yet, since buyers get no
+	 * card until one is saved.
+	 *
+	 * @param int    $product_id Product id.
+	 * @param string $type       Saved kind of card, '' for none.
+	 * @return void
+	 */
+	private static function render_missing_design_warning( $product_id, $type ) {
+		if ( '' === $type || ! EPC_Module_Settings::is_enabled( self::types()[ $type ]['module'] ) ) {
+			return;
+		}
+		$module = EPC_Module_Loader::get_module_instance( self::types()[ $type ]['module'] );
+		if ( ! $module instanceof EPC_Module ) {
+			return;
+		}
+		$mapping = $module->get_mapping( $product_id );
+		if ( ! empty( $mapping['template_uid'] ) ) {
+			return;
+		}
+		echo '<p class="form-field epc-product-card__warning" style="color:#b32d2e;">';
+		echo esc_html(
+			sprintf(
+				/* translators: %s: integration name, e.g. "WooCommerce vouchers" */
+				__( 'There is no %s design yet, so buyers of this product get no wallet card.', 'epasscard' ),
+				$module->get_label()
+			)
+		);
+		if ( current_user_can( 'manage_options' ) ) {
+			echo ' <a href="' . esc_url( EPC_Admin_Design::url_for_module( $module->get_slug() ) ) . '">' . esc_html__( 'Create the design', 'epasscard' ) . '</a>';
+		}
+		echo '</p>';
 	}
 
 	/**

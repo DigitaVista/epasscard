@@ -294,8 +294,18 @@ abstract class EPC_Module_WC_Product_Cards extends EPC_Module {
 		if ( 'none' === $action ) {
 			return;
 		}
+		$no_design = array();
 		foreach ( $this->order_source_ids( $order ) as $source_id ) {
-			$this->apply_action( $source_id, $action );
+			$result = $this->apply_action( $source_id, $action );
+			if ( 'sync' === $action && is_wp_error( $result ) && 'epc_no_mapping' === $result->get_error_code() ) {
+				$product_name = $this->report_missing_design( $source_id );
+				if ( '' !== $product_name ) {
+					$no_design[ $product_name ] = true;
+				}
+			}
+		}
+		if ( ! empty( $no_design ) ) {
+			$this->add_missing_design_note( $order, array_keys( $no_design ) );
 		}
 	}
 
@@ -304,19 +314,76 @@ abstract class EPC_Module_WC_Product_Cards extends EPC_Module {
 	 *
 	 * @param string $source_id Record id.
 	 * @param string $action    sync|update|revoke.
-	 * @return void
+	 * @return array<string, mixed>|\WP_Error|null Result of the sync, null for other actions.
 	 */
 	protected function apply_action( $source_id, $action ) {
 		switch ( $action ) {
 			case 'sync':
 			case 'update':
 				// A failure is recorded by the pass service and shown on Cards.
-				$this->sync_by_source_id( $source_id, $action );
-				break;
+				return $this->sync_by_source_id( $source_id, $action );
 			case 'revoke':
 				EPC_Pass_Service::revoke_pass( $this->get_slug(), $source_id );
 				break;
 		}
+		return null;
+	}
+
+	/**
+	 * A paid line has no card because its kind has no design yet: list it under Cards → Need
+	 * attention, where Retry creates the card once the design is saved.
+	 *
+	 * The pass service does not record "no design" (most integrations show it on their own
+	 * screen), but here the merchant only ticked a box on the product, so nothing else says it.
+	 *
+	 * @param string $source_id Record id.
+	 * @return string Product name, or '' when the line is gone.
+	 */
+	protected function report_missing_design( $source_id ) {
+		$record = $this->resolve( $source_id );
+		if ( is_wp_error( $record ) ) {
+			return '';
+		}
+		$product_name = $this->get_entity_label( $record['product_id'] );
+		EPC_Pass_Issues::record(
+			$this->get_slug(),
+			$source_id,
+			'sync',
+			new WP_Error(
+				'epc_product_no_design',
+				sprintf(
+					/* translators: 1: product name, 2: integration name, e.g. "WooCommerce vouchers" */
+					__( 'No wallet card for "%1$s": there is no %2$s design yet. Save one under EpassCard → Design, then retry.', 'epasscard' ),
+					$product_name,
+					$this->get_label()
+				)
+			)
+		);
+		return $product_name;
+	}
+
+	/**
+	 * Say on the order, once per order and kind of card, that no card was made for lack of a design.
+	 *
+	 * @param WC_Order           $order         Order.
+	 * @param array<int, string> $product_names Products without a card.
+	 * @return void
+	 */
+	protected function add_missing_design_note( $order, array $product_names ) {
+		$meta_key = '_epc_no_design_noted_' . $this->get_card_type();
+		if ( '' !== (string) $order->get_meta( $meta_key ) ) {
+			return;
+		}
+		$order->add_order_note(
+			sprintf(
+				/* translators: 1: product names, 2: integration name, e.g. "WooCommerce vouchers" */
+				__( 'EpassCard: no wallet card was made for %1$s because there is no %2$s design yet. Save one under EpassCard → Design, then use "Give cards to existing customers" or Retry under Cards → Need attention.', 'epasscard' ),
+				implode( ', ', $product_names ),
+				$this->get_label()
+			)
+		);
+		$order->update_meta_data( $meta_key, (string) time() );
+		$order->save_meta_data();
 	}
 
 	/**
