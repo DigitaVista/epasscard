@@ -175,7 +175,8 @@ update_user_meta( $user, 'epc_t_list', array( 'Gold', 'VIP' ) );
 epc_uf_check( 'a list value is joined; account fields work', 'Gold, VIP' === EPC_User_Fields::value( $user, 'epc_t_list' ) && (string) $user === EPC_User_Fields::value( $user, 'user_id' ) && '' === EPC_User_Fields::value( $user, 'session_tokens' ) );
 EPC_UF_Test_State::$fields = array();
 $guest = EPC_Pass_Service::build_create_fields( $map, EPC_User_Fields::attach( $map, array( 'name' => 'Guest' ), 0 ), $slug );
-epc_uf_check( 'a card without an account leaves the profile fields out', 1 === count( $guest ) );
+$guest_values = wp_list_pluck( $guest, 'fieldValue' );
+epc_uf_check( 'a card without an account sends the profile fields blank (the pass hides them)', array( 'Guest', '', '' ) === array_values( $guest_values ) );
 $map['field_mapping'][ $secret ] = array(
 	'type'  => 'user_meta',
 	'value' => 'session_tokens',

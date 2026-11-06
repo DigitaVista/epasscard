@@ -61,9 +61,15 @@ class EPC_Pass_Service {
 				continue;
 			}
 
+			$type  = $types[ $pass_uid ] ?? '';
 			$value = self::resolve_mapped_value_for_module( $normalized, $source_values, $module_slug );
-			$value = self::coerce_field_value( $value, $types[ $pass_uid ] ?? '' );
-			if ( '' === $value ) {
+			$value = self::coerce_field_value( $value, $type );
+			/*
+			 * An empty value is sent as a blank so the pass hides the field. Leaving it out
+			 * showed the template's placeholder, e.g. "About: {About}". The API rejects the
+			 * whole pass for an empty date or number field, so those are still left out.
+			 */
+			if ( '' === $value && in_array( $type, array( 'date', 'number' ), true ) ) {
 				continue;
 			}
 
