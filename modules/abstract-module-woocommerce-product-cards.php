@@ -260,8 +260,15 @@ abstract class EPC_Module_WC_Product_Cards extends EPC_Module {
 		 * "woocommerce_order_status_{status}" runs before the order emails of the same change
 		 * ("..._{from}_to_{to}"), so the cards exist when the email lists them.
 		 */
-		foreach ( array_keys( $this->get_status_rules() ) as $status ) {
-			add_action( 'woocommerce_order_status_' . $status, array( $this, 'on_order_status' ), 5, 2 );
+		/*
+		 * The statuses come from the defaults and the saved rules, not get_status_rules(): that
+		 * reads the translated action names, and translations must not load before "init"
+		 * (WordPress 6.7+ notice). on_order_status() reads the rule when an order changes.
+		 */
+		$saved    = get_option( $this->get_status_rules_option_key(), array() );
+		$statuses = array_unique( array_merge( array_keys( $this->get_default_status_rules() ), array_keys( is_array( $saved ) ? $saved : array() ) ) );
+		foreach ( $statuses as $status ) {
+			add_action( 'woocommerce_order_status_' . sanitize_key( (string) $status ), array( $this, 'on_order_status' ), 5, 2 );
 		}
 		add_filter( 'epc_pass_email_order_passes', array( $this, 'append_order_passes' ), 10, 2 );
 	}
