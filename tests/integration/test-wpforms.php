@@ -262,10 +262,10 @@ $by_default = epc_wpf_last( $without_design );
 epc_wpf_check( 'default design: covers forms without their own design', $by_default && 'active' === epc_wpf_card( (int) $by_default->id ) );
 delete_option( EPC_Default_Design::OPTION_PREFIX . 'wpforms' );
 
-// A logged-in visitor: the card is linked to their account.
+// A logged-in visitor with their own email: the card is linked to their account.
 $user_id = epc_test_fixture_user();
 wp_set_current_user( $user_id );
-epc_wpf_submit( $with_design, 'Kim Park', 'epc_t_kim@example.test' );
+epc_wpf_submit( $with_design, 'Kim Park', strtoupper( get_userdata( $user_id )->user_email ) );
 $logged = epc_wpf_last( $with_design );
 $pass   = EPC_DB::get_pass( 'wpforms', (string) $logged->id );
 epc_wpf_check( 'logged-in visitor: the card belongs to their account', $user_id === (int) $logged->user_id && $pass && $user_id === (int) $pass->user_id );
@@ -274,6 +274,14 @@ epc_wpf_check( 'logged-in visitor: their cards are listed for them', in_array( (
 	$method->setAccessible( true );
 	return $method->invoke( $module, $user_id );
 } )(), true ) );
+
+// Logged in, but the form is for someone else (staff at the front desk): the card is that
+// person's, and its email goes to the form's address, not to the logged-in account.
+epc_wpf_submit( $with_design, 'Rosa Diaz', 'epc_t_rosa@example.test' );
+$for_other = epc_wpf_last( $with_design );
+$mail      = EPC_Pass_Email::compose( EPC_DB::get_pass( 'wpforms', (string) $for_other->id ) );
+epc_wpf_check( 'filled in for someone else: the card is not the logged-in account\'s', 0 === (int) $for_other->user_id && 'active' === epc_wpf_card( (int) $for_other->id ) );
+epc_wpf_check( 'filled in for someone else: the card email goes to the form\'s address', ! is_wp_error( $mail ) && 'epc_t_rosa@example.test' === $mail['to'] && false !== strpos( $mail['body'], 'Rosa' ), is_wp_error( $mail ) ? $mail->get_error_message() : $mail['to'] );
 wp_set_current_user( 0 );
 
 // A failed card is retried from the kept values.

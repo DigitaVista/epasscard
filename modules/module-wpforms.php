@@ -320,8 +320,17 @@ class EPC_Module_WPForms extends EPC_Module {
 		$values = $this->submission_values( $form_id, $fields );
 		$email  = $values['user_email'];
 		$user   = wp_get_current_user();
-		if ( '' === $email && $user && $user->exists() ) {
-			$email = (string) $user->user_email;
+		/*
+		 * The card is the logged-in visitor's when the form has no email or theirs. Another
+		 * address means someone (often staff) filled the form in for that person: the card
+		 * then goes to the form's email, not to the account of whoever was logged in.
+		 */
+		$owner = $user && $user->exists() && ( '' === $email || 0 === strcasecmp( $email, (string) $user->user_email ) ) ? $user : null;
+		if ( $owner ) {
+			$email = (string) $owner->user_email;
+			if ( '' === $values['user_full_name'] ) {
+				$values['user_full_name'] = (string) $owner->display_name;
+			}
 		}
 
 		// Only what the design shows, plus the name and email the card email uses.
@@ -341,7 +350,7 @@ class EPC_Module_WPForms extends EPC_Module {
 				'module'       => $this->get_slug(),
 				'form_id'      => absint( $form_id ),
 				'entry_id'     => absint( $entry_id ),
-				'user_id'      => $user && $user->exists() ? (int) $user->ID : 0,
+				'user_id'      => $owner ? (int) $owner->ID : 0,
 				'email'        => is_email( $email ) ? $email : '',
 				'card_code'    => EPC_WC_Product_Cards::new_code(),
 				'field_values' => wp_json_encode( $stored ),
@@ -382,10 +391,6 @@ class EPC_Module_WPForms extends EPC_Module {
 			if ( 'email' === $type && '' === $values['user_email'] && is_email( $value ) ) {
 				$values['user_email'] = $value;
 			}
-		}
-		$user = wp_get_current_user();
-		if ( '' === $values['user_full_name'] && $user && $user->exists() ) {
-			$values['user_full_name'] = (string) $user->display_name;
 		}
 		return $values;
 	}
