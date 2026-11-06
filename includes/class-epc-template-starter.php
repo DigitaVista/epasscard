@@ -78,6 +78,20 @@ class EPC_Template_Starter {
 	}
 
 	/**
+	 * A sample amount in the store's currency (preview and test cards), e.g. "৳25.00" rather
+	 * than "$25.00" in a taka store.
+	 *
+	 * @param float $amount Amount.
+	 * @return string
+	 */
+	private static function money_sample( $amount ) {
+		if ( function_exists( 'wc_price' ) ) {
+			return trim( html_entity_decode( wp_strip_all_tags( wc_price( $amount ) ), ENT_QUOTES, 'UTF-8' ) );
+		}
+		return '$' . number_format( (float) $amount, 2 );
+	}
+
+	/**
 	 * Membership-style preset.
 	 *
 	 * @param array<string, string> $src Sources: status, plan, expires, id.
@@ -145,7 +159,7 @@ class EPC_Template_Starter {
 			'type'      => 'gift-cards',
 			'card_type' => 'StoreCard',
 			'header'    => array( self::field( 'Expires', __( 'Expires', 'epasscard' ), 'expire_date', false, false, '2027-12-31' ) ),
-			'primary'   => array( self::field( 'Balance', __( 'Balance', 'epasscard' ), 'balance_formatted', false, false, '$50.00' ) ),
+			'primary'   => array( self::field( 'Balance', __( 'Balance', 'epasscard' ), 'balance_formatted', false, false, self::money_sample( 50 ) ) ),
 			'secondary' => array(
 				self::field( 'To', __( 'To', 'epasscard' ), $to_source, false, false, 'Sam Lee' ),
 				self::field( 'From', __( 'From', 'epasscard' ), $from_source, false, false, 'Alex Rivera' ),
@@ -319,7 +333,7 @@ class EPC_Template_Starter {
 				'type'      => 'voucher',
 				'card_type' => 'Coupon',
 				'header'    => array( self::field( 'Valid until', __( 'Valid until', 'epasscard' ), 'valid_until', false, false, '2027-06-30' ) ),
-				'primary'   => array( self::field( 'Value', __( 'Value', 'epasscard' ), 'voucher_value', false, false, '$25.00' ) ),
+				'primary'   => array( self::field( 'Value', __( 'Value', 'epasscard' ), 'voucher_value', false, false, self::money_sample( 25 ) ) ),
 				'secondary' => array(
 					self::field( 'Name', __( 'Name', 'epasscard' ), 'user_full_name', false, false, 'Alex Rivera' ),
 					self::field( 'Voucher', __( 'Voucher', 'epasscard' ), 'product_name', false, false, __( 'Dinner for two', 'epasscard' ) ),
