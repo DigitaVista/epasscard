@@ -40,6 +40,9 @@ $WP eval-file "$HERE/test-loyalty-get-card.php" || status=1
 echo "== Gift cards: card email to the gift recipient"
 $WP eval-file "$HERE/test-gift-recipient.php" || status=1
 
+echo "== YITH gift cards: codes made by hand"
+$WP eval-file "$HERE/test-yith-gift-cards.php" || status=1
+
 echo "== WooCommerce products with a wallet card (tickets, vouchers, cards)"
 $WP eval-file "$HERE/test-product-cards.php" || status=1
 

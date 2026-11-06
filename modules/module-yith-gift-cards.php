@@ -708,10 +708,24 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 	 */
 	private function sync_card( $card, $mode = 'sync' ) {
 		$card_id    = absint( $card->ID );
-		$product_id = absint( $card->product_id );
+		$product_id = $this->resolve_product_id( $card );
 
-		if ( $card_id <= 0 || $product_id <= 0 ) {
+		if ( $card_id <= 0 ) {
 			return new WP_Error( 'epc_invalid_source', __( 'Gift card not found or missing product.', 'epasscard' ) );
+		}
+		if ( $product_id <= 0 ) {
+			$error = new WP_Error(
+				'epc_gift_card_no_product',
+				sprintf(
+					/* translators: %s: gift card code */
+					__( 'Gift card %s was made by hand, so it has no gift card product. Such codes get the design of the shop\'s gift card product only when the shop has exactly one.', 'epasscard' ),
+					method_exists( $card, 'get_code' ) ? (string) $card->get_code() : '#' . $card_id
+				)
+			);
+			if ( 'sync' === $mode ) {
+				EPC_Pass_Issues::record( $this->get_slug(), $card_id, 'sync', $error );
+			}
+			return $error;
 		}
 
 		$mapping = $this->get_mapping( $product_id );
@@ -788,6 +802,38 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 	}
 
 	/**
+	 * Gift card product of a card. A code made by hand in YITH (Create code) has none: it uses
+	 * the shop's gift card product when there is only one, as PW Gift Cards cards do.
+	 *
+	 * @param YITH_YWGC_Gift_Card $card Card.
+	 * @return int Product id, or 0.
+	 */
+	private function resolve_product_id( $card ) {
+		$product_id = absint( $card->product_id );
+		return $product_id > 0 ? $product_id : $this->sole_product_id();
+	}
+
+	/**
+	 * The shop's gift card product when it has exactly one, else 0 (looked up once a request).
+	 *
+	 * @return int
+	 */
+	private function sole_product_id() {
+		if ( null === $this->sole_product ) {
+			$entities           = $this->get_mappable_entities();
+			$this->sole_product = 1 === count( $entities ) ? absint( $entities[0]['id'] ) : 0;
+		}
+		return $this->sole_product;
+	}
+
+	/**
+	 * See sole_product_id().
+	 *
+	 * @var int|null
+	 */
+	private $sole_product = null;
+
+	/**
 	 * Normalize status for rules.
 	 *
 	 * @param YITH_YWGC_Gift_Card $card Card.
@@ -861,14 +907,17 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 			return array();
 		}
 
-		// A YITH card is a post whose parent is its gift card product.
+		// A YITH card is a post whose parent is its gift card product. Codes made by hand have
+		// none and belong to the only gift card product, when there is one (resolve_product_id()).
+		$by_hand = $this->sole_product_id() === $product_id ? 0 : $product_id;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Card ids of one product, for giving cards to existing customers.
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				'SELECT ID FROM %i WHERE post_type = %s AND post_parent = %d ORDER BY ID ASC LIMIT %d OFFSET %d',
+				'SELECT ID FROM %i WHERE post_type = %s AND post_parent IN (%d, %d) ORDER BY ID ASC LIMIT %d OFFSET %d',
 				$wpdb->posts,
 				defined( 'YWGC_CUSTOM_POST_TYPE_NAME' ) ? YWGC_CUSTOM_POST_TYPE_NAME : 'gift_card',
 				$product_id,
+				$by_hand,
 				absint( $limit ),
 				absint( $offset )
 			)
@@ -878,7 +927,7 @@ class EPC_Module_YITH_Gift_Cards extends EPC_Module {
 		foreach ( (array) $ids as $card_id ) {
 			$card = $this->get_card( absint( $card_id ) );
 			$ok   = $card
-				&& absint( $card->product_id ) === $product_id
+				&& $this->resolve_product_id( $card ) === $product_id
 				&& 'sync' === $this->get_status_rule( $this->normalize_card_status( $card ) )
 				&& (float) $card->get_balance() > 0;
 			// One entry per row read keeps paging by offset correct.
