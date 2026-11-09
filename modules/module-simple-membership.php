@@ -373,6 +373,9 @@ class EPC_Module_Simple_Membership extends EPC_Module {
 		add_action( 'swpm_cronjob_account_status_updated_to_expired', array( $this, 'on_members_expired' ), 20, 1 );
 		add_action( 'swpm_admin_end_user_delete_action', array( $this, 'on_member_deleted' ), 20, 1 );
 		add_action( 'swpm_before_user_delete_action', array( $this, 'on_member_deleted' ), 20, 1 );
+		// A member deleting their own account (and a user deleted on the Users screen) fires no
+		// Simple Membership hook: Simple Membership removes the member, then the WordPress user.
+		add_action( 'delete_user', array( $this, 'revoke_cards_of_user' ), 10, 1 );
 	}
 
 	/**
