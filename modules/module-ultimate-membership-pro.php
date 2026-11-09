@@ -385,6 +385,10 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		add_action( 'ihc_action_after_subscription_activated', array( $this, 'on_membership_hook' ), 10, 2 );
 		add_action( 'ihc_action_subscription_expired', array( $this, 'on_membership_hook' ), 10, 2 );
 		add_action( 'ihc_action_after_user_approve', array( $this, 'on_user_approved' ), 10, 1 );
+		// The approve hook UMP fires (ihc_do_user_approve(); checked in UMP 14.2.1). The one
+		// above, and the level assign / delete hooks below, are not fired by UMP 14; their
+		// events are caught by ihc_new_subscription_action and ihc_action_before_delete_user_subscription.
+		add_action( 'ihc_action_approve_user_account', array( $this, 'on_user_approved' ), 10, 1 );
 		add_action( 'ihc_action_after_user_level_assign', array( $this, 'on_membership_hook' ), 10, 2 );
 		add_action( 'ihc_action_after_user_level_delete', array( $this, 'on_level_deleted' ), 10, 2 );
 		// UMP 10.x fires these when a level is assigned (admin, signup or checkout); the status rule decides what happens.

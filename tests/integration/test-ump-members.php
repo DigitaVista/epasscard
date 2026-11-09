@@ -156,6 +156,16 @@ $first  = $module->get_backfill_source_ids( $level, 1, 0 );
 $second = $module->get_backfill_source_ids( $level, 1, 1 );
 $t::check( 'existing members: pages follow the filtered list', array( $active ) === array_map( 'intval', $first ) && array() === $second, wp_json_encode( array( $first, $second ) ) );
 
+// An admin approves a user waiting for approval (UMP's ihc_do_user_approve()): the status
+// rules are applied to their levels, so an active member without a card gets one.
+list( $waiting, $waiting_row ) = $t::member( $level, '1' );
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test: as if the card was never made.
+$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE module = %s AND user_id = %d', EPC_DB::table_name(), $slug, $waiting ) );
+( new WP_User( $waiting ) )->set_role( 'pending_user' );
+$t::check( 'waiting for approval, no card', 'none' === $t::card( $waiting_row ) );
+$t::check( 'UMP approves the user', true === ihc_do_user_approve( $waiting ) );
+$t::check( 'approved: the active member gets the card', 'active' === $t::card( $waiting_row ), $t::card( $waiting_row ) );
+
 // A user is deleted (Users screen, UMP's members list, or the member deleting their account):
 // all go through wp_delete_user(). The card is voided.
 list( $gone, $gone_row ) = $t::member( $level, '1' );
