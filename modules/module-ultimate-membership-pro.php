@@ -1208,17 +1208,36 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
 			return array();
 		}
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- UMP table read for bulk pass creation.
+		// Only members whose status gives a card (the status rules; by default Active). Before,
+		// cancelled, on-hold, paused and unpaid members (no end date yet) got a card too.
+		$statuses = array();
+		foreach ( array_keys( $this->get_configurable_membership_statuses() ) as $status ) {
+			if ( 'sync' === $this->get_status_rule( $status ) ) {
+				$statuses[] = $status;
+			}
+		}
+		if ( empty( $statuses ) ) {
+			return array();
+		}
+		$now = current_time( 'mysql' );
+		// The status as get_user_level_status() reads it: no end date yet (not paid), not
+		// started or past the end date is "expired"; otherwise the status column.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- UMP table read for bulk pass creation; the IN list is one %s per status.
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT id FROM %i WHERE level_id = %d AND ( expire_time IS NULL OR expire_time = '0000-00-00 00:00:00' OR expire_time > %s ) ORDER BY id ASC LIMIT %d OFFSET %d",
-				$table,
-				$entity_id,
-				current_time( 'mysql' ),
-				absint( $limit ),
-				absint( $offset )
+				"SELECT id FROM %i WHERE level_id = %d AND ( CASE
+					WHEN expire_time IS NULL OR expire_time = '0000-00-00 00:00:00' OR expire_time <= %s THEN 'expired'
+					WHEN start_time IS NOT NULL AND start_time <> '0000-00-00 00:00:00' AND start_time > %s THEN 'expired'
+					WHEN status = '0' THEN 'cancelled'
+					WHEN status = '2' THEN 'expired'
+					WHEN status = '3' THEN 'hold'
+					WHEN status = '4' THEN 'paused'
+					WHEN status = '5' THEN 'cancellation_pending'
+					ELSE 'active' END ) IN (" . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ') ORDER BY id ASC LIMIT %d OFFSET %d',
+				array_merge( array( $table, $entity_id, $now, $now ), $statuses, array( absint( $limit ), absint( $offset ) ) )
 			)
 		);
+		// phpcs:enable
 		return array_map( 'absint', (array) $ids );
 	}
 
@@ -1226,7 +1245,7 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 	 * @inheritDoc
 	 */
 	public function get_backfill_scope_label() {
-		return __( 'Members whose level has not expired', 'epasscard' );
+		return __( 'Members whose membership status gives a card (by default: Active)', 'epasscard' );
 	}
 
 	/**

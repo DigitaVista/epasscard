@@ -67,6 +67,9 @@ $WP eval-file "$HERE/test-ultimate-member-roles.php" || status=1
 echo "== Ultimate Membership Pro: levels, card life, members list, account tab"
 $WP eval-file "$HERE/test-ultimate-membership-pro.php" || status=1
 
+echo "== Ultimate Membership Pro: existing members by status, deleted users, approval"
+$WP eval-file "$HERE/test-ump-members.php" || status=1
+
 echo "== Connecting sends reference = wp-plugin"
 $WP eval-file "$HERE/test-connect-reference.php" || status=1
 
