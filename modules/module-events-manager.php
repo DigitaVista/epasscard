@@ -15,6 +15,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Module_Events_Manager extends EPC_Module {
 
 	/**
+	 * Background job that brings an event's cards in line with the event.
+	 */
+	const REFRESH_HOOK = 'epc_events_manager_refresh_event';
+
+	/**
+	 * Cards handled per run of that job.
+	 */
+	const REFRESH_BATCH = 50;
+
+	/**
 	 * @inheritDoc
 	 */
 	public function get_slug() {
@@ -391,6 +401,18 @@ class EPC_Module_Events_Manager extends EPC_Module {
 		add_action( 'em_bookings_added', array( $this, 'on_booking' ), 20, 1 );
 		add_action( 'em_booking_status_changed', array( $this, 'on_booking_status_changed' ), 20, 1 );
 		add_action( 'em_booking_deleted', array( $this, 'on_booking_deleted' ), 20, 1 );
+		// Deleting an event, or turning its bookings off, deletes its bookings in one query
+		// (EM_Bookings::delete()): only this hook fires, not em_booking_deleted.
+		add_action( 'em_bookings_deleted', array( $this, 'on_bookings_deleted' ), 20, 3 );
+		// An event moved to the trash keeps its bookings: void its cards; restored, the status
+		// rules apply again.
+		add_action( 'trashed_post', array( $this, 'on_event_trashed' ), 20, 1 );
+		add_action( 'untrashed_post', array( $this, 'on_event_untrashed' ), 20, 1 );
+		// Deleted for good: Events Manager deletes the bookings (above) when its admin code is
+		// loaded; otherwise (e.g. a delete from WP-CLI) the cards are voided once the post is gone.
+		add_action( 'before_delete_post', array( $this, 'on_event_deleting' ), 20, 1 );
+		add_action( 'deleted_post', array( $this, 'on_event_deleted' ), 20, 1 );
+		add_action( self::REFRESH_HOOK, array( $this, 'refresh_event' ), 10, 3 );
 
 		add_filter( 'em_bookings_table_cols_template', array( $this, 'bookings_table_cols_template' ), 10, 2 );
 		add_filter( 'em_bookings_table_cols_bookings_template', array( $this, 'bookings_table_bookings_cols_template' ), 10, 2 );
@@ -759,6 +781,236 @@ class EPC_Module_Events_Manager extends EPC_Module {
 		if ( $booking_id > 0 ) {
 			EPC_Pass_Service::revoke_pass( $this->get_slug(), $booking_id );
 		}
+	}
+
+	/**
+	 * Bookings deleted together (an event deleted, or its bookings turned off): void their cards.
+	 *
+	 * @param mixed $result      Delete result.
+	 * @param mixed $booking_ids Deleted booking ids.
+	 * @param mixed $event_ids   Their events (ids, or "id:timeslot").
+	 * @return void
+	 */
+	public function on_bookings_deleted( $result, $booking_ids = array(), $event_ids = array() ) {
+		unset( $result );
+		$events = array();
+		foreach ( (array) $event_ids as $event_id ) {
+			$event_id = absint( strtok( (string) $event_id, ':' ) );
+			if ( $event_id > 0 ) {
+				$events[ $event_id ] = $event_id;
+			}
+		}
+		if ( ! empty( $events ) ) {
+			foreach ( $events as $event_id ) {
+				$this->refresh_event( $event_id );
+			}
+			return;
+		}
+		foreach ( (array) $booking_ids as $booking_id ) {
+			$booking_id = absint( $booking_id );
+			if ( $booking_id > 0 ) {
+				EPC_Pass_Service::revoke_pass( $this->get_slug(), $booking_id );
+			}
+		}
+	}
+
+	/**
+	 * An event moved to the trash: void its cards.
+	 *
+	 * @param int $post_id Post id.
+	 * @return void
+	 */
+	public function on_event_trashed( $post_id ) {
+		$event_id = $this->event_id_of_post( $post_id );
+		if ( $event_id > 0 ) {
+			$this->refresh_event( $event_id );
+		}
+	}
+
+	/**
+	 * An event restored from the trash: apply the status rules to its bookings again.
+	 *
+	 * @param int $post_id Post id.
+	 * @return void
+	 */
+	public function on_event_untrashed( $post_id ) {
+		$event_id = $this->event_id_of_post( $post_id );
+		if ( $event_id > 0 ) {
+			$this->refresh_event( $event_id, 0, 'bookings' );
+		}
+	}
+
+	/**
+	 * Event ids of posts being deleted in this request, by post id.
+	 *
+	 * @var array<int, int>
+	 */
+	private $deleting_events = array();
+
+	/**
+	 * An event post is about to be deleted: remember its event id (its meta goes with it).
+	 *
+	 * @param int $post_id Post id.
+	 * @return void
+	 */
+	public function on_event_deleting( $post_id ) {
+		$event_id = $this->event_id_of_post( $post_id );
+		if ( $event_id > 0 ) {
+			$this->deleting_events[ absint( $post_id ) ] = $event_id;
+		}
+	}
+
+	/**
+	 * An event post is deleted: void its cards.
+	 *
+	 * @param int $post_id Post id.
+	 * @return void
+	 */
+	public function on_event_deleted( $post_id ) {
+		$post_id = absint( $post_id );
+		if ( isset( $this->deleting_events[ $post_id ] ) ) {
+			$event_id = $this->deleting_events[ $post_id ];
+			unset( $this->deleting_events[ $post_id ] );
+			$this->refresh_event( $event_id );
+		}
+	}
+
+	/**
+	 * Events Manager event id of an event post, or 0.
+	 *
+	 * @param int $post_id Post id.
+	 * @return int
+	 */
+	private function event_id_of_post( $post_id ) {
+		$post_id   = absint( $post_id );
+		$post_type = defined( 'EM_POST_TYPE_EVENT' ) ? EM_POST_TYPE_EVENT : 'event';
+		if ( $post_id <= 0 || $post_type !== get_post_type( $post_id ) ) {
+			return 0;
+		}
+		return absint( get_post_meta( $post_id, '_event_id', true ) );
+	}
+
+	/**
+	 * Bring an event's cards in line with the event, a batch at a time (the rest in the background).
+	 *
+	 * "cards" (default): each live card of the event. Its booking or event gone, in the trash, or
+	 * the event's bookings off: void it. Otherwise the booking's status rule (an update).
+	 * "bookings": each booking of the event, by its status rule (restores voided cards).
+	 *
+	 * @param int    $event_id Event id.
+	 * @param int    $after_id Continue after this card row id / booking id.
+	 * @param string $what     cards|bookings.
+	 * @return void
+	 */
+	public function refresh_event( $event_id, $after_id = 0, $what = 'cards' ) {
+		$event_id = absint( $event_id );
+		$after_id = absint( $after_id );
+		$what     = 'bookings' === $what ? 'bookings' : 'cards';
+		if ( $event_id <= 0 || ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+
+		$done = 0;
+		while ( $done < self::REFRESH_BATCH ) {
+			if ( 'bookings' === $what ) {
+				$ids = $this->event_booking_ids( $event_id, $after_id, 200 );
+				if ( empty( $ids ) ) {
+					return;
+				}
+				foreach ( $ids as $booking_id ) {
+					$after_id = $booking_id;
+					$booking  = $this->get_booking( $booking_id );
+					if ( $booking ) {
+						$this->handle_booking( $booking );
+					}
+					++$done;
+					if ( $done >= self::REFRESH_BATCH ) {
+						break;
+					}
+				}
+				continue;
+			}
+
+			$rows = EPC_DB::get_active_passes_for_module( $this->get_slug(), $after_id, 200 );
+			if ( empty( $rows ) ) {
+				return;
+			}
+			$open = $this->event_takes_bookings( $event_id );
+			foreach ( $rows as $row ) {
+				$after_id = (int) $row->id;
+				if ( (int) $row->entity_id !== $event_id ) {
+					continue;
+				}
+				$booking = $open && $this->booking_exists( absint( $row->source_id ) ) ? $this->get_booking( absint( $row->source_id ) ) : null;
+				if ( ! $booking ) {
+					EPC_Pass_Service::revoke_pass( $this->get_slug(), (string) $row->source_id );
+				} else {
+					$this->handle_booking( $booking );
+				}
+				++$done;
+				if ( $done >= self::REFRESH_BATCH ) {
+					break;
+				}
+			}
+		}
+		wp_schedule_single_event( time() + 30, self::REFRESH_HOOK, array( $event_id, $after_id, $what ) );
+	}
+
+	/**
+	 * Whether an event still takes bookings: it exists, is not in the trash, and bookings are on.
+	 * Read from the database: Events Manager's cached objects still show a just-deleted event.
+	 *
+	 * @param int $event_id Event id.
+	 * @return bool
+	 */
+	private function event_takes_bookings( $event_id ) {
+		global $wpdb;
+		if ( ! defined( 'EM_EVENTS_TABLE' ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Events Manager event row, uncached on purpose.
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, event_status, event_rsvp FROM %i WHERE event_id = %d', EM_EVENTS_TABLE, $event_id ) );
+		if ( ! $event || empty( $event->event_rsvp ) || -1 === (int) $event->event_status ) {
+			return false;
+		}
+		if ( empty( $event->post_id ) ) {
+			return true;
+		}
+		$status = get_post_status( (int) $event->post_id );
+		return false !== $status && 'trash' !== $status;
+	}
+
+	/**
+	 * Whether a booking row still exists (uncached).
+	 *
+	 * @param int $booking_id Booking id.
+	 * @return bool
+	 */
+	private function booking_exists( $booking_id ) {
+		global $wpdb;
+		if ( ! defined( 'EM_BOOKINGS_TABLE' ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Events Manager booking row, uncached on purpose.
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT booking_id FROM %i WHERE booking_id = %d', EM_BOOKINGS_TABLE, $booking_id ) );
+	}
+
+	/**
+	 * Booking ids of an event after $after_id.
+	 *
+	 * @param int $event_id Event id.
+	 * @param int $after_id Booking id.
+	 * @param int $limit    Max.
+	 * @return array<int, int>
+	 */
+	private function event_booking_ids( $event_id, $after_id, $limit ) {
+		global $wpdb;
+		if ( ! defined( 'EM_BOOKINGS_TABLE' ) ) {
+			return array();
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Events Manager bookings of one event.
+		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT booking_id FROM %i WHERE event_id = %d AND booking_id > %d ORDER BY booking_id ASC LIMIT %d', EM_BOOKINGS_TABLE, $event_id, $after_id, $limit ) );
+		return array_map( 'absint', (array) $ids );
 	}
 
 	/**

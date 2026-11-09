@@ -73,6 +73,9 @@ $WP eval-file "$HERE/test-ump-members.php" || status=1
 echo "== Simple Membership: a deleted member keeps no card"
 $WP eval-file "$HERE/test-simple-membership-delete.php" || status=1
 
+echo "== Events Manager: event deleted, trashed, bookings off, new date"
+$WP eval-file "$HERE/test-events-manager-events.php" || status=1
+
 echo "== Connecting sends reference = wp-plugin"
 $WP eval-file "$HERE/test-connect-reference.php" || status=1
 
