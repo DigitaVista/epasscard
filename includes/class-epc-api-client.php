@@ -970,6 +970,49 @@ class EPC_Api_Client {
 	}
 
 	/**
+	 * Fetch every pass template: the API returns them a page at a time (10 a page), so the
+	 * pages are read until one comes back empty or the total is reached.
+	 *
+	 * @param int $max_pages Most pages to read.
+	 * @return array{templates: array<int,array<string,mixed>>, total_templates: int}|\WP_Error
+	 */
+	public static function get_all_templates( $max_pages = 50 ) {
+		$all   = array();
+		$seen  = array();
+		$total = 0;
+		for ( $page = 1; $page <= max( 1, (int) $max_pages ); $page++ ) {
+			$result = self::get_templates( $page );
+			if ( is_wp_error( $result ) ) {
+				if ( 1 === $page ) {
+					return $result;
+				}
+				// Keep what the earlier pages gave.
+				break;
+			}
+			$total = max( $total, (int) $result['total_templates'] );
+			$added = 0;
+			foreach ( $result['templates'] as $template ) {
+				$uid = is_array( $template ) ? (string) ( $template['uid'] ?? $template['templateUid'] ?? '' ) : '';
+				$key = '' !== $uid ? $uid : 'i' . count( $all );
+				if ( isset( $seen[ $key ] ) ) {
+					continue;
+				}
+				$seen[ $key ] = true;
+				$all[]        = $template;
+				++$added;
+			}
+			if ( 0 === $added || ( $total > 0 && count( $all ) >= $total ) ) {
+				break;
+			}
+		}
+
+		return array(
+			'templates'       => $all,
+			'total_templates' => max( $total, count( $all ) ),
+		);
+	}
+
+	/**
 	 * Fetch pass field definitions for a template.
 	 *
 	 * @param string $template_uid Template UUID.

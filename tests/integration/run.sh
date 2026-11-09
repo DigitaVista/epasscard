@@ -61,6 +61,9 @@ $WP eval-file "$HERE/test-ultimate-membership-pro.php" || status=1
 echo "== Connecting sends reference = wp-plugin"
 $WP eval-file "$HERE/test-connect-reference.php" || status=1
 
+echo "== Template picker gets every page of templates"
+$WP eval-file "$HERE/test-template-pages.php" || status=1
+
 echo "== WPLoyalty loyalty cards"
 $WP eval-file "$HERE/test-wployalty.php" || status=1
 

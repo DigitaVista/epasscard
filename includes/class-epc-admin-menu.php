@@ -407,8 +407,9 @@ class EPC_Admin_Menu {
 			wp_send_json_error( array( 'message' => __( 'EpassCard is not connected.', 'epasscard' ) ), 400 );
 		}
 
-		$page   = isset( $_GET['page_num'] ) ? max( 1, absint( wp_unslash( $_GET['page_num'] ) ) ) : 1;
-		$result = EPC_Api_Client::get_templates( $page );
+		// Every template, not just the API's first page (10 a page). page_num is still read from
+		// older scripts but no longer limits the list.
+		$result = EPC_Api_Client::get_all_templates();
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ), 500 );
