@@ -803,14 +803,10 @@ class EPC_Loyalty_Reward_Service {
 
 		foreach ( is_array( $entries ) ? $entries : array() as $entry ) {
 			$account = EPC_Loyalty_Account_Service::get( (int) $entry->user_id );
-			$outstanding = (int) $entry->points_delta;
-			if ( (int) $entry->order_id > 0 ) {
-				$outstanding = max(
-					0,
-					$outstanding - EPC_Loyalty_Ledger_Service::get_reversed_points_for_order( (int) $entry->order_id )
-				);
-			}
-			$points = $account ? min( max( 0, (int) $account->points_balance ), $outstanding ) : 0;
+			// Only what is left of this award: points already spent (or reversed) are not taken
+			// again from points earned later.
+			$unspent = self::get_unspent_award_points( (int) $entry->user_id, (int) $entry->id );
+			$points  = $account ? min( max( 0, (int) $account->points_balance ), $unspent ) : 0;
 			EPC_Loyalty_Ledger_Service::record(
 				(int) $entry->user_id,
 				'point_expiry:' . (int) $entry->id,
@@ -823,6 +819,106 @@ class EPC_Loyalty_Reward_Service {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Points of a ledger award not yet spent, reversed or expired (what its expiry takes).
+	 *
+	 * The customer's ledger is replayed in order:
+	 * - points earned (or added) are kept per entry;
+	 * - points taken use the points that expire soonest first (then the oldest); an expiry takes
+	 *   from its own award first, an order reversal or refund from that order's award first;
+	 * - points given back (a released checkout hold, a refunded redemption, a restored order)
+	 *   go back to where the last points were taken from;
+	 * - points taken beyond the balance are a deficit, paid from the next points earned.
+	 *
+	 * @param int $user_id  Customer.
+	 * @param int $award_id Ledger entry id of the award.
+	 * @return int
+	 */
+	public static function get_unspent_award_points( $user_id, $award_id ) {
+		global $wpdb;
+
+		$ledger = EPC_DB::loyalty_ledger_table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One customer's ledger, replayed for the expiry.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, entry_type, event_key, points_delta, order_id, expires_at FROM %i WHERE user_id = %d ORDER BY id ASC',
+				$ledger,
+				absint( $user_id )
+			)
+		);
+
+		$lots    = array(); // Entry id => array( remaining, order id, expiry timestamp ).
+		$taken   = array(); // Stack of array( entry id, points ).
+		$deficit = 0;
+		$returns = array( 'redemption_release', 'redemption_restore', 'order_reinstatement' );
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$delta = (int) $row->points_delta;
+			if ( 0 === $delta ) {
+				continue;
+			}
+
+			if ( $delta > 0 ) {
+				$amount = $delta;
+				if ( in_array( (string) $row->entry_type, $returns, true ) ) {
+					while ( $amount > 0 && ! empty( $taken ) ) {
+						list( $lot_id, $points ) = array_pop( $taken );
+						$give                    = min( $points, $amount );
+						$lots[ $lot_id ][0]     += $give;
+						$amount                 -= $give;
+						if ( $points > $give ) {
+							$taken[] = array( $lot_id, $points - $give );
+						}
+					}
+				}
+				$pay      = min( $deficit, $amount );
+				$deficit -= $pay;
+				$amount  -= $pay;
+				if ( $amount > 0 ) {
+					$expires                 = empty( $row->expires_at ) ? PHP_INT_MAX : (int) strtotime( (string) $row->expires_at . ' UTC' );
+					$lots[ (int) $row->id ] = array( $amount, (int) $row->order_id, $expires ? $expires : PHP_INT_MAX );
+				}
+				continue;
+			}
+
+			// Points taken: the preferred award first, then the soonest to expire (then the oldest).
+			$need  = -$delta;
+			$first = array();
+			if ( 'point_expiry' === (string) $row->entry_type && preg_match( '/^point_expiry:(\d+)$/', (string) $row->event_key, $m ) ) {
+				$first = array( (int) $m[1] );
+			} elseif ( (int) $row->order_id > 0 && in_array( (string) $row->entry_type, array( 'order_reversal', 'refund_reversal' ), true ) ) {
+				foreach ( $lots as $lot_id => $lot ) {
+					if ( (int) $lot[1] === (int) $row->order_id ) {
+						$first[] = $lot_id;
+					}
+				}
+			}
+			$order = array_keys( $lots );
+			usort(
+				$order,
+				static function ( $a, $b ) use ( $lots ) {
+					return $lots[ $a ][2] === $lots[ $b ][2] ? $a <=> $b : $lots[ $a ][2] <=> $lots[ $b ][2];
+				}
+			);
+			foreach ( array_unique( array_merge( $first, $order ) ) as $lot_id ) {
+				if ( $need <= 0 ) {
+					break;
+				}
+				if ( ! isset( $lots[ $lot_id ] ) || $lots[ $lot_id ][0] <= 0 ) {
+					continue;
+				}
+				$take               = min( $lots[ $lot_id ][0], $need );
+				$lots[ $lot_id ][0] -= $take;
+				$need              -= $take;
+				$taken[]            = array( $lot_id, $take );
+			}
+			$deficit += $need;
+		}
+
+		$award_id = absint( $award_id );
+		return isset( $lots[ $award_id ] ) ? max( 0, (int) $lots[ $award_id ][0] ) : 0;
 	}
 
 	/**

@@ -354,14 +354,9 @@ class EPC_Loyalty_Notification_Service {
 				continue;
 			}
 			$account = EPC_Loyalty_Account_Service::get( (int) $entry->user_id );
-			$outstanding = (int) $entry->points_delta;
-			if ( (int) $entry->order_id > 0 ) {
-				$outstanding = max(
-					0,
-					$outstanding - EPC_Loyalty_Ledger_Service::get_reversed_points_for_order( (int) $entry->order_id )
-				);
-			}
-			$points = $account ? min( max( 0, (int) $account->points_balance ), $outstanding ) : 0;
+			// What the expiry will take: only what is left of this award (see process_expiry()).
+			$unspent = EPC_Loyalty_Reward_Service::get_unspent_award_points( (int) $entry->user_id, (int) $entry->id );
+			$points  = $account ? min( max( 0, (int) $account->points_balance ), $unspent ) : 0;
 			if ( $points <= 0 ) {
 				continue;
 			}

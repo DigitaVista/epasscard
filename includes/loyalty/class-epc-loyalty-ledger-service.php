@@ -410,6 +410,28 @@ class EPC_Loyalty_Ledger_Service {
 	}
 
 	/**
+	 * Points of an award already taken by its expiry.
+	 *
+	 * @param int $entry_id Ledger entry id of the award.
+	 * @return int
+	 */
+	public static function get_expired_points_for_entry( $entry_id ) {
+		global $wpdb;
+
+		$table = EPC_DB::loyalty_ledger_table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate custom ledger lookup.
+		$total = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COALESCE(SUM(ABS(points_delta)), 0) FROM %i WHERE event_key = %s AND entry_type = 'point_expiry'",
+				$table,
+				'point_expiry:' . absint( $entry_id )
+			)
+		);
+
+		return max( 0, (int) $total );
+	}
+
+	/**
 	 * Points and qualifying amount already processed through refund entries.
 	 *
 	 * @param int $order_id WooCommerce order ID.

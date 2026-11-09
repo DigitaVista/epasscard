@@ -128,7 +128,12 @@ class EPC_Loyalty_Order_Service {
 
 		$awarded    = (int) $award->points_delta;
 		$reversed   = EPC_Loyalty_Ledger_Service::get_reversed_points_for_order( $order->get_id() );
-		$remaining  = max( 0, $awarded - $reversed );
+		// Points of this order that already expired are gone: a refund does not take them again.
+		$expired    = EPC_Loyalty_Ledger_Service::get_expired_points_for_entry( (int) $award->id );
+		$remaining  = max( 0, $awarded - $expired - $reversed );
+		if ( $awarded - $expired <= 0 ) {
+			return; // Every point of this order expired: nothing left to take back.
+		}
 		$award_meta = json_decode( (string) $award->meta, true );
 		$rounding    = is_array( $award_meta ) && isset( $award_meta['rounding'] )
 			? sanitize_key( (string) $award_meta['rounding'] )
@@ -144,7 +149,7 @@ class EPC_Loyalty_Order_Service {
 			array(
 				'order_id'                => $order->get_id(),
 				'refund_id'               => $refund->get_id(),
-				'maximum_order_reversal' => $awarded,
+				'maximum_order_reversal' => max( 0, $awarded - $expired ),
 				'refund_award_points'     => $awarded,
 				'refund_award_amount'     => $original_amount,
 				'refund_rounding'         => $rounding,
@@ -287,7 +292,9 @@ class EPC_Loyalty_Order_Service {
 
 		$awarded   = (int) $award->points_delta;
 		$reversed  = EPC_Loyalty_Ledger_Service::get_reversed_points_for_order( $order->get_id() );
-		$remaining = max( 0, $awarded - $reversed );
+		// Points of this order that already expired are gone: a cancel does not take them again.
+		$expired   = EPC_Loyalty_Ledger_Service::get_expired_points_for_entry( (int) $award->id );
+		$remaining = max( 0, $awarded - $expired - $reversed );
 		if ( $remaining <= 0 ) {
 			return null;
 		}
@@ -302,7 +309,7 @@ class EPC_Loyalty_Order_Service {
 			-$remaining,
 			array(
 				'order_id'                => $order->get_id(),
-				'maximum_order_reversal' => $awarded,
+				'maximum_order_reversal' => max( 0, $awarded - $expired ),
 				'amount'                  => -(float) $award->amount,
 				'currency'                => $order->get_currency(),
 				'description'             => sprintf(

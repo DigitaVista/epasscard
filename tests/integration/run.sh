@@ -94,6 +94,9 @@ $WP eval-file "$HERE/test-loyalty-redemption-rounding.php" || status=1
 echo "== A manual points deduction cannot go below zero"
 $WP eval-file "$HERE/test-loyalty-adjust-points.php" || status=1
 
+echo "== Loyalty point expiry takes only what is left of the award"
+$WP eval-file "$HERE/test-loyalty-expiry.php" || status=1
+
 echo "== WPLoyalty loyalty cards"
 $WP eval-file "$HERE/test-wployalty.php" || status=1
 
