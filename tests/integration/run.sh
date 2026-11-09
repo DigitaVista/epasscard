@@ -61,6 +61,9 @@ $WP eval-file "$HERE/test-product-cards-units.php" || status=1
 echo "== Ultimate Member member cards"
 $WP eval-file "$HERE/test-ultimate-member.php" || status=1
 
+echo "== Ultimate Member: a member's role changes"
+$WP eval-file "$HERE/test-ultimate-member-roles.php" || status=1
+
 echo "== Ultimate Membership Pro: levels, card life, members list, account tab"
 $WP eval-file "$HERE/test-ultimate-membership-pro.php" || status=1
 

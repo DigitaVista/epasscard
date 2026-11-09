@@ -320,6 +320,38 @@ class EPC_Pass_Service {
 	}
 
 	/**
+	 * Like sync_pass(), but when the record's existing pass was made on another design, that
+	 * pass is voided and a new one is issued on the record's design (a pass keeps the design
+	 * it was made on). For records whose design can change, e.g. a member whose role changed.
+	 *
+	 * @param string                $module        Module slug.
+	 * @param int|string            $source_id     Source id.
+	 * @param int                   $entity_id     Entity id.
+	 * @param int                   $user_id       User id.
+	 * @param array<string, mixed>  $mapping       Mapping.
+	 * @param array<string, string> $source_values Values.
+	 * @param string                $mode          sync|update.
+	 * @return true|\WP_Error
+	 */
+	public static function sync_pass_or_reissue( $module, $source_id, $entity_id, $user_id, array $mapping, array $source_values, $mode = 'sync' ) {
+		$key = sanitize_key( (string) $module ) . '|' . EPC_DB::sanitize_source_id( $source_id );
+
+		self::$reissue_on_new_design[ $key ] = true;
+		try {
+			return self::sync_pass( $module, $source_id, $entity_id, $user_id, $mapping, $source_values, $mode );
+		} finally {
+			unset( self::$reissue_on_new_design[ $key ] );
+		}
+	}
+
+	/**
+	 * Records synced through sync_pass_or_reissue() right now.
+	 *
+	 * @var array<string, true>
+	 */
+	private static $reissue_on_new_design = array();
+
+	/**
 	 * Per-request guard so one record is not sent to EpassCard several times in one request.
 	 *
 	 * Gift card plugins fire several hooks while a card is generated; each used to send its
@@ -395,6 +427,23 @@ class EPC_Pass_Service {
 
 		if ( 'update' === $mode && ! $has_pass ) {
 			return new WP_Error( 'epc_pass_missing', __( 'No pass exists yet for this record. Use Create or Sync instead.', 'epasscard' ) );
+		}
+
+		if (
+			$has_pass
+			&& 'create' !== $mode
+			&& isset( self::$reissue_on_new_design[ $module_slug . '|' . EPC_DB::sanitize_source_id( $source_id ) ] )
+			&& '' !== (string) $existing->template_uid
+			&& (string) $existing->template_uid !== $template_uid
+		) {
+			// The record's design changed: void the pass on the old design, issue one on the new.
+			if ( 'revoked' !== (string) $existing->status ) {
+				$expired = self::expire_issued_pass( $module, $source_id );
+				if ( is_wp_error( $expired ) ) {
+					return $expired;
+				}
+			}
+			return self::create_new_pass( $module, $source_id, $entity_id, $user_id, $mapping, $source_values, $mode, $template_uid, $module_slug, array( 'replaced_pass_uid' => (string) $existing->pass_uid ) );
 		}
 
 		if ( $has_pass && 'create' !== $mode ) {

@@ -580,7 +580,12 @@ class EPC_Module_Ultimate_Member extends EPC_Module {
 			case 'sync':
 			case 'update':
 				// A failure is recorded by the pass service and shown on Cards.
-				$this->sync_by_source_id( (string) $user_id, $action );
+				$result = $this->sync_by_source_id( (string) $user_id, $action );
+				if ( is_wp_error( $result ) && 'epc_no_mapping' === $result->get_error_code() ) {
+					// The member's role (now) has no card: a card from an earlier role must not
+					// stay live showing that role.
+					EPC_Pass_Service::revoke_pass( $this->get_slug(), (string) $user_id );
+				}
 				break;
 			case 'revoke':
 				EPC_Pass_Service::revoke_pass( $this->get_slug(), (string) $user_id );
@@ -607,7 +612,9 @@ class EPC_Module_Ultimate_Member extends EPC_Module {
 			return new WP_Error( 'epc_no_mapping', __( 'No card design for this role yet.', 'epasscard' ) );
 		}
 
-		return EPC_Pass_Service::sync_pass( $this->get_slug(), (string) $user_id, $entity_id, $user_id, $mapping, $this->build_values( $user, $role ), $mode );
+		// The role decides the design: after a role change to a role on another design, the old
+		// card is voided and one on the new design is issued.
+		return EPC_Pass_Service::sync_pass_or_reissue( $this->get_slug(), (string) $user_id, $entity_id, $user_id, $mapping, $this->build_values( $user, $role ), $mode );
 	}
 
 	/**
