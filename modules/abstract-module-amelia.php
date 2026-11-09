@@ -329,15 +329,45 @@ abstract class EPC_Module_Amelia_Bookings extends EPC_Module {
 	abstract protected function delete_hooks();
 
 	/**
+	 * Of the change hooks, those about one booking: their first argument is the booking (or has it
+	 * under "booking"), and the other bookings of its appointment or event did not change.
+	 *
+	 * @return array<int, string>
+	 */
+	protected function booking_hooks() {
+		return array();
+	}
+
+	/**
 	 * @inheritDoc
 	 */
 	protected function register_event_hooks() {
+		$booking_hooks = $this->booking_hooks();
 		foreach ( $this->change_hooks() as $hook ) {
-			add_action( $hook, array( $this, 'on_amelia_change' ), 20, 3 );
+			$handler = in_array( $hook, $booking_hooks, true ) ? 'on_amelia_booking_change' : 'on_amelia_change';
+			add_action( $hook, array( $this, $handler ), 20, 3 );
 		}
 		foreach ( $this->delete_hooks() as $hook ) {
 			add_action( $hook, array( $this, 'on_amelia_delete' ), 20, 1 );
 		}
+	}
+
+	/**
+	 * One booking changed (a new booking, its status): handle that booking only. Before, the
+	 * other bookings in the hook's event were handled too, one card update each.
+	 *
+	 * @param mixed $first  The booking, or an array with it under "booking".
+	 * @param mixed $second Second argument.
+	 * @param mixed $third  Third argument.
+	 * @return void
+	 */
+	public function on_amelia_booking_change( $first = null, $second = null, $third = null ) {
+		$booking = is_array( $first ) && isset( $first['booking'] ) && is_array( $first['booking'] ) ? $first['booking'] : $first;
+		if ( is_array( $booking ) && isset( $booking['id'] ) && is_numeric( $booking['id'] ) && array_key_exists( 'customerId', $booking ) && array_key_exists( 'persons', $booking ) ) {
+			$this->queue( (int) $booking['id'] );
+			return;
+		}
+		$this->on_amelia_change( $first, $second, $third );
 	}
 
 	/**

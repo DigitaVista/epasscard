@@ -291,6 +291,26 @@ $appointments->flush();
 $events->flush();
 epc_am_check( 'event booking: one ticket for the booking (default)', 'active' === epc_am_card( 'amelia-events', $eb ) && 'none' === epc_am_card( 'amelia-appointments', $eb ) );
 epc_am_check( 'event ticket values: event name and people', 'EPC test: cupping' === ( EPC_AM_Test_State::$sent[ 'amelia-events|' . $eb ]['event_name'] ?? '' ) && '2' === ( EPC_AM_Test_State::$sent[ 'amelia-events|' . $eb ]['persons'] ?? '' ) );
+
+// A second booking of the event: only that booking gets a card; the first is not sent again
+// (Amelia passes the whole event, with all its bookings, to the hook).
+$eb2 = epc_am_insert( 'customer_bookings', array( 'appointmentId' => null, 'customerId' => $client, 'status' => 'approved', 'persons' => 1, 'price' => 0 ) );
+epc_am_insert( 'customer_bookings_to_events_periods', array( 'customerBookingId' => $eb2, 'eventPeriodId' => $period ) );
+EPC_AM_Test_State::$sent = array();
+do_action(
+	'amelia_after_event_booking_saved',
+	epc_am_booking_array( $eb2 ),
+	array(
+		'id'           => $event,
+		'periods'      => array(),
+		'bookingOpens' => null,
+		'bookings'     => array( epc_am_booking_array( $eb ), epc_am_booking_array( $eb2 ) ),
+	)
+);
+$events->flush();
+epc_am_check( 'second event booking: its own card', 'active' === epc_am_card( 'amelia-events', $eb2 ) );
+epc_am_check( 'second event booking: the first booking\'s card is not sent again', array( 'amelia-events|' . $eb2 ) === array_keys( EPC_AM_Test_State::$sent ), wp_json_encode( array_keys( EPC_AM_Test_State::$sent ) ) );
+
 epc_am_update( 'events', $event, array( 'status' => 'canceled' ) );
 do_action( 'amelia_after_event_status_updated', array( 'id' => $event, 'periods' => array(), 'bookingOpens' => null, 'status' => 'canceled' ), 'canceled', false );
 $events->flush();

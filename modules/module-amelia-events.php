@@ -261,6 +261,24 @@ class EPC_Module_Amelia_Events extends EPC_Module_Amelia_Bookings {
 	}
 
 	/**
+	 * A new booking, a booking edited or its status changed: Amelia passes the event (with all
+	 * its bookings) too, but only that booking changed.
+	 *
+	 * @inheritDoc
+	 */
+	protected function booking_hooks() {
+		return array(
+			'amelia_after_event_booking_saved',
+			'amelia_after_event_booking_updated',
+			'amelia_after_booking_canceled',
+			'amelia_after_booking_approved',
+			'amelia_after_booking_pending',
+			'amelia_after_booking_rejected',
+			'amelia_after_booking_no-show',
+		);
+	}
+
+	/**
 	 * @inheritDoc
 	 */
 	protected function delete_hooks() {
