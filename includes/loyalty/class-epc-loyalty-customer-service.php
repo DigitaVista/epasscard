@@ -559,21 +559,39 @@ class EPC_Loyalty_Customer_Service {
 			$lifetime = $points;
 		}
 
-		return EPC_Loyalty_Ledger_Service::record(
+		$result = EPC_Loyalty_Ledger_Service::record(
 			$user_id,
 			$event,
 			'manual_adjustment',
 			$points,
 			$lifetime,
 			array(
-				'description' => $reason,
-				'meta'        => array(
+				'description'               => $reason,
+				// A deduction can take the balance down to 0, not below it.
+				'require_available_balance' => $points < 0,
+				'meta'                      => array(
 					'actor_id'        => $actor_id,
 					'affect_lifetime' => (bool) $affect_lifetime,
 					'reason'          => $reason,
 				),
 			)
 		);
+
+		if ( is_wp_error( $result ) && 'epc_loyalty_insufficient_points' === $result->get_error_code() ) {
+			$account   = EPC_Loyalty_Account_Service::get( $user_id );
+			$available = $account ? max( 0, (int) $account->points_balance ) : 0;
+
+			return new WP_Error(
+				'epc_loyalty_adjust_more_than_balance',
+				sprintf(
+					/* translators: %d: the customer's points balance. */
+					__( 'This customer has %d points, so you can deduct up to that many.', 'epasscard' ),
+					$available
+				)
+			);
+		}
+
+		return $result;
 	}
 
 	/**

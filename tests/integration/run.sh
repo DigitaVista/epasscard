@@ -73,6 +73,9 @@ $WP eval-file "$HERE/test-loyalty-redemption-retry.php" || status=1
 echo "== Loyalty points at checkout are not lost to rounding"
 $WP eval-file "$HERE/test-loyalty-redemption-rounding.php" || status=1
 
+echo "== A manual points deduction cannot go below zero"
+$WP eval-file "$HERE/test-loyalty-adjust-points.php" || status=1
+
 echo "== WPLoyalty loyalty cards"
 $WP eval-file "$HERE/test-wployalty.php" || status=1
 
