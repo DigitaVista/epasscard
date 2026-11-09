@@ -393,6 +393,9 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 		// UMP 10.x: the level row is still present here, so the pass can be found and expired.
 		add_action( 'ihc_action_before_delete_user_subscription', array( $this, 'on_level_deleted' ), 10, 2 );
 		add_action( 'ihc_action_after_cancel_subscription', array( $this, 'on_subscription_cancelled' ), 10, 2 );
+		// A deleted user keeps no card. UMP deletes the user (wp_delete_user()) before or without
+		// removing the levels, so the cards are found by user.
+		add_action( 'delete_user', array( $this, 'on_delete_user' ), 10, 1 );
 		// UMP 12+ changes a status (pause, resume, hold, cancellation pending, an admin edit)
 		// with \Ump\User_Subscriptions::updateStatus() / updateStatusBySubscriptionId() and
 		// fires no hook: that query is noticed and the status rule applied at the end of the request.
@@ -701,6 +704,16 @@ class EPC_Module_Ultimate_Membership_Pro extends EPC_Module {
 			$level_id = absint( $row->level_id );
 			$this->apply_status_rule( $user_id, $level_id, $this->get_user_level_status( $user_id, $level_id, $row ) );
 		}
+	}
+
+	/**
+	 * A user is deleted: void their cards.
+	 *
+	 * @param int $user_id User id.
+	 * @return void
+	 */
+	public function on_delete_user( $user_id ) {
+		$this->revoke_cards_of_user( $user_id );
 	}
 
 	/**

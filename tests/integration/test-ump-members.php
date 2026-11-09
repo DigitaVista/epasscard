@@ -156,6 +156,14 @@ $first  = $module->get_backfill_source_ids( $level, 1, 0 );
 $second = $module->get_backfill_source_ids( $level, 1, 1 );
 $t::check( 'existing members: pages follow the filtered list', array( $active ) === array_map( 'intval', $first ) && array() === $second, wp_json_encode( array( $first, $second ) ) );
 
+// A user is deleted (Users screen, UMP's members list, or the member deleting their account):
+// all go through wp_delete_user(). The card is voided.
+list( $gone, $gone_row ) = $t::member( $level, '1' );
+$t::check( 'active member: card live', 'active' === $t::card( $gone_row ) );
+require_once ABSPATH . 'wp-admin/includes/user.php';
+wp_delete_user( $gone );
+$t::check( 'user deleted: card voided', 'revoked' === $t::card( $gone_row ), $t::card( $gone_row ) );
+
 // Clean up.
 foreach ( $t::$users as $user_id ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test cleanup.

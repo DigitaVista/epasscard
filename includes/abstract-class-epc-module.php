@@ -145,6 +145,25 @@ abstract class EPC_Module {
 	abstract public function sync_by_source_id( $source_id, $mode = 'sync' );
 
 	/**
+	 * Void every live card of this integration that belongs to a WordPress user (for example
+	 * when the user is deleted).
+	 *
+	 * @param int $user_id User id.
+	 * @return void
+	 */
+	public function revoke_cards_of_user( $user_id ) {
+		$user_id = absint( $user_id );
+		if ( $user_id <= 0 ) {
+			return;
+		}
+		foreach ( EPC_DB::get_active_passes_for_user( $user_id ) as $pass ) {
+			if ( $this->get_slug() === (string) $pass->module ) {
+				EPC_Pass_Service::revoke_pass( $this->get_slug(), (string) $pass->source_id );
+			}
+		}
+	}
+
+	/**
 	 * Register module hooks.
 	 *
 	 * @return void
