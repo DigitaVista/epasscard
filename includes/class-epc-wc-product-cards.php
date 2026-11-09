@@ -573,14 +573,20 @@ class EPC_WC_Product_Cards {
 	}
 
 	/**
-	 * Number of cards a line gives: one per unit bought. (A full refund or a cancel voids them
-	 * all through the order status; a partial refund leaves the cards as they are.)
+	 * Number of cards a line gives: one per unit bought and not refunded. A refund of some
+	 * units voids the cards of the last units (WooCommerce refunds a quantity, not a unit).
 	 *
 	 * @param WC_Order_Item_Product $item Line.
 	 * @return int
 	 */
 	public static function units( $item ) {
-		return max( 0, (int) $item->get_quantity() );
+		$units = max( 0, (int) $item->get_quantity() );
+		$order = $units > 0 && $item->get_id() > 0 ? $item->get_order() : null;
+		if ( $order instanceof WC_Order ) {
+			// Negative: the quantity refunded for this line.
+			$units += (int) $order->get_qty_refunded_for_item( $item->get_id() );
+		}
+		return max( 0, $units );
 	}
 
 	/**

@@ -55,6 +55,9 @@ $WP eval-file "$HERE/test-yith-gift-cards.php" || status=1
 echo "== WooCommerce products with a wallet card (tickets, vouchers, cards)"
 $WP eval-file "$HERE/test-product-cards.php" || status=1
 
+echo "== WooCommerce ticket cards: partial refunds, lower quantities, removed lines"
+$WP eval-file "$HERE/test-product-cards-units.php" || status=1
+
 echo "== Ultimate Member member cards"
 $WP eval-file "$HERE/test-ultimate-member.php" || status=1
 

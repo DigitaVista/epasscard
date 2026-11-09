@@ -829,6 +829,35 @@ class EPC_DB {
 	}
 
 	/**
+	 * Record ids of a module's cards that start with a prefix (any status).
+	 *
+	 * @param string $module Module slug.
+	 * @param string $prefix Start of the record id.
+	 * @return array<int, string>
+	 */
+	public static function source_ids_with_prefix( $module, $prefix ) {
+		global $wpdb;
+
+		$module = sanitize_key( (string) $module );
+		$prefix = (string) $prefix;
+		if ( '' === $module || '' === $prefix ) {
+			return array();
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table read.
+		$found = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT source_id FROM %i WHERE module = %s AND source_id LIKE %s ORDER BY id ASC',
+				self::table_name(),
+				$module,
+				$wpdb->esc_like( $prefix ) . '%'
+			)
+		);
+
+		return array_map( 'strval', (array) $found );
+	}
+
+	/**
 	 * Resolve a pass row from a pass UUID, internal id, or source record id.
 	 *
 	 * @param string $module     Module slug.

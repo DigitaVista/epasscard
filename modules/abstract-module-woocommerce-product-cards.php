@@ -271,6 +271,73 @@ abstract class EPC_Module_WC_Product_Cards extends EPC_Module {
 			add_action( 'woocommerce_order_status_' . sanitize_key( (string) $status ), array( $this, 'on_order_status' ), 5, 2 );
 		}
 		add_filter( 'epc_pass_email_order_passes', array( $this, 'append_order_passes' ), 10, 2 );
+		// Fewer units on the order: a partial refund, a lower quantity or a removed line.
+		add_action( 'woocommerce_order_refunded', array( $this, 'on_order_units_changed' ), 20, 1 );
+		add_action( 'woocommerce_saved_order_items', array( $this, 'on_order_units_changed' ), 20, 1 );
+		add_action( 'woocommerce_before_delete_order_item', array( $this, 'on_delete_order_item' ), 20, 1 );
+	}
+
+	/**
+	 * Units were refunded or the quantity was lowered: void the cards of the units no longer bought.
+	 *
+	 * @param int $order_id Order id.
+	 * @return void
+	 */
+	public function on_order_units_changed( $order_id ) {
+		$order = wc_get_order( absint( $order_id ) );
+		if ( ! $order instanceof WC_Order || 'shop_order' !== $order->get_type() || ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
+			if ( ! $item instanceof WC_Order_Item_Product ) {
+				continue;
+			}
+			$units = EPC_WC_Product_Cards::units( $item );
+			foreach ( $this->item_card_source_ids( (int) $item_id ) as $source_id ) {
+				$parsed = EPC_WC_Product_Cards::parse_source_id( $source_id );
+				if ( null !== $parsed && $parsed[1] > $units ) {
+					EPC_Pass_Service::revoke_pass( $this->get_slug(), $source_id );
+				}
+			}
+		}
+	}
+
+	/**
+	 * A line is removed from an order: void its cards.
+	 *
+	 * @param int $item_id Order item id.
+	 * @return void
+	 */
+	public function on_delete_order_item( $item_id ) {
+		if ( ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+		foreach ( $this->item_card_source_ids( absint( $item_id ) ) as $source_id ) {
+			EPC_Pass_Service::revoke_pass( $this->get_slug(), $source_id );
+		}
+	}
+
+	/**
+	 * Record ids of this kind's cards made for an order line, including units no longer on it.
+	 *
+	 * @param int $item_id Order item id.
+	 * @return array<int, string>
+	 */
+	protected function item_card_source_ids( $item_id ) {
+		$item_id = absint( $item_id );
+		if ( $item_id <= 0 ) {
+			return array();
+		}
+		// "i12_" also starts "i12_3" only; parse_source_id() drops anything else.
+		return array_values(
+			array_filter(
+				EPC_DB::source_ids_with_prefix( $this->get_slug(), 'i' . $item_id . '_' ),
+				static function ( $source_id ) use ( $item_id ) {
+					$parsed = EPC_WC_Product_Cards::parse_source_id( $source_id );
+					return null !== $parsed && $parsed[0] === $item_id;
+				}
+			)
+		);
 	}
 
 	/**
@@ -302,7 +369,15 @@ abstract class EPC_Module_WC_Product_Cards extends EPC_Module {
 			return;
 		}
 		$no_design = array();
-		foreach ( $this->order_source_ids( $order ) as $source_id ) {
+		$source_ids = $this->order_source_ids( $order );
+		if ( 'revoke' === $action ) {
+			// Also the cards of units refunded or taken off the order since they were made.
+			foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
+				$source_ids = array_merge( $source_ids, $this->item_card_source_ids( (int) $item_id ) );
+			}
+			$source_ids = array_values( array_unique( $source_ids ) );
+		}
+		foreach ( $source_ids as $source_id ) {
 			$result = $this->apply_action( $source_id, $action );
 			if ( 'sync' === $action && is_wp_error( $result ) && 'epc_no_mapping' === $result->get_error_code() ) {
 				$product_name = $this->report_missing_design( $source_id );
