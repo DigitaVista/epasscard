@@ -14,7 +14,7 @@ Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty
 
 **EpassCard turns your WordPress data into Apple Wallet and Google Wallet passes.** Loyalty cards for WooCommerce, membership cards, event tickets, appointment cards, vouchers, gift cards and cards from form entries are issued, updated and pushed to your customers' phones automatically. No code, no Zapier.
 
-[youtube https://www.youtube.com/watch?v=-Xg8wzQ5lVw]
+[youtube https://www.youtube.com/watch?v=BjdEhCPCmKI]
 
 = Why EpassCard =
 
@@ -276,7 +276,8 @@ Yes. From **EpassCard → Cards** (or the member screens of your membership plug
 * New: Cards. Every card from every integration in one list, with search, filters, Update / View / Email / Expire, Export CSV, and "Give cards to existing customers" in background batches with a check first.
 * New: "Retry all failed cards" runs in the background with progress and a result.
 * New: Settings with Account & plan (with a forecast of when the plan runs out), Emails, Reminders & push, Integrations, Advanced and the API log.
-* New: "How this works" panels on every section and a Help page with the guides.
+* New: "How this works" panels on every section and a Help page with the guides, with a short video tutorial for each section.
+* New: Customers opens on the customer list (lookup, points, tier, card); the loyalty program's settings are under Rules & rewards.
 * New: "Chat with us" in the EpassCard top bar (administrators only). Nothing loads from the chat service until you start a chat.
 * New: Card statuses in plain words (Created, Emailed, Update failed, Revoke pending, Revoked).
 * The integration pages are retired: their settings are on Design and Settings, and old links redirect there.
@@ -289,7 +290,19 @@ Yes. From **EpassCard → Cards** (or the member screens of your membership plug
 * Fix: Ultimate Membership Pro. On current versions the design screen could list no membership levels (9.4 and newer), the EpassCard column in Members shifted the other columns (12.5 and newer), and the latest transaction ID was empty.
 * Fix: A record can no longer get two billable passes when two requests handle it at the same moment. Existing duplicates are merged on update; nothing is deleted on EpassCard.
 * Fix: Paid Memberships Pro voids the old level's card when a member switches level, and sends one request per checkout instead of two.
-* Fix: The Events Calendar voids tickets when the order is refunded, canceled or failed, and sends one request per purchase.
+* Fix: The Events Calendar voids tickets when the order is refunded, canceled, failed or abandoned, and sends one request per purchase.
+* New: The Events Calendar. A Tickets Commerce ticket gets its card when the payment completes, not while it is pending (new rule "Payment pending (not paid yet)", default: no card). An RSVP "Not going" gets no card, and changing the reply issues or voids it.
+* New: Events Manager and The Events Calendar update the cards when an event's date, time, venue or name changes (in the background, a minute later).
+* Fix: Events Manager voids the cards when an event is deleted, moved to the trash or its bookings are turned off. Restoring the event brings them back.
+* Fix: WooCommerce tickets, vouchers and product cards. A partial refund voids the cards of the refunded units, and lowering the quantity or removing a line voids the extra cards. Cancelling an order voids every card it had.
+* Fix: Ultimate Member. When a member moves to a role with another design, the old card is voided and a card on the new design is issued; a role without a design voids the card.
+* Fix: Ultimate Membership Pro. "Give cards to existing members" follows the status rules (by default only Active members), deleting a user voids their cards, and approving a user applies the rules.
+* Fix: Simple Membership. A member who deletes their own account, or a user deleted on the Users screen, no longer keeps a live card.
+* Fix: WooCommerce Subscriptions. A new date saved together with a status change now reaches the card.
+* Fix: Amelia. A new event booking updates only its own card instead of every card of the event, and editing a customer in Amelia updates their cards.
+* Fix: The template list in the design window shows every template in your account, not only the first page.
+* Fix: Cards → Export CSV includes the name and email of guest customers.
+* New: Product page. A preview of the wallet card next to the "Wallet card" settings, and a play button that opens a short video about tickets, vouchers or cards.
 * Fix: Events Manager shows the correct event time on the card, sends the "before the event" reminder, and sets the correct expiry.
 * Gift cards: optional card email to the gift recipient instead of the buyer (Settings → Emails, off by default).
 
@@ -301,6 +314,10 @@ Yes. From **EpassCard → Cards** (or the member screens of your membership plug
 * Fix: A free-product reward gives exactly one free unit.
 * Fix: Customers no longer get "points removed" or "you earned" emails for points reserved and released at checkout.
 * Fix: A Cancel clicked while past orders are being synced is no longer lost.
+* Fix: Customers can use all their points at checkout (rounding no longer left a few unused).
+* Fix: Points paid at checkout stay paid when a failed payment is retried.
+* Fix: A manual points deduction cannot take a balance below zero.
+* Fix: Point expiry takes only points that are still unspent (the soonest to expire are used first), and a refund after points expired no longer takes them again.
 
 **For developers**
 
