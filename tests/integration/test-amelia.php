@@ -311,6 +311,18 @@ $events->flush();
 epc_am_check( 'second event booking: its own card', 'active' === epc_am_card( 'amelia-events', $eb2 ) );
 epc_am_check( 'second event booking: the first booking\'s card is not sent again', array( 'amelia-events|' . $eb2 ) === array_keys( EPC_AM_Test_State::$sent ), wp_json_encode( array_keys( EPC_AM_Test_State::$sent ) ) );
 
+// The customer's name and email change in Amelia: their live card is updated; no card is made
+// for their bookings that have none.
+$eb3 = epc_am_insert( 'customer_bookings', array( 'appointmentId' => null, 'customerId' => $client, 'status' => 'approved', 'persons' => 1, 'price' => 0 ) );
+epc_am_insert( 'customer_bookings_to_events_periods', array( 'customerBookingId' => $eb3, 'eventPeriodId' => $period ) );
+epc_am_update( 'users', $client, array( 'firstName' => 'Kimberly', 'email' => 'epc_t_kimberly@example.test' ) );
+EPC_AM_Test_State::$sent = array();
+do_action( 'amelia_after_customer_updated', array( 'id' => $client, 'firstName' => 'Kimberly', 'lastName' => 'Park', 'email' => 'epc_t_kimberly@example.test' ) );
+$values = EPC_AM_Test_State::$sent[ 'amelia-events|' . $eb2 ] ?? array();
+epc_am_check( 'customer edited: the card shows the new name and email', 'Kimberly Park' === ( $values['user_full_name'] ?? '' ) && 'epc_t_kimberly@example.test' === ( $values['user_email'] ?? '' ), wp_json_encode( $values ) );
+epc_am_check( 'customer edited: no card for a booking that had none', 'none' === epc_am_card( 'amelia-events', $eb3 ) );
+epc_am_update( 'users', $client, array( 'firstName' => 'Kim', 'email' => (string) get_userdata( $wp_user )->user_email ) );
+
 epc_am_update( 'events', $event, array( 'status' => 'canceled' ) );
 do_action( 'amelia_after_event_status_updated', array( 'id' => $event, 'periods' => array(), 'bookingOpens' => null, 'status' => 'canceled' ), 'canceled', false );
 $events->flush();

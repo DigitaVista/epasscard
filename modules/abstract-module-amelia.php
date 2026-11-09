@@ -350,6 +350,8 @@ abstract class EPC_Module_Amelia_Bookings extends EPC_Module {
 		foreach ( $this->delete_hooks() as $hook ) {
 			add_action( $hook, array( $this, 'on_amelia_delete' ), 20, 1 );
 		}
+		// A customer's name, email or phone changed in Amelia: refresh their live cards.
+		add_action( 'amelia_after_customer_updated', array( $this, 'on_customer_updated' ), 20, 1 );
 	}
 
 	/**
@@ -368,6 +370,33 @@ abstract class EPC_Module_Amelia_Bookings extends EPC_Module {
 			return;
 		}
 		$this->on_amelia_change( $first, $second, $third );
+	}
+
+	/**
+	 * A customer was edited in Amelia: update the live cards of their bookings of this kind.
+	 *
+	 * Only cards that exist and are live are updated; no card is made for an old booking.
+	 *
+	 * @param mixed $customer Customer (array).
+	 * @return void
+	 */
+	public function on_customer_updated( $customer = null ) {
+		global $wpdb;
+		$customer_id = is_array( $customer ) && isset( $customer['id'] ) ? absint( $customer['id'] ) : 0;
+		if ( $customer_id <= 0 || ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+		$kind = 'appointment' === $this->booking_kind() ? 'appointmentId IS NOT NULL' : 'appointmentId IS NULL';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Amelia's own table; $kind is one of two fixed strings.
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM %i WHERE customerId = %d AND $kind ORDER BY id ASC", self::table( 'customer_bookings' ), $customer_id ) );
+		foreach ( array_map( 'absint', (array) $ids ) as $booking_id ) {
+			foreach ( $this->existing_source_ids( $booking_id ) as $source_id ) {
+				$row = EPC_DB::get_pass( $this->get_slug(), $source_id );
+				if ( $row && 'active' === (string) $row->status ) {
+					$this->sync_by_source_id( $source_id, 'update' );
+				}
+			}
+		}
 	}
 
 	/**
