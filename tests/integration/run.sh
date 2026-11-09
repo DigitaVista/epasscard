@@ -61,6 +61,9 @@ $WP eval-file "$HERE/test-product-cards.php" || status=1
 echo "== WooCommerce ticket cards: partial refunds, lower quantities, removed lines"
 $WP eval-file "$HERE/test-product-cards-units.php" || status=1
 
+echo "== WooCommerce Subscriptions: a status and a date change in one save"
+$WP eval-file "$HERE/test-wcs-dates.php" || status=1
+
 echo "== Ultimate Member member cards"
 $WP eval-file "$HERE/test-ultimate-member.php" || status=1
 

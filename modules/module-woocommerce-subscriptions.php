@@ -15,13 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 
 	/**
-	 * Subscription IDs whose status just changed (skip duplicate update hook).
-	 *
-	 * @var array<int, bool>
-	 */
-	private static $status_just_changed = array();
-
-	/**
 	 * @inheritDoc
 	 */
 	public function get_slug() {
@@ -632,7 +625,6 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 			return;
 		}
 
-		self::$status_just_changed[ (int) $subscription->get_id() ] = true;
 		$this->apply_status_rule( $subscription, (string) $new_status );
 	}
 
@@ -646,10 +638,12 @@ class EPC_Module_WooCommerce_Subscriptions extends EPC_Module {
 	public function on_subscription_updated( $subscription_id, $subscription ) {
 		$subscription_id = absint( $subscription_id );
 
-		if ( isset( self::$status_just_changed[ $subscription_id ] ) ) {
-			unset( self::$status_just_changed[ $subscription_id ] );
-			return;
-		}
+		/*
+		 * Every save counts. WooCommerce Subscriptions fires this hook before the status hook of
+		 * the same save, so skipping the save after a status change (as before) skipped the next
+		 * save instead, e.g. the new dates of the same admin edit. A repeat with the same values
+		 * in one request is not sent again (EPC_Pass_Service).
+		 */
 
 		if ( ! $subscription instanceof WC_Subscription ) {
 			$subscription = function_exists( 'wcs_get_subscription' ) ? wcs_get_subscription( $subscription_id ) : null;
