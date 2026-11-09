@@ -1,8 +1,8 @@
 <?php
 /**
- * Integration test: The Events Calendar + Event Tickets. A guest's RSVP gets a card, and the
- * card email goes to the attendee's email. Needs The Events Calendar and Event Tickets (skipped
- * otherwise). Uses the fake API of fixtures/test-integration.php.
+ * Integration test: The Events Calendar + Event Tickets. A guest's RSVP gets a card, the card
+ * email goes to the attendee's email, and Cards → Export CSV names the guest. Needs The Events
+ * Calendar and Event Tickets (skipped otherwise). Uses the fake API of fixtures/test-integration.php.
  *
  * Run: wp eval-file tests/integration/test-tec-guest.php (tests/integration/run.sh does this).
  *
@@ -113,6 +113,8 @@ epc_tg_check( 'a guest RSVP gets a card', $row && '' !== (string) $row->pass_uid
 $mail = $row ? EPC_Pass_Email::compose( $row ) : null;
 epc_tg_check( 'its card email goes to the attendee\'s email', is_array( $mail ) && $guest === $mail['to'] && 0 === strpos( $mail['body'], 'Hi Ines' ), is_wp_error( $mail ) ? $mail->get_error_message() : wp_json_encode( $mail ) );
 epc_tg_check( 'Cards shows who it is for', array( 'name' => 'Ines Duarte', 'email' => $guest ) === $module->get_record_customer( (string) $attendee_id ) );
+$csv = EPC_Admin_Cards::export_row( EPC_DB::get_pass( 'the-events-calendar', (string) $attendee_id ), $module );
+epc_tg_check( 'Cards → Export CSV names the guest and their email', 'Ines Duarte' === $csv[0] && $guest === $csv[1], wp_json_encode( array_slice( $csv, 0, 2 ) ) );
 
 // Clean up.
 global $wpdb;

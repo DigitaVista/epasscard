@@ -121,26 +121,9 @@ class EPC_Admin_Cards {
 				)
 			);
 			foreach ( $result['items'] as $item ) {
-				$module = $modules[ (string) $item->module ];
-				$user   = (int) $item->user_id > 0 ? get_userdata( (int) $item->user_id ) : false;
-				$status = EPC_Pass_Status::get_display_status( $item );
 				fputcsv(
 					$output,
-					array_map(
-						$safe,
-						array(
-							$user ? epc_user_name( $user ) : '',
-							$user ? $user->user_email : '',
-							EPC_Jobs::get_module_title( (string) $item->module ),
-							$module->get_label(),
-							$status['label'] . ( $status['is_test'] ? ' (' . __( 'Test', 'epasscard' ) . ')' : '' ),
-							self::shows( $item, $module ),
-							(string) $item->source_id,
-							(string) $item->pass_uid,
-							(string) $item->pass_link,
-							(string) $item->updated_at,
-						)
-					),
+					array_map( $safe, self::export_row( $item, $modules[ (string) $item->module ] ) ),
 					',',
 					'"',
 					'\\'
@@ -155,6 +138,43 @@ class EPC_Admin_Cards {
 
 		fclose( $output ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Streaming CSV download.
 		exit;
+	}
+
+	/**
+	 * One card's CSV row (the same columns as the header).
+	 *
+	 * A guest's card (no account) names the customer the integration knows for the record,
+	 * as the Cards list does.
+	 *
+	 * @param object     $item   Card row.
+	 * @param EPC_Module $module Its integration.
+	 * @return array<int, string>
+	 */
+	public static function export_row( $item, $module ) {
+		$user  = (int) $item->user_id > 0 ? get_userdata( (int) $item->user_id ) : false;
+		$name  = $user ? epc_user_name( $user ) : '';
+		$email = $user ? (string) $user->user_email : '';
+		if ( ! $user && 0 === (int) $item->user_id ) {
+			$guest = $module->get_record_customer( (string) $item->source_id );
+			if ( is_array( $guest ) ) {
+				$name  = (string) ( $guest['name'] ?? '' );
+				$email = (string) ( $guest['email'] ?? '' );
+			}
+		}
+		$status = EPC_Pass_Status::get_display_status( $item );
+
+		return array(
+			$name,
+			$email,
+			EPC_Jobs::get_module_title( (string) $item->module ),
+			$module->get_label(),
+			$status['label'] . ( $status['is_test'] ? ' (' . __( 'Test', 'epasscard' ) . ')' : '' ),
+			self::shows( $item, $module ),
+			(string) $item->source_id,
+			(string) $item->pass_uid,
+			(string) $item->pass_link,
+			(string) $item->updated_at,
+		);
 	}
 
 	/**
