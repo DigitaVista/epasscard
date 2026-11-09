@@ -5,6 +5,7 @@
  * - Bookings turned off for the event: the cards are voided.
  * - The event moved to the trash: the cards are voided; restored: live again.
  * - The event deleted for good: the cards are voided.
+ * - The event's date, location or name changes: its cards are updated (in the background).
  *
  * Run: wp eval-file tests/integration/test-events-manager-events.php (needs Events Manager).
  * Uses the fake API of fixtures/test-integration.php.
@@ -50,6 +51,13 @@ final class EPC_EM_Events_Test {
 	 * @var array<int, int>
 	 */
 	public static $posts = array();
+
+	/**
+	 * Bodies of the pass updates sent.
+	 *
+	 * @var array<int, string>
+	 */
+	public static $updates = array();
 
 	/**
 	 * Record a check.
@@ -182,6 +190,36 @@ $t::check( 'event post deleted: both cards voided', 'revoked,revoked' === $t::ca
 list( , $one_ids ) = $t::event( $module, 'EPC test: one booking deleted', 2 );
 em_get_booking( $one_ids[0] )->delete();
 $t::check( 'one booking deleted: only its card voided', 'revoked,active' === $t::cards( $one_ids ), $t::cards( $one_ids ) );
+
+// The date and the name change: the card is updated by the background job.
+add_filter(
+	'pre_http_request',
+	static function ( $pre, $args, $url ) {
+		if ( false !== strpos( (string) $url, 'update-single-pass' ) ) {
+			EPC_EM_Events_Test::$updates[] = (string) ( $args['body'] ?? '' );
+		}
+		return $pre;
+	},
+	1,
+	3
+);
+list( $moved, $moved_ids ) = $t::event( $module, 'EPC test: moved', 1 );
+$moved                    = em_get_event( (int) $moved->event_id );
+$moved->event_start_date  = gmdate( 'Y-m-d', strtotime( '+40 days' ) );
+$moved->event_end_date    = $moved->event_start_date;
+$moved->event_name        = 'EPC test: moved (new date)';
+$moved->save();
+$job = array( (int) $moved->event_id, 0, 'cards' );
+$t::check( 'date changed: the cards\' update is queued once', false !== wp_next_scheduled( EPC_Module_Events_Manager::REFRESH_HOOK, $job ) );
+$t::$updates = array();
+do_action_ref_array( EPC_Module_Events_Manager::REFRESH_HOOK, $job );
+$format = new ReflectionMethod( $module, 'format_em_event_datetime' );
+$format->setAccessible( true );
+$new_start = (string) $format->invoke( $module, em_get_event( (int) $moved->event_id ), 'start' );
+$sent      = 1 === count( $t::$updates ) ? json_decode( $t::$updates[0], true ) : array();
+$t::check( 'the job updates the card with the new date', '' !== $new_start && $new_start === (string) ( $sent['fields'][0]['fieldValue'] ?? '' ), $new_start . ' / ' . wp_json_encode( $t::$updates ) );
+$t::check( 'the card stays live', 'active' === $t::cards( $moved_ids ), $t::cards( $moved_ids ) );
+wp_unschedule_event( (int) wp_next_scheduled( EPC_Module_Events_Manager::REFRESH_HOOK, $job ), EPC_Module_Events_Manager::REFRESH_HOOK, $job );
 
 // Clean up.
 foreach ( $t::$bookings as $id ) {

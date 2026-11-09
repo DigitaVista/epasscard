@@ -15,6 +15,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Module_The_Events_Calendar extends EPC_Module {
 
 	/**
+	 * Background job that updates an event's cards after the event changed.
+	 */
+	const REFRESH_HOOK = 'epc_the_events_calendar_refresh_event';
+
+	/**
+	 * Cards updated per run of that job.
+	 */
+	const REFRESH_BATCH = 50;
+
+	/**
+	 * Event post meta shown on the cards.
+	 *
+	 * @var array<int, string>
+	 */
+	const CARD_EVENT_META = array( '_EventStartDate', '_EventEndDate', '_EventStartDateUTC', '_EventEndDateUTC', '_EventTimezone', '_EventAllDay', '_EventVenueID', '_EventOrganizerID', '_EventCost', '_EventURL' );
+
+	/**
 	 * @inheritDoc
 	 */
 	public function get_slug() {
@@ -418,6 +435,13 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		add_action( 'tec_tickets_commerce_attendee_after_delete', array( $this, 'on_commerce_attendee_deleted' ), 20, 1 );
 		// Tickets Commerce orders are posts: a refund changes the order's post status.
 		add_action( 'transition_post_status', array( $this, 'on_order_post_status_change' ), 20, 3 );
+		// The event's title, dates, venue, organizer, cost or link changed: update its cards
+		// (in the background).
+		add_action( 'added_post_meta', array( $this, 'on_event_meta' ), 20, 3 );
+		add_action( 'updated_post_meta', array( $this, 'on_event_meta' ), 20, 3 );
+		add_action( 'deleted_post_meta', array( $this, 'on_event_meta' ), 20, 3 );
+		add_action( 'post_updated', array( $this, 'on_event_post_updated' ), 20, 3 );
+		add_action( self::REFRESH_HOOK, array( $this, 'refresh_event' ), 10, 2 );
 
 		add_filter( 'tribe_tickets_attendee_table_columns', array( $this, 'attendees_table_columns' ), 20, 2 );
 		add_filter( 'tribe_events_tickets_attendees_table_column', array( $this, 'attendees_table_column' ), 20, 3 );
@@ -660,6 +684,83 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		}
 
 		return $this->sync_attendee_data( $data, $mode );
+	}
+
+	/**
+	 * Event meta changed: update the event's cards shortly.
+	 *
+	 * @param mixed  $meta_id  Meta id(s).
+	 * @param int    $post_id  Post id.
+	 * @param string $meta_key Meta key.
+	 * @return void
+	 */
+	public function on_event_meta( $meta_id, $post_id, $meta_key ) {
+		unset( $meta_id );
+		if ( in_array( (string) $meta_key, self::CARD_EVENT_META, true ) ) {
+			$this->schedule_refresh( absint( $post_id ) );
+		}
+	}
+
+	/**
+	 * Event renamed: update its cards shortly.
+	 *
+	 * @param int     $post_id Post id.
+	 * @param WP_Post $after   Post after.
+	 * @param WP_Post $before  Post before.
+	 * @return void
+	 */
+	public function on_event_post_updated( $post_id, $after, $before ) {
+		if ( $after instanceof WP_Post && $before instanceof WP_Post && $after->post_title !== $before->post_title ) {
+			$this->schedule_refresh( absint( $post_id ) );
+		}
+	}
+
+	/**
+	 * Update an event's cards in a minute (once, however many fields changed).
+	 *
+	 * @param int $event_id Event post id.
+	 * @return void
+	 */
+	private function schedule_refresh( $event_id ) {
+		$args = array( $event_id, 0 );
+		if ( $event_id > 0 && $this->is_tec_event( $event_id ) && EPC_Api_Client::is_configured() && ! wp_next_scheduled( self::REFRESH_HOOK, $args ) ) {
+			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::REFRESH_HOOK, $args );
+		}
+	}
+
+	/**
+	 * Update the live cards of an event, a batch at a time (the rest in the background).
+	 *
+	 * @param int $event_id Event post id.
+	 * @param int $after_id Card row id to continue after.
+	 * @return void
+	 */
+	public function refresh_event( $event_id, $after_id = 0 ) {
+		$event_id = absint( $event_id );
+		$after_id = absint( $after_id );
+		if ( $event_id <= 0 || ! EPC_Api_Client::is_configured() ) {
+			return;
+		}
+		$done = 0;
+		while ( $done < self::REFRESH_BATCH ) {
+			$rows = EPC_DB::get_active_passes_for_module( $this->get_slug(), $after_id, 200 );
+			if ( empty( $rows ) ) {
+				return;
+			}
+			foreach ( $rows as $row ) {
+				$after_id = (int) $row->id;
+				if ( (int) $row->entity_id !== $event_id ) {
+					continue;
+				}
+				// The status rule decides: an update for a live ticket, a void for an ended one.
+				$this->handle_attendee_now( absint( $row->source_id ) );
+				++$done;
+				if ( $done >= self::REFRESH_BATCH ) {
+					break;
+				}
+			}
+		}
+		wp_schedule_single_event( time() + 30, self::REFRESH_HOOK, array( $event_id, $after_id ) );
 	}
 
 	/**

@@ -413,6 +413,11 @@ class EPC_Module_Events_Manager extends EPC_Module {
 		add_action( 'before_delete_post', array( $this, 'on_event_deleting' ), 20, 1 );
 		add_action( 'deleted_post', array( $this, 'on_event_deleted' ), 20, 1 );
 		add_action( self::REFRESH_HOOK, array( $this, 'refresh_event' ), 10, 3 );
+		// The event's name, dates, time zone or location changed: update its cards (in the background).
+		add_action( 'added_post_meta', array( $this, 'on_event_meta' ), 20, 3 );
+		add_action( 'updated_post_meta', array( $this, 'on_event_meta' ), 20, 3 );
+		add_action( 'deleted_post_meta', array( $this, 'on_event_meta' ), 20, 3 );
+		add_action( 'post_updated', array( $this, 'on_event_post_updated' ), 20, 3 );
 
 		add_filter( 'em_bookings_table_cols_template', array( $this, 'bookings_table_cols_template' ), 10, 2 );
 		add_filter( 'em_bookings_table_cols_bookings_template', array( $this, 'bookings_table_bookings_cols_template' ), 10, 2 );
@@ -837,6 +842,56 @@ class EPC_Module_Events_Manager extends EPC_Module {
 		$event_id = $this->event_id_of_post( $post_id );
 		if ( $event_id > 0 ) {
 			$this->refresh_event( $event_id, 0, 'bookings' );
+		}
+	}
+
+	/**
+	 * Event post meta shown on the cards (Events Manager saves the event's fields as post meta).
+	 *
+	 * @var array<int, string>
+	 */
+	const CARD_EVENT_META = array( '_event_start', '_event_end', '_event_start_date', '_event_end_date', '_event_start_time', '_event_end_time', '_event_timezone', '_event_all_day', '_location_id', '_event_location_type' );
+
+	/**
+	 * Event meta changed: update the event's cards shortly.
+	 *
+	 * @param mixed  $meta_id  Meta id(s).
+	 * @param int    $post_id  Post id.
+	 * @param string $meta_key Meta key.
+	 * @return void
+	 */
+	public function on_event_meta( $meta_id, $post_id, $meta_key ) {
+		unset( $meta_id );
+		if ( in_array( (string) $meta_key, self::CARD_EVENT_META, true ) ) {
+			$this->schedule_refresh( $this->event_id_of_post( $post_id ) );
+		}
+	}
+
+	/**
+	 * Event renamed: update its cards shortly.
+	 *
+	 * @param int     $post_id Post id.
+	 * @param WP_Post $after   Post after.
+	 * @param WP_Post $before  Post before.
+	 * @return void
+	 */
+	public function on_event_post_updated( $post_id, $after, $before ) {
+		if ( $after instanceof WP_Post && $before instanceof WP_Post && $after->post_title !== $before->post_title ) {
+			$this->schedule_refresh( $this->event_id_of_post( $post_id ) );
+		}
+	}
+
+	/**
+	 * Update an event's cards in a minute (once, however many fields changed).
+	 *
+	 * @param int $event_id Event id.
+	 * @return void
+	 */
+	private function schedule_refresh( $event_id ) {
+		$event_id = absint( $event_id );
+		$args     = array( $event_id, 0, 'cards' );
+		if ( $event_id > 0 && EPC_Api_Client::is_configured() && ! wp_next_scheduled( self::REFRESH_HOOK, $args ) ) {
+			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::REFRESH_HOOK, $args );
 		}
 	}
 

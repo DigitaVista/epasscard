@@ -49,6 +49,9 @@ $WP eval-file "$HERE/test-tec-guest.php" || status=1
 echo "== The Events Calendar: unpaid, failed, refunded orders and RSVP V2 replies"
 $WP eval-file "$HERE/test-tec-commerce-status.php" || status=1
 
+echo "== The Events Calendar: a new date updates the cards"
+$WP eval-file "$HERE/test-tec-event-changes.php" || status=1
+
 echo "== YITH gift cards: codes made by hand"
 $WP eval-file "$HERE/test-yith-gift-cards.php" || status=1
 
