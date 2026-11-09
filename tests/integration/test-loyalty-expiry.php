@@ -158,8 +158,7 @@ if ( $others > 0 ) {
 		$order = wc_create_order( array( 'customer_id' => $f ) );
 		$item  = $order->add_product( $product, 1 );
 		$order->calculate_totals();
-		$order->set_status( 'completed' );
-		$order->save();
+		$order->save(); // Left pending: a paid status would have the loyalty program award its own points.
 		EPC_Loyalty_Ledger_Service::record(
 			$f,
 			'order_award:' . $order->get_id(),
