@@ -137,6 +137,7 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		return array(
 			'yes'     => 'sync',
 			'no'      => 'revoke',
+			'pending' => 'none',
 			'active'  => 'sync',
 			'deleted' => 'revoke',
 		);
@@ -160,6 +161,7 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		return array(
 			'yes'     => __( 'RSVP going / yes', 'epasscard' ),
 			'no'      => __( 'RSVP not going / no', 'epasscard' ),
+			'pending' => __( 'Payment pending (not paid yet)', 'epasscard' ),
 			'active'  => __( 'Paid / active ticket', 'epasscard' ),
 			'deleted' => __( 'Deleted / refunded', 'epasscard' ),
 		);
@@ -706,6 +708,21 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 		}
 
 		$ids = array();
+		// Refunded or abandoned: Event Tickets has already moved these attendees to the trash.
+		$trashed = get_posts(
+			array(
+				'post_type'        => $this->get_commerce_attendee_post_type(),
+				'post_parent'      => $order_id,
+				'post_status'      => 'trash',
+				'fields'           => 'ids',
+				'posts_per_page'   => -1,
+				'suppress_filters' => true,
+			)
+		);
+		foreach ( $trashed as $id ) {
+			$ids[ (int) $id ] = (int) $id;
+		}
+
 		foreach ( (array) $module->get_attendees_by_order_id( $order_id ) as $attendee ) {
 			if ( is_array( $attendee ) ) {
 				$id = absint( $attendee['attendee_id'] ?? ( $attendee['ID'] ?? 0 ) );
@@ -978,6 +995,17 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 			$raw = (string) $data['order_status'];
 		}
 
+		// Tickets Commerce gives the order status as its translated name ("Pending", "Failed",
+		// "Not Completed"), so read the order's own post status (tec-tc-pending, ...) instead.
+		$attendee_id = isset( $data['attendee_id'] ) ? absint( $data['attendee_id'] ) : 0;
+		if ( $attendee_id > 0 && $this->get_commerce_attendee_post_type() === get_post_type( $attendee_id ) ) {
+			$order_id     = wp_get_post_parent_id( $attendee_id );
+			$order_status = $order_id ? get_post_status( $order_id ) : false;
+			if ( is_string( $order_status ) && '' !== $order_status ) {
+				$raw = $order_status;
+			}
+		}
+
 		$raw = strtolower( trim( $raw ) );
 		if ( in_array( $raw, array( 'yes', 'going' ), true ) ) {
 			return 'yes';
@@ -993,8 +1021,53 @@ class EPC_Module_The_Events_Calendar extends EPC_Module {
 			return 'deleted';
 		}
 
+		// Event Tickets moves the attendees of a refunded or abandoned Tickets Commerce order to
+		// the trash before the order's other status hooks run.
+		if ( $attendee_id > 0 && 'trash' === get_post_status( $attendee_id ) ) {
+			return 'deleted';
+		}
+
+		// RSVP V2 (Tickets Commerce RSVP): the order is completed for both replies; the reply
+		// itself is kept on the attendee.
+		if ( $attendee_id > 0 && metadata_exists( 'post', $attendee_id, self::TC_RSVP_STATUS_META_KEY ) ) {
+			return 'no' === (string) get_post_meta( $attendee_id, self::TC_RSVP_STATUS_META_KEY, true ) ? 'no' : 'yes';
+		}
+
+		// Tickets Commerce makes the attendees when the order is Pending, before the payment
+		// is taken. Completed fires the order hook again, so the card comes then.
+		if ( 0 === strpos( $raw, 'tec-tc-' ) && in_array( $plain, self::UNPAID_COMMERCE_STATUSES, true ) ) {
+			return 'pending';
+		}
+
 		return 'active';
 	}
+
+	/**
+	 * Post type of Tickets Commerce attendees.
+	 *
+	 * @return string
+	 */
+	private function get_commerce_attendee_post_type() {
+		$attendee_class = 'TEC\\Tickets\\Commerce\\Attendee';
+
+		return class_exists( $attendee_class ) && defined( $attendee_class . '::POSTTYPE' ) ? (string) constant( $attendee_class . '::POSTTYPE' ) : 'tec_tc_attendee';
+	}
+
+	/**
+	 * Tickets Commerce order statuses where the payment is not taken yet.
+	 *
+	 * @var array<int, string>
+	 */
+	const UNPAID_COMMERCE_STATUSES = array( 'created', 'pending', 'approved', 'action-req', 'undefined' );
+
+	/**
+	 * Attendee meta where Event Tickets keeps an RSVP V2 reply ('yes' or 'no').
+	 *
+	 * Same value as TEC\Tickets\RSVP\V2\Constants::RSVP_STATUS_META_KEY (Event Tickets 5.30+).
+	 *
+	 * @var string
+	 */
+	const TC_RSVP_STATUS_META_KEY = '_tec_tickets_commerce_rsvp_status';
 
 	/**
 	 * Order statuses that end a ticket (mapped to the "Deleted / refunded" rule).
