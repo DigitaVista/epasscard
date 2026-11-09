@@ -735,6 +735,11 @@ class EPC_Loyalty_Redemption_Service {
 
 		$quote = self::build_quote( $user_id, self::get_session_points() );
 		if ( is_wp_error( $quote ) || (int) $quote['applied_points'] <= 0 ) {
+			if ( $order->get_id() > 0 && self::get_held_points_for_order( $order->get_id() ) > 0 ) {
+				// Checkout ran again on this order without points: give back what it held.
+				$order->update_meta_data( '_epc_loyalty_points_redeemed', 0 );
+				self::reinstate_released_points( $order );
+			}
 			$order->delete_meta_data( '_epc_loyalty_points_redeemed' );
 			$order->delete_meta_data( '_epc_loyalty_redemption_amount' );
 			$order->delete_meta_data( '_epc_loyalty_redemption_coupon' );
@@ -817,11 +822,21 @@ class EPC_Loyalty_Redemption_Service {
 		}
 
 		$status = sanitize_key( (string) $order->get_meta( '_epc_loyalty_redemption_status', true ) );
-		if ( in_array( $status, array( 'reserved', 'committed' ), true ) ) {
+		if ( 'committed' === $status ) {
 			return EPC_Loyalty_Ledger_Service::get_by_event_key( self::reservation_event_key( $order->get_id() ) );
 		}
-		if ( 'released' === $status ) {
-			return self::reinstate_released_points( $order );
+		if ( EPC_Loyalty_Ledger_Service::get_by_event_key( self::reservation_event_key( $order->get_id() ) ) ) {
+			// Reserved before: a failed payment released the points, or the customer checked
+			// out again on the same order (WooCommerce resumes a pending or failed order).
+			// Hold exactly the points this attempt uses, never zero.
+			$result = self::reinstate_released_points( $order );
+			if ( ! is_wp_error( $result ) && $order->has_status( 'failed' ) && self::get_held_points_for_order( $order->get_id() ) > 0 ) {
+				// WooCommerce leaves a resumed order "failed"; if this payment fails too there is
+				// no status change, and the points would stay taken. Pending payment again, so a
+				// new failure gives them back.
+				$order->update_status( 'pending', __( 'Payment tried again; loyalty points reserved for it.', 'epasscard' ) );
+			}
+			return $result;
 		}
 
 		$result = EPC_Loyalty_Ledger_Service::record(
@@ -858,54 +873,87 @@ class EPC_Loyalty_Redemption_Service {
 	}
 
 	/**
-	 * Reserve points again when a failed/cancelled order is subsequently paid.
+	 * Hold exactly the order's redeemed points again: after a failed or cancelled order is
+	 * paid, or when checkout runs again on the same order with the same or another number of
+	 * points. Takes the missing points (only if the customer has them) or gives back the extra.
 	 *
 	 * @param WC_Order $order Order.
 	 * @return array|\WP_Error|null
 	 */
 	private static function reinstate_released_points( $order ) {
-		$user_id    = (int) $order->get_user_id();
-		$points     = absint( $order->get_meta( '_epc_loyalty_points_redeemed', true ) );
-		$amount     = (float) $order->get_meta( '_epc_loyalty_redemption_amount', true );
-		$cycle      = absint( $order->get_meta( '_epc_loyalty_redemption_cycle', true ) ) + 1;
-		$restored   = self::get_restored_points_for_order( $order->get_id() );
-		$to_reserve = min( $points, $restored );
+		$user_id = (int) $order->get_user_id();
+		$points  = absint( $order->get_meta( '_epc_loyalty_points_redeemed', true ) );
+		$amount  = (float) $order->get_meta( '_epc_loyalty_redemption_amount', true );
+		$cycle   = absint( $order->get_meta( '_epc_loyalty_redemption_cycle', true ) ) + 1;
+		$held    = self::get_held_points_for_order( $order->get_id() );
+		$diff    = $points - $held;
 
-		if ( $user_id <= 0 || $to_reserve <= 0 ) {
+		if ( $user_id <= 0 ) {
 			return null;
 		}
 
-		$result = EPC_Loyalty_Ledger_Service::record(
-			$user_id,
-			'redemption_reinstatement:' . $order->get_id() . ':' . $cycle,
-			'redemption_reinstatement',
-			-$to_reserve,
-			0,
-			array(
-				'order_id'                  => $order->get_id(),
-				'amount'                    => -abs( $amount ) * ( $to_reserve / max( 1, $points ) ),
-				'currency'                  => $order->get_currency(),
-				'require_available_balance' => true,
-				'description'               => sprintf(
-					/* translators: %d: order ID. */
-					__( 'Points reserved again for order #%d', 'epasscard' ),
-					$order->get_id()
-				),
-				'meta'                      => array(
-					'cycle'  => $cycle,
-					'points' => $to_reserve,
-				),
-			)
-		);
+		$result = null;
+		if ( $diff > 0 ) {
+			$result = EPC_Loyalty_Ledger_Service::record(
+				$user_id,
+				'redemption_reinstatement:' . $order->get_id() . ':' . $cycle,
+				'redemption_reinstatement',
+				-$diff,
+				0,
+				array(
+					'order_id'                  => $order->get_id(),
+					'amount'                    => -abs( $amount ) * ( $diff / max( 1, $points ) ),
+					'currency'                  => $order->get_currency(),
+					'require_available_balance' => true,
+					'description'               => sprintf(
+						/* translators: %d: order ID. */
+						__( 'Points reserved again for order #%d', 'epasscard' ),
+						$order->get_id()
+					),
+					'meta'                      => array(
+						'cycle'  => $cycle,
+						'points' => $diff,
+					),
+				)
+			);
+		} elseif ( $diff < 0 ) {
+			$result = EPC_Loyalty_Ledger_Service::record(
+				$user_id,
+				'redemption_release:' . $order->get_id() . ':adjust:' . $cycle,
+				'redemption_release',
+				-$diff,
+				0,
+				array(
+					'order_id'    => $order->get_id(),
+					'amount'      => 0,
+					'currency'    => $order->get_currency(),
+					'description' => sprintf(
+						/* translators: %d: order ID. */
+						__( 'Points released for order #%d', 'epasscard' ),
+						$order->get_id()
+					),
+					'meta'        => array(
+						'reason' => 'checkout_changed',
+						'cycle'  => $cycle,
+						'points' => -$diff,
+					),
+				)
+			);
+		}
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
-		$order->update_meta_data( '_epc_loyalty_redemption_cycle', $cycle );
-		$order->update_meta_data( '_epc_loyalty_redemption_status', 'reserved' );
+		if ( 0 !== $diff ) {
+			$order->update_meta_data( '_epc_loyalty_redemption_cycle', $cycle );
+		}
+		if ( $points > 0 ) {
+			$order->update_meta_data( '_epc_loyalty_redemption_status', 'reserved' );
+		}
 		$order->save();
-		return $result;
+		self::clear_session_points();
+		return null !== $result ? $result : EPC_Loyalty_Ledger_Service::get_by_event_key( self::reservation_event_key( $order->get_id() ) );
 	}
 
 	/**
@@ -1038,8 +1086,7 @@ class EPC_Loyalty_Redemption_Service {
 			return null;
 		}
 
-		$already_restored = self::get_restored_points_for_order( $order->get_id() );
-		$remaining        = max( 0, abs( (int) $reservation->points_delta ) - $already_restored );
+		$remaining = self::get_held_points_for_order( $order->get_id() );
 		if ( $remaining <= 0 ) {
 			$order->update_meta_data( '_epc_loyalty_redemption_status', 'released' );
 			$order->save();
@@ -1184,6 +1231,30 @@ class EPC_Loyalty_Redemption_Service {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Points an order holds now: reserved, minus released and restored, plus reserved again.
+	 *
+	 * @param int $order_id Order ID.
+	 * @return int
+	 */
+	public static function get_held_points_for_order( $order_id ) {
+		global $wpdb;
+
+		$table = EPC_DB::loyalty_ledger_table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate custom ledger lookup.
+		$total = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COALESCE(SUM(points_delta), 0) FROM %i
+				WHERE order_id = %d
+				AND entry_type IN ('redemption_reservation', 'redemption_release', 'redemption_restore', 'redemption_reinstatement')",
+				$table,
+				absint( $order_id )
+			)
+		);
+
+		return max( 0, -1 * (int) $total );
 	}
 
 	/**

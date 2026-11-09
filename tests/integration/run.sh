@@ -64,6 +64,9 @@ $WP eval-file "$HERE/test-connect-reference.php" || status=1
 echo "== Template picker gets every page of templates"
 $WP eval-file "$HERE/test-template-pages.php" || status=1
 
+echo "== Loyalty points stay paid when a payment is tried again"
+$WP eval-file "$HERE/test-loyalty-redemption-retry.php" || status=1
+
 echo "== WPLoyalty loyalty cards"
 $WP eval-file "$HERE/test-wployalty.php" || status=1
 
