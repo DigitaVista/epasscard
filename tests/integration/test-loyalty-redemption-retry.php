@@ -9,9 +9,13 @@
  * @package EpassCard
  */
 
-if ( ! defined( 'ABSPATH' ) || ! class_exists( 'EPC_Loyalty_Redemption_Service' ) || ! function_exists( 'wc_create_order' ) ) {
-	fwrite( STDERR, "Run with: wp eval-file tests/integration/test-loyalty-redemption-retry.php (EpassCard + WooCommerce active)\n" );
+if ( ! defined( 'ABSPATH' ) || ! class_exists( 'EPC_Loyalty_Redemption_Service' ) ) {
+	fwrite( STDERR, "Run with: wp eval-file tests/integration/test-loyalty-redemption-retry.php (EpassCard active)\n" );
 	exit( 1 );
+}
+if ( ! function_exists( 'wc_create_order' ) ) {
+	echo "SKIP loyalty payment retry (WooCommerce is not active here)\n";
+	return;
 }
 
 /**
@@ -280,6 +284,11 @@ foreach ( $t::$made['users'] as $id ) {
 	$wpdb->delete( EPC_DB::loyalty_ledger_table_name(), array( 'user_id' => $id ) );
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test cleanup.
 	$wpdb->delete( EPC_DB::loyalty_accounts_table_name(), array( 'user_id' => $id ) );
+	// The balance change queued a loyalty card for this customer; it would fail once the user is gone.
+	if ( function_exists( 'as_unschedule_all_actions' ) ) {
+		as_unschedule_all_actions( 'epc_loyalty_sync_pass', array( $id ), 'epasscard-loyalty' );
+	}
+	EPC_Pass_Issues::clear( 'woocommerce-loyalty', (string) $id );
 	wp_delete_user( $id );
 }
 
