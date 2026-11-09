@@ -397,10 +397,11 @@ class EPC_Loyalty_Redemption_Service {
 
 		$eligible = self::get_eligible_cart_subtotal();
 		$max_by_percent = $eligible * ( (float) $settings['max_order_percent'] / 100 );
-		$max_by_balance = self::points_to_currency( $balance, $settings );
-		$max_discount   = min( $max_by_percent, $max_by_balance );
-		$max_points     = self::currency_to_points( $max_discount, $settings );
-		$max_points     = self::snap_points( $max_points, (int) $settings['increment'], $balance );
+		// Count the limit in points: the balance turned into money (rounded to cents) and back
+		// lost points, so 115 points at 100 points = 1 allowed only 113.
+		$max_points   = min( $balance, self::currency_to_points( $max_by_percent, $settings ) );
+		$max_points   = self::snap_points( $max_points, (int) $settings['increment'], $balance );
+		$max_discount = min( $max_by_percent, self::points_to_currency( $max_points, $settings ) );
 
 		$can_redeem = $balance >= (int) $settings['minimum_balance'] && $max_points > 0 && $eligible > 0;
 		$requested  = absint( $requested );
@@ -409,9 +410,6 @@ class EPC_Loyalty_Redemption_Service {
 
 		if ( $can_redeem && $requested > 0 ) {
 			$applied  = self::snap_points( min( $requested, $max_points ), (int) $settings['increment'], $max_points );
-			$discount = min( $max_discount, self::points_to_currency( $applied, $settings ) );
-			$applied  = min( self::currency_to_points( $discount, $settings ), $max_points, $balance );
-			$applied  = self::snap_points( $applied, (int) $settings['increment'], $max_points );
 			$discount = min( $max_discount, self::points_to_currency( $applied, $settings ) );
 		}
 
@@ -1424,7 +1422,8 @@ class EPC_Loyalty_Redemption_Service {
 	 */
 	private static function currency_to_points( $amount, array $settings ) {
 		$rate = max( 0.000001, (float) $settings['points_per_currency'] );
-		return max( 0, (int) floor( max( 0, (float) $amount ) * $rate ) );
+		// Round first: 1.15 * 100 is 114.99999999999999 in floating point.
+		return max( 0, (int) floor( round( max( 0, (float) $amount ) * $rate, 6 ) ) );
 	}
 
 	/**
