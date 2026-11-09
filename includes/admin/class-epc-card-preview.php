@@ -19,10 +19,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class EPC_Card_Preview {
 
 	/**
+	 * Register the preview's stylesheet (handle epc-card-preview).
+	 *
+	 * @return void
+	 */
+	public static function register_style() {
+		$path = EPC_PLUGIN_DIR . 'admin/css/card-preview.css';
+		wp_register_style( 'epc-card-preview', EPC_PLUGIN_URL . 'admin/css/card-preview.css', array(), file_exists( $path ) ? (string) filemtime( $path ) : EPC_VERSION );
+	}
+
+	/**
 	 * Preview data for a module.
 	 *
 	 * @param string $slug Module slug.
-	 * @return array{org: string, logo: string, background: string, text: string, label: string, kind: string, primary: array{label: string, value: string}, fields: array<int, array{label: string, value: string}>, own_template: bool, code: string}
+	 * @return array{org: string, logo: string, background: string, text: string, label: string, kind: string, primary: array{label: string, value: string, src?: string}, fields: array<int, array{label: string, value: string, src?: string}>, own_template: bool, code: string}
 	 */
 	public static function get_data( $slug ) {
 		$slug = sanitize_key( (string) $slug );
@@ -110,11 +120,13 @@ class EPC_Card_Preview {
 		$data['primary'] = array(
 			'label' => ! empty( $primary ) ? $label( $primary ) : '',
 			'value' => (string) ( $primary['sample'] ?? '' ),
+			'src'   => (string) ( $primary['source'] ?? '' ),
 		);
 		foreach ( array_slice( (array) $preset['secondary'], 0, 2 ) as $field ) {
 			$data['fields'][] = array(
 				'label' => $label( $field ),
 				'value' => (string) $field['sample'],
+				'src'   => (string) ( $field['source'] ?? '' ),
 			);
 		}
 
@@ -198,7 +210,7 @@ class EPC_Card_Preview {
 			<?php if ( '' !== $data['primary']['label'] ) : ?>
 				<div class="epc-card-preview__primary">
 					<span class="epc-card-preview__label"><?php echo esc_html( $data['primary']['label'] ); ?></span>
-					<span class="epc-card-preview__value"><?php echo esc_html( $data['primary']['value'] ); ?></span>
+					<span class="epc-card-preview__value" data-epc-src="<?php echo esc_attr( (string) ( $data['primary']['src'] ?? '' ) ); ?>"><?php echo esc_html( $data['primary']['value'] ); ?></span>
 				</div>
 			<?php endif; ?>
 			<?php if ( ! empty( $data['fields'] ) ) : ?>
@@ -206,7 +218,7 @@ class EPC_Card_Preview {
 					<?php foreach ( $data['fields'] as $field ) : ?>
 						<div>
 							<span class="epc-card-preview__label"><?php echo esc_html( $field['label'] ); ?></span>
-							<span class="epc-card-preview__field"><?php echo esc_html( $field['value'] ); ?></span>
+							<span class="epc-card-preview__field" data-epc-src="<?php echo esc_attr( (string) ( $field['src'] ?? '' ) ); ?>"><?php echo esc_html( $field['value'] ); ?></span>
 						</div>
 					<?php endforeach; ?>
 				</div>

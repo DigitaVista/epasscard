@@ -332,11 +332,12 @@ class EPC_Admin_App {
 			return;
 		}
 
+		EPC_Card_Preview::register_style();
 		$path = EPC_PLUGIN_DIR . 'admin/css/app.css';
 		wp_enqueue_style(
 			'epc-app',
 			EPC_PLUGIN_URL . 'admin/css/app.css',
-			array( 'epc-admin-shell' ),
+			array( 'epc-admin-shell', 'epc-card-preview' ),
 			file_exists( $path ) ? (string) filemtime( $path ) : EPC_VERSION
 		);
 

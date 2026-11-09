@@ -185,6 +185,34 @@ class EPC_WC_Product_Cards {
 		}
 		$path = EPC_PLUGIN_DIR . 'admin/js/product-card.js';
 		wp_enqueue_script( 'epc-product-card', EPC_PLUGIN_URL . 'admin/js/product-card.js', array(), file_exists( $path ) ? (string) filemtime( $path ) : EPC_VERSION, true );
+		EPC_Card_Preview::register_style();
+		$css = EPC_PLUGIN_DIR . 'admin/css/product-card.css';
+		wp_enqueue_style( 'epc-product-card', EPC_PLUGIN_URL . 'admin/css/product-card.css', array( 'epc-card-preview' ), file_exists( $css ) ? (string) filemtime( $css ) : EPC_VERSION );
+	}
+
+	/**
+	 * Tutorial video of each kind of card (EpassCard YouTube channel).
+	 *
+	 * @return array<string, array{id: string, title: string, length: string}>
+	 */
+	public static function videos() {
+		return array(
+			'ticket'  => array(
+				'id'     => 'kyMYjVzNhEw',
+				'title'  => __( 'Wallet tickets for the events you sell', 'epasscard' ),
+				'length' => '1:39',
+			),
+			'voucher' => array(
+				'id'     => '4oo-8ZPi2yM',
+				'title'  => __( 'Wallet vouchers for the products you sell', 'epasscard' ),
+				'length' => '1:39',
+			),
+			'card'    => array(
+				'id'     => 'jbOXPYZMr1s',
+				'title'  => __( 'Wallet passes for any product you sell', 'epasscard' ),
+				'length' => '1:37',
+			),
+		);
 	}
 
 	/**
@@ -238,7 +266,7 @@ class EPC_WC_Product_Cards {
 			$types[ $type ] = self::types()[ $type ]['label'];
 		}
 
-		echo '<div class="options_group epc-product-card">';
+		echo '<div class="options_group epc-product-card"><div class="epc-product-card__fields">';
 		wp_nonce_field( 'epc_product_card', 'epc_product_card_nonce' );
 		woocommerce_wp_checkbox(
 			array(
@@ -294,7 +322,94 @@ class EPC_WC_Product_Cards {
 				)
 			);
 		}
+		self::render_video_button( $types );
 		echo '</div>';
+		self::render_preview( $types );
+		echo '</div>';
+		self::render_video_dialog();
+	}
+
+	/**
+	 * Play button after "Give the buyer ... card": the tutorial of the chosen kind of card. The
+	 * script moves it next to the checkbox text; YouTube loads only when it is clicked.
+	 *
+	 * @param array<string, string> $types Kinds offered on this product.
+	 * @return void
+	 */
+	private static function render_video_button( array $types ) {
+		$videos = array_intersect_key( self::videos(), $types );
+		if ( empty( $videos ) ) {
+			return;
+		}
+		echo '<p class="form-field epc-product-card__video-row">';
+		foreach ( $videos as $type => $video ) {
+			$label = sprintf(
+				/* translators: 1: video title, 2: length such as 1:39 */
+				__( 'Watch the video: %1$s (%2$s)', 'epasscard' ),
+				$video['title'],
+				$video['length']
+			);
+			printf(
+				'<button type="button" class="epc-product-card__play" data-epc-video="%1$s" data-epc-video-type="%2$s" data-epc-video-title="%3$s" title="%4$s" aria-label="%4$s"><svg viewBox="0 0 28 20" width="28" height="20" aria-hidden="true" focusable="false"><rect width="28" height="20" rx="5" fill="#ff0000"/><path d="M11 5.5v9l8-4.5z" fill="#fff"/></svg></button>',
+				esc_attr( $video['id'] ),
+				esc_attr( $type ),
+				esc_attr( $video['title'] ),
+				esc_attr( $label )
+			);
+		}
+		echo '</p>';
+	}
+
+	/**
+	 * The popup that plays a tutorial (printed once; the script fills in the player).
+	 *
+	 * @return void
+	 */
+	private static function render_video_dialog() {
+		?>
+		<dialog class="epc-video-dialog" id="epc-product-card-video" aria-labelledby="epc-product-card-video-title">
+			<div class="epc-video-dialog__head">
+				<h2 class="epc-video-dialog__title" id="epc-product-card-video-title"></h2>
+				<button type="button" class="epc-video-dialog__close" data-epc-video-close><span aria-hidden="true">&times;</span><span class="screen-reader-text"><?php esc_html_e( 'Close video', 'epasscard' ); ?></span></button>
+			</div>
+			<div class="epc-video-dialog__frame"></div>
+			<p class="epc-video-dialog__note"><?php esc_html_e( 'Plays from YouTube (privacy-enhanced mode).', 'epasscard' ); ?></p>
+		</dialog>
+		<?php
+	}
+
+	/**
+	 * Right of the settings: the card of each kind, as its design looks, with sample details
+	 * (the product name is filled in from the product).
+	 *
+	 * @param array<string, string> $types Kinds offered on this product.
+	 * @return void
+	 */
+	private static function render_preview( array $types ) {
+		$cards = array();
+		foreach ( array_keys( $types ) as $type ) {
+			$slug = self::types()[ $type ]['module'];
+			if ( EPC_Module_Loader::get_module_instance( $slug ) instanceof EPC_Module ) {
+				$cards[ $type ] = $slug;
+			}
+		}
+		if ( empty( $cards ) ) {
+			return;
+		}
+		echo '<div class="epc-product-card__preview">';
+		echo '<p class="epc-product-card__preview-title">' . esc_html__( 'Card preview', 'epasscard' ) . '</p>';
+		foreach ( $cards as $type => $slug ) {
+			echo '<div class="epc-product-card__preview-card" data-epc-preview="' . esc_attr( $type ) . '">';
+			EPC_Card_Preview::render( $slug );
+			echo '</div>';
+		}
+		echo '<p class="epc-product-card__preview-note">' . esc_html__( 'Your design with sample details. Each buyer\'s card shows their own.', 'epasscard' );
+		if ( current_user_can( 'manage_options' ) ) {
+			foreach ( $cards as $type => $slug ) {
+				echo ' <a href="' . esc_url( EPC_Admin_Design::url_for_module( $slug ) ) . '" data-epc-preview-link="' . esc_attr( $type ) . '">' . esc_html__( 'Edit the design', 'epasscard' ) . '</a>';
+			}
+		}
+		echo '</p></div>';
 	}
 
 	/**
