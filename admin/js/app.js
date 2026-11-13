@@ -126,6 +126,7 @@
 		button.disabled = true;
 		if ( status ) {
 			status.textContent = i18n.installing || '';
+			status.classList.add( 'is-busy' );
 		}
 
 		window.fetch( config.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body } )
@@ -142,12 +143,14 @@
 				}
 				button.disabled = false;
 				if ( status ) {
+					status.classList.remove( 'is-busy' );
 					status.textContent = ( json && json.data && json.data.message ) ? plainText( json.data.message ) : ( i18n.error || '' );
 				}
 			} )
 			.catch( function () {
 				button.disabled = false;
 				if ( status ) {
+					status.classList.remove( 'is-busy' );
 					status.textContent = i18n.error || '';
 				}
 			} );

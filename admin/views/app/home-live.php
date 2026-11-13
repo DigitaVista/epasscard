@@ -103,7 +103,8 @@ $epc_setup_module = EPC_Onboarding::get_state()['module'];
 						$epc_copy   = EPC_Jobs::get_copy( $epc_job );
 						$epc_module = '' !== $epc_status['module'] ? EPC_Module_Loader::get_module_instance( $epc_status['module'] ) : null;
 						?>
-						<li class="epc-jobs__item is-<?php echo esc_attr( $epc_status['state'] ); ?>">
+						<li class="<?php echo esc_attr( 'epc-jobs__item epc-jobs__item--' . sanitize_html_class( (string) $epc_job ) . ' is-' . $epc_status['state'] ); ?>">
+							<span class="epc-jobs__icon" aria-hidden="true"><?php EPC_Admin_Setup::render_job_icon( (string) $epc_job ); ?></span>
 							<span class="epc-jobs__title">
 								<?php echo esc_html( $epc_copy['title'] ); ?>
 								<?php if ( $epc_module instanceof EPC_Module ) : ?>
@@ -111,17 +112,17 @@ $epc_setup_module = EPC_Onboarding::get_state()['module'];
 								<?php endif; ?>
 							</span>
 							<span class="epc-jobs__state">
-								<?php echo esc_html( $epc_state_words[ $epc_status['state'] ] ?? '' ); ?>
+								<span class="epc-jobs__badge"><?php echo esc_html( $epc_state_words[ $epc_status['state'] ] ?? '' ); ?></span>
 								<?php if ( '' !== $epc_status['blocker'] && EPC_Jobs::LIVE !== $epc_status['state'] ) : ?>
-									<span class="epc-jobs__blocker">· <?php echo esc_html( $epc_status['blocker'] ); ?></span>
+									<span class="epc-jobs__blocker"><?php echo esc_html( $epc_status['blocker'] ); ?></span>
 								<?php endif; ?>
 							</span>
 							<span class="epc-jobs__action">
 								<?php if ( EPC_Jobs::LIVE === $epc_status['state'] || EPC_Jobs::READY === $epc_status['state'] ) : ?>
-									<a href="<?php echo esc_url( EPC_Admin_App::url( 'cards' ) ); ?>"><?php esc_html_e( 'Cards', 'epasscard' ); ?></a>
-									· <a href="<?php echo esc_url( EPC_Admin_Home::design_url( $epc_status['module'] ) ); ?>"><?php esc_html_e( 'Design', 'epasscard' ); ?></a>
+									<a class="button epc-jobs__btn" href="<?php echo esc_url( EPC_Admin_App::url( 'cards' ) ); ?>"><?php esc_html_e( 'Cards', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( $epc_copy['title'] ); ?></span></a>
+									<a class="button epc-jobs__btn is-design" href="<?php echo esc_url( EPC_Admin_Home::design_url( $epc_status['module'] ) ); ?>"><?php esc_html_e( 'Design', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( $epc_copy['title'] ); ?></span></a>
 								<?php else : ?>
-									<a href="<?php echo esc_url( EPC_Admin_App::url( 'setup', array( 'job' => $epc_job ) ) ); ?>"><?php esc_html_e( 'Set up', 'epasscard' ); ?></a>
+									<a class="button epc-jobs__btn is-setup" href="<?php echo esc_url( EPC_Admin_App::url( 'setup', array( 'job' => $epc_job ) ) ); ?>"><?php esc_html_e( 'Set up', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( $epc_copy['title'] ); ?></span></a>
 								<?php endif; ?>
 							</span>
 						</li>

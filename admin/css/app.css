@@ -736,94 +736,370 @@ fieldset.epc-panel {
 }
 
 .epc-jobs {
-	margin: 0;
+	margin: 0 -8px;
 	padding: 0;
 	list-style: none;
 }
 
 .epc-jobs__item {
 	display: grid;
-	grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto;
+	grid-template-columns: 40px minmax(0, 1fr) minmax(0, auto) auto;
 	align-items: center;
-	gap: 6px 16px;
+	gap: 8px 16px;
 	margin: 0;
-	padding: 10px 0;
+	padding: 12px 8px;
 	border-top: 1px solid var(--epc-line);
+	border-radius: 10px;
 	font-size: 13px;
+	transition: background-color 0.15s ease;
 }
 
 .epc-jobs__item:first-child {
-	border-top: 0;
+	border-top-color: transparent;
+}
+
+.epc-jobs__item:hover {
+	background: #f8fafc;
+}
+
+.epc-jobs__item:hover + .epc-jobs__item {
+	border-top-color: transparent;
+}
+
+.epc-jobs__icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	background: var(--epc-job);
+	color: #fff;
+}
+
+.epc-jobs__icon svg {
+	width: 20px;
+	height: 20px;
 }
 
 .epc-jobs__title {
+	min-width: 0;
+	color: var(--epc-text);
+	font-size: 14px;
 	font-weight: 600;
+	line-height: 1.35;
 }
 
 .epc-jobs__module {
 	display: block;
+	margin-top: 2px;
 	color: var(--epc-muted);
+	font-size: 12.5px;
 	font-weight: 400;
 }
 
 .epc-jobs__state {
-	color: var(--epc-muted);
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	min-width: 0;
 }
 
-.epc-jobs__item.is-live .epc-jobs__state {
-	color: var(--epc-ok-text);
+.epc-jobs__badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: #f3f4f6;
+	color: var(--epc-muted);
+	font-size: 12px;
 	font-weight: 600;
+	line-height: 1.5;
+}
+
+.epc-jobs__badge::before {
+	content: "";
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.epc-jobs__item.is-live .epc-jobs__badge {
+	background: var(--epc-ok-soft);
+	color: var(--epc-ok-text);
+}
+
+.epc-jobs__item.is-live .epc-jobs__badge::before {
+	box-shadow: 0 0 0 3px #a7f3d0;
+}
+
+.epc-jobs__item.is-ready .epc-jobs__badge {
+	background: #eef4ff;
+	color: #0052ab;
 }
 
 .epc-jobs__blocker {
-	font-weight: 400;
+	color: var(--epc-muted);
+	font-size: 12px;
+}
+
+.epc-jobs__action {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.epc-app .epc-jobs .button.epc-jobs__btn {
+	display: inline-flex;
+	align-items: center;
+	min-height: 32px;
+	padding: 0 12px;
+	border: 1px solid var(--epc-line-strong);
+	border-radius: 8px;
+	background: #fff;
+	color: var(--epc-text);
+	font-size: 12.5px;
+	text-decoration: none;
+}
+
+.epc-app .epc-jobs .button.epc-jobs__btn:hover,
+.epc-app .epc-jobs .button.epc-jobs__btn:focus {
+	border-color: var(--epc-job);
+	color: var(--epc-job-ink);
+}
+
+.epc-app .epc-jobs .button.epc-jobs__btn.is-design {
+	border-color: var(--epc-job);
+	background: var(--epc-job-tint);
+	color: var(--epc-job-ink);
+}
+
+.epc-app .epc-jobs .button.epc-jobs__btn.is-design:hover,
+.epc-app .epc-jobs .button.epc-jobs__btn.is-design:focus,
+.epc-app .epc-jobs .button.epc-jobs__btn.is-setup {
+	border-color: var(--epc-job);
+	background: var(--epc-job);
+	color: #fff;
+}
+
+.epc-app .epc-jobs .button.epc-jobs__btn.is-setup:hover,
+.epc-app .epc-jobs .button.epc-jobs__btn.is-setup:focus {
+	border-color: var(--epc-job-ink);
+	background: var(--epc-job-ink);
+	color: #fff;
+}
+
+.epc-app .epc-jobs .button.epc-jobs__btn:focus-visible {
+	outline: 2px solid var(--epc-job-ink);
+	outline-offset: 2px;
 }
 
 /* ---------- Setup ---------- */
 
 .epc-jobcards {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-	gap: 14px;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+	align-items: start;
+	gap: 20px;
+}
+
+/* Each kind of card has its own colour (Setup cards and the Home list). Integrations added by other plugins use the brand blue. */
+.epc-jobcard,
+.epc-jobs__item,
+.epc-push-picker__item {
+	--epc-job: #0066d6;
+	--epc-job-tint: #eaf2fd;
+	--epc-job-ink: #0052ab;
 }
 
 .epc-jobcard {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	padding: 18px;
+	overflow: hidden;
 	background: #fff;
 	border: 1px solid var(--epc-line);
-	border-radius: var(--epc-r-lg);
+	border-radius: 16px;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.epc-jobcard--membership,
+.epc-jobs__item--membership,
+.epc-push-picker__item--membership {
+	--epc-job: #6d28d9;
+	--epc-job-tint: #f3eefc;
+	--epc-job-ink: #5b21b6;
+}
+
+.epc-jobcard--events,
+.epc-jobs__item--events,
+.epc-push-picker__item--events {
+	--epc-job: #be185d;
+	--epc-job-tint: #fceef4;
+	--epc-job-ink: #9d174d;
+}
+
+.epc-jobcard--gift-cards,
+.epc-jobs__item--gift-cards,
+.epc-push-picker__item--gift-cards {
+	--epc-job: #047857;
+	--epc-job-tint: #e8f5f0;
+	--epc-job-ink: #065f46;
+}
+
+.epc-jobcard--products,
+.epc-jobs__item--products,
+.epc-push-picker__item--products {
+	--epc-job: #c2410c;
+	--epc-job-tint: #fdf0ea;
+	--epc-job-ink: #9a3412;
+}
+
+.epc-jobcard--appointments,
+.epc-jobs__item--appointments,
+.epc-push-picker__item--appointments {
+	--epc-job: #0f766e;
+	--epc-job-tint: #e7f4f3;
+	--epc-job-ink: #115e59;
+}
+
+.epc-jobcard--forms,
+.epc-jobs__item--forms,
+.epc-push-picker__item--forms {
+	--epc-job: #b45309;
+	--epc-job-tint: #fbf1e7;
+	--epc-job-ink: #92400e;
 }
 
 .epc-jobcard.is-chosen {
-	border: 2px solid var(--epc-accent);
+	border: 2px solid var(--epc-job);
+	box-shadow: 0 0 0 4px var(--epc-job-tint), 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.epc-jobcard__head {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 20px 20px 18px;
+	background: var(--epc-job-tint);
+}
+
+.epc-jobcard__heading {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.epc-jobcard__icon {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 12px;
+	background: var(--epc-job);
+	color: #fff;
 }
 
 .epc-app .epc-jobcard__title {
 	margin: 0;
-	font-size: 16px;
+	font-family: var(--epc-font-display);
+	font-size: 18px;
 	font-weight: 700;
+	line-height: 1.25;
+	color: var(--epc-text);
 }
 
 .epc-jobcard__pitch,
-.epc-jobcard__status,
-.epc-jobcard__works {
+.epc-jobcard__status {
 	margin: 0;
 	color: var(--epc-muted);
-	font-size: 13px;
+	font-size: 13.5px;
+	line-height: 1.55;
+}
+
+.epc-jobcard__glyph {
+	flex: none;
+}
+
+.epc-app .epc-jobcard__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px 4px 8px;
+	background: #fff;
+	color: var(--epc-job-ink);
+	line-height: 1.4;
+}
+
+.epc-app .epc-jobcard__chip.is-success {
+	background: #fff;
+	color: var(--epc-ok-text);
+}
+
+.epc-app .epc-jobcard__chip.is-chosen {
+	background: var(--epc-ok-text);
+	color: #fff;
+}
+
+.epc-jobcard__body {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	gap: 8px;
+	padding: 16px 20px 20px;
+}
+
+.epc-jobcard__works {
+	margin: 0 0 2px;
+	color: #5b6475;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
 }
 
 .epc-jobcard__actions {
 	margin: auto 0 0;
-	padding-top: 6px;
+}
+
+.epc-app .epc-jobcard__cta {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	min-height: 44px;
+	font-size: 14px;
+}
+
+.epc-app .epc-jobcard .button-primary.epc-jobcard__cta {
+	background: var(--epc-job);
+	border-color: var(--epc-job);
+	color: #fff;
+}
+
+.epc-app .epc-jobcard .button-primary.epc-jobcard__cta:hover,
+.epc-app .epc-jobcard .button-primary.epc-jobcard__cta:focus {
+	background: var(--epc-job-ink);
+	border-color: var(--epc-job-ink);
+	color: #fff;
+}
+
+.epc-app .epc-jobcard .button-secondary.epc-jobcard__cta {
+	border: 1.5px solid var(--epc-job);
+	color: var(--epc-job);
 }
 
 .epc-plugin-actions {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 8px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
@@ -835,14 +1111,127 @@ fieldset.epc-panel {
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
-	gap: 6px;
+	gap: 10px;
 	margin: 0;
+	padding: 8px 8px 8px 12px;
+	border: 1px solid var(--epc-line);
+	border-radius: 10px;
+	background: #f8fafc;
+}
+
+.epc-plugin-actions__name {
+	display: flex;
+	flex: 1 1 120px;
+	flex-direction: column;
+	gap: 1px;
+	min-width: 0;
+}
+
+.epc-plugin-actions__label {
+	color: var(--epc-text);
+	font-size: 13.5px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.epc-plugin-actions__source {
+	color: #5b6475;
+	font-size: 11.5px;
+}
+
+/* Install and Get it: in the card's colour (the brand blue outside a card). */
+.epc-app .epc-plugin-actions .button.epc-install-btn,
+.epc-app .epc-plugin-actions .button.epc-get-btn {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 6px;
+	min-height: 36px;
+	padding: 0 14px;
+	border-radius: 8px;
+	white-space: nowrap;
+	text-decoration: none;
+}
+
+.epc-app .epc-plugin-actions .button.epc-install-btn {
+	border: 1px solid var(--epc-job, var(--epc-primary));
+	background: var(--epc-job, var(--epc-primary));
+	color: #fff;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.epc-app .epc-plugin-actions .button.epc-install-btn:hover,
+.epc-app .epc-plugin-actions .button.epc-install-btn:focus {
+	border-color: var(--epc-job-ink, var(--epc-primary-hover));
+	background: var(--epc-job-ink, var(--epc-primary-hover));
+	color: #fff;
+}
+
+.epc-app .epc-plugin-actions .button.epc-install-btn:disabled,
+.epc-app .epc-plugin-actions .button.epc-install-btn[disabled] {
+	border-color: var(--epc-job, var(--epc-primary)) !important;
+	background: var(--epc-job, var(--epc-primary)) !important;
+	color: #fff !important;
+	opacity: 0.55;
+	cursor: default;
+}
+
+.epc-app .epc-plugin-actions .button.epc-get-btn {
+	border: 1.5px solid var(--epc-job, var(--epc-primary));
+	background: #fff;
+	color: var(--epc-job, var(--epc-primary));
+}
+
+.epc-app .epc-plugin-actions .button.epc-get-btn:hover,
+.epc-app .epc-plugin-actions .button.epc-get-btn:focus {
+	background: var(--epc-job-tint, var(--epc-accent-soft));
+	color: var(--epc-job-ink, var(--epc-primary-hover));
+}
+
+.epc-app .epc-plugin-actions .button:focus-visible,
+.epc-app .epc-jobcard__cta:focus-visible {
+	outline: 2px solid var(--epc-job-ink, var(--epc-primary));
+	outline-offset: 2px;
 }
 
 .epc-install-status {
-	margin: 0;
+	margin: 4px 0 0;
 	color: var(--epc-muted);
 	font-size: 13px;
+}
+
+.epc-install-status.is-busy {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: var(--epc-job-tint, var(--epc-accent-soft));
+	color: var(--epc-job-ink, var(--epc-primary));
+	font-weight: 600;
+}
+
+.epc-install-status.is-busy::before {
+	content: "";
+	flex: none;
+	width: 14px;
+	height: 14px;
+	border: 2px solid currentColor;
+	border-right-color: transparent;
+	border-radius: 50%;
+	animation: epc-jobcard-spin 0.8s linear infinite;
+}
+
+@keyframes epc-jobcard-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.epc-install-status.is-busy::before {
+		animation: none;
+	}
 }
 
 .epc-install-status:empty {
@@ -1105,7 +1494,13 @@ fieldset.epc-panel {
 	}
 
 	.epc-jobs__item {
-		grid-template-columns: 1fr;
+		grid-template-columns: 40px minmax(0, 1fr);
+	}
+
+	.epc-jobs__state,
+	.epc-jobs__action {
+		grid-column: 2;
+		justify-content: flex-start;
 	}
 
 	.epc-summary,
@@ -1815,4 +2210,382 @@ fieldset.epc-panel {
 	flex-direction: column;
 	align-items: flex-start;
 	gap: 6px;
+}
+
+/* ---------- Settings → Reminders & push ---------- */
+
+.epc-push-note {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0 0 18px;
+	padding: 10px 14px;
+	border-radius: 10px;
+	background: #eef4ff;
+	color: #1e3a8a;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.epc-push-note svg {
+	flex: none;
+	margin-top: 2px;
+	color: #0052ab;
+}
+
+.epc-push-picker ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 20px;
+	padding: 0;
+	list-style: none;
+}
+
+.epc-push-picker li {
+	margin: 0;
+}
+
+.epc-app .epc-push-picker__item {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px 8px 12px;
+	border: 1px solid var(--epc-line-strong);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--epc-text);
+	font-size: 13px;
+	font-weight: 500;
+	text-decoration: none;
+	transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.epc-push-picker__item::before {
+	content: "";
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--epc-job);
+}
+
+.epc-app .epc-push-picker__item:hover {
+	border-color: var(--epc-job);
+	color: var(--epc-job-ink);
+}
+
+.epc-app .epc-push-picker__item.is-selected {
+	border-color: var(--epc-job);
+	background: var(--epc-job-tint);
+	box-shadow: inset 0 0 0 1px var(--epc-job);
+	color: var(--epc-job-ink);
+	font-weight: 600;
+}
+
+.epc-app .epc-push-picker__item:focus-visible {
+	outline: 2px solid var(--epc-job-ink);
+	outline-offset: 2px;
+}
+
+.epc-pushset {
+	overflow: hidden;
+	margin: 0;
+	background: #fff;
+	border: 1px solid var(--epc-line);
+	border-radius: 16px;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.epc-pushset__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 20px 24px;
+	border-bottom: 1px solid var(--epc-line);
+}
+
+.epc-app .epc-pushset__title {
+	margin: 0 0 4px;
+	font-family: var(--epc-font-display);
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1.3;
+}
+
+.epc-pushset__lead {
+	max-width: 52rem;
+	margin: 0;
+	color: var(--epc-muted);
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.epc-pushset__count {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	background: #f3f4f6;
+	color: var(--epc-muted);
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.epc-pushset__count::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.epc-pushset__count.is-on {
+	background: var(--epc-ok-soft);
+	color: var(--epc-ok-text);
+}
+
+.epc-pushset__tags {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 12px 24px;
+	border-bottom: 1px solid var(--epc-line);
+	background: #f8fafc;
+}
+
+.epc-pushset__tags-label {
+	margin-right: 4px;
+	color: #5b6475;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.epc-app .epc-pushset__tag {
+	padding: 2px 8px;
+	border: 1px solid var(--epc-line);
+	border-radius: 6px;
+	background: #fff;
+	color: #0052ab;
+	font-size: 12px;
+}
+
+.epc-pushrow {
+	padding: 20px 24px;
+	border-bottom: 1px solid var(--epc-line);
+}
+
+.epc-pushrow__head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.epc-pushrow__icon {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 10px;
+	background: #eef4ff;
+	color: #0066d6;
+}
+
+.epc-pushrow__name {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.epc-app .epc-pushrow__title {
+	margin: 0;
+	color: var(--epc-text);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.epc-app .epc-pushrow__desc {
+	margin: 2px 0 0;
+	color: var(--epc-muted);
+	font-size: 12.5px;
+}
+
+.epc-pushrow__fields {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 14px;
+	transition: opacity 0.15s ease;
+}
+
+.epc-pushrow__fields.has-days {
+	grid-template-columns: 140px minmax(0, 1fr);
+}
+
+.epc-pushrow__field--wide {
+	grid-column: 1 / -1;
+}
+
+.epc-pushrow:has(.epc-toggle input:not(:checked)) .epc-pushrow__fields {
+	opacity: 0.6;
+}
+
+.epc-app .epc-pushrow__field label {
+	display: block;
+	margin: 0 0 6px;
+	color: var(--epc-muted);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.epc-app .epc-pushrow__field input[type="text"],
+.epc-app .epc-pushrow__field input[type="number"],
+.epc-app .epc-pushrow__field select,
+.epc-app .epc-pushrow__field textarea {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	min-height: 40px;
+	padding: 8px 12px;
+	border: 1px solid var(--epc-line-strong);
+	border-radius: 8px;
+	background-color: #fff;
+	color: var(--epc-text);
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+.epc-app .epc-pushrow__field select {
+	padding-right: 32px;
+}
+
+.epc-app .epc-pushrow__field textarea {
+	min-height: 84px;
+	resize: vertical;
+}
+
+.epc-app .epc-pushrow__field input:focus,
+.epc-app .epc-pushrow__field select:focus,
+.epc-app .epc-pushrow__field textarea:focus {
+	border-color: var(--epc-accent);
+	box-shadow: 0 0 0 3px #dce9fb;
+	outline: none;
+}
+
+.epc-pushset__footer {
+	display: flex;
+	justify-content: flex-end;
+	padding: 16px 24px;
+	background: #f8fafc;
+}
+
+.epc-app .epc-test-push-tool.epc-card {
+	max-width: none;
+	margin-top: 20px;
+	padding: 20px 24px;
+	border: 1px solid var(--epc-line);
+	border-radius: 16px;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.epc-test-push-tool__head {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.epc-app .epc-test-push-tool__head h3 {
+	margin: 0 0 4px;
+	font-family: var(--epc-font-display);
+	font-size: 16px;
+	font-weight: 700;
+}
+
+.epc-app .epc-test-push-tool__head .description {
+	margin: 0;
+}
+
+.epc-test-push-tool__notice {
+	margin: 0 0 14px;
+	padding: 8px 12px;
+	border-radius: 8px;
+	background: var(--epc-warn-soft);
+	color: var(--epc-warn-text);
+	font-size: 13px;
+}
+
+.epc-test-push-tool__row {
+	display: grid;
+	grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+	align-items: end;
+	gap: 12px;
+}
+
+.epc-app .epc-test-push-tool__send {
+	min-height: 40px;
+}
+
+.epc-app .epc-test-push-status {
+	margin: 10px 0 0;
+}
+
+.epc-app .epc-test-push-status:empty {
+	display: none;
+}
+
+.epc-app .epc-reminder-timing.epc-card {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 16px;
+	margin-bottom: 20px;
+	padding: 18px 24px;
+	border-radius: 16px;
+}
+
+.epc-reminder-timing__body {
+	flex: 1 1 320px;
+	min-width: 0;
+}
+
+.epc-app .epc-reminder-timing h2 {
+	margin: 0 0 4px;
+	font-family: var(--epc-font-display);
+	font-size: 16px;
+	font-weight: 700;
+}
+
+.epc-app .epc-reminder-timing .description {
+	margin: 0;
+}
+
+.epc-app .epc-reminder-timing__link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	text-decoration: none;
+}
+
+@media (max-width: 782px) {
+	.epc-pushset__head {
+		flex-direction: column;
+	}
+
+	.epc-pushrow__fields.has-days,
+	.epc-test-push-tool__row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.epc-pushrow__head {
+		flex-wrap: wrap;
+	}
 }

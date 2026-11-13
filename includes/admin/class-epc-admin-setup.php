@@ -107,34 +107,46 @@ class EPC_Admin_Setup {
 				$available = EPC_Jobs::NOT_INSTALLED !== $status['state'];
 				$module    = $available ? EPC_Module_Loader::get_module_instance( $status['module'] ) : null;
 				$chosen    = $state['job'] === $job && $state['rules_confirmed'];
+				$classes   = 'epc-jobcard epc-jobcard--' . sanitize_html_class( (string) $job ) . ( $available ? ' is-available' : ' is-missing' ) . ( $chosen ? ' is-chosen' : '' );
 				?>
-				<section class="epc-jobcard<?php echo $available ? ' is-available' : ' is-missing'; ?><?php echo $chosen ? ' is-chosen' : ''; ?>" aria-labelledby="<?php echo esc_attr( 'epc-job-' . $job ); ?>">
-					<h3 id="<?php echo esc_attr( 'epc-job-' . $job ); ?>" class="epc-jobcard__title"><?php echo esc_html( $copy['title'] ); ?></h3>
-					<p class="epc-jobcard__pitch"><?php echo esc_html( $copy['pitch'] ); ?></p>
-					<p class="epc-jobcard__status">
-						<?php if ( $chosen ) : ?>
-							<span class="epc-pill is-success"><?php esc_html_e( 'Your choice', 'epasscard' ); ?></span>
-						<?php elseif ( $available && $module instanceof EPC_Module ) : ?>
-							<span class="epc-pill is-success">
-								<?php
-								/* translators: %s: plugin name, e.g. "WooCommerce" */
-								echo esc_html( sprintf( __( 'Ready · %s found', 'epasscard' ), $module->get_dependency_label() ) );
-								?>
-							</span>
-						<?php else : ?>
-							<span class="epc-pill"><?php echo esc_html( $copy['needs'] ); ?></span>
-						<?php endif; ?>
-					</p>
-					<?php if ( $available ) : ?>
-						<p class="epc-jobcard__actions">
-							<a class="button <?php echo $chosen ? 'button-secondary' : 'button-primary'; ?>" href="<?php echo esc_url( EPC_Admin_App::url( 'setup', array( 'job' => $job ) ) ); ?>">
-								<?php echo esc_html( $chosen ? __( 'Review the rules', 'epasscard' ) : __( 'Choose', 'epasscard' ) ); ?>
-								<span class="screen-reader-text"><?php echo esc_html( $copy['title'] ); ?></span>
-							</a>
+				<section class="<?php echo esc_attr( $classes ); ?>" aria-labelledby="<?php echo esc_attr( 'epc-job-' . $job ); ?>">
+					<div class="epc-jobcard__head">
+						<div class="epc-jobcard__heading">
+							<span class="epc-jobcard__icon" aria-hidden="true"><?php self::render_job_icon( (string) $job ); ?></span>
+							<h3 id="<?php echo esc_attr( 'epc-job-' . $job ); ?>" class="epc-jobcard__title"><?php echo esc_html( $copy['title'] ); ?></h3>
+						</div>
+						<p class="epc-jobcard__pitch"><?php echo esc_html( $copy['pitch'] ); ?></p>
+						<p class="epc-jobcard__status">
+							<?php if ( $chosen ) : ?>
+								<span class="epc-pill epc-jobcard__chip is-chosen"><?php self::render_icon( 'check' ); ?><?php esc_html_e( 'Your choice', 'epasscard' ); ?></span>
+							<?php elseif ( $available && $module instanceof EPC_Module ) : ?>
+								<span class="epc-pill epc-jobcard__chip is-success">
+									<?php self::render_icon( 'check' ); ?>
+									<?php
+									/* translators: %s: plugin name, e.g. "WooCommerce" */
+									echo esc_html( sprintf( __( 'Ready · %s found', 'epasscard' ), $module->get_dependency_label() ) );
+									?>
+								</span>
+							<?php else : ?>
+								<span class="epc-pill epc-jobcard__chip"><?php self::render_icon( 'info' ); ?><?php echo esc_html( $copy['needs'] ); ?></span>
+							<?php endif; ?>
 						</p>
-					<?php else : ?>
-						<?php self::render_plugin_actions( $job ); ?>
-					<?php endif; ?>
+					</div>
+					<div class="epc-jobcard__body">
+						<?php if ( $available ) : ?>
+							<p class="epc-jobcard__actions">
+								<a class="button <?php echo $chosen ? 'button-secondary' : 'button-primary'; ?> epc-jobcard__cta" href="<?php echo esc_url( EPC_Admin_App::url( 'setup', array( 'job' => $job ) ) ); ?>">
+									<?php echo esc_html( $chosen ? __( 'Review the rules', 'epasscard' ) : __( 'Choose', 'epasscard' ) ); ?>
+									<span class="screen-reader-text"><?php echo esc_html( $copy['title'] ); ?></span>
+									<?php if ( ! $chosen ) : ?>
+										<?php self::render_icon( 'arrow' ); ?>
+									<?php endif; ?>
+								</a>
+							</p>
+						<?php else : ?>
+							<?php self::render_plugin_actions( $job ); ?>
+						<?php endif; ?>
+					</div>
 				</section>
 			<?php endforeach; ?>
 		</div>
@@ -159,16 +171,20 @@ class EPC_Admin_Setup {
 		<ul class="epc-plugin-actions">
 			<?php foreach ( $actions as $action ) : ?>
 				<li>
-					<span class="epc-plugin-actions__name"><?php echo esc_html( (string) $action['label'] ); ?></span>
+					<span class="epc-plugin-actions__name">
+						<span class="epc-plugin-actions__label"><?php echo esc_html( (string) $action['label'] ); ?></span>
+						<span class="epc-plugin-actions__source"><?php echo esc_html( 'wporg' === ( $action['mode'] ?? '' ) ? __( 'Free · WordPress.org', 'epasscard' ) : __( 'From the plugin\'s website', 'epasscard' ) ); ?></span>
+					</span>
 					<?php if ( 'active' === $action['status'] ) : ?>
 						<span class="epc-pill is-success"><?php esc_html_e( 'Active', 'epasscard' ); ?></span>
 					<?php elseif ( ! empty( $action['can_install'] ) ) : ?>
-						<button type="button" class="button button-small" data-epc-install="<?php echo esc_attr( (string) $action['key'] ); ?>">
+						<button type="button" class="button epc-install-btn" data-epc-install="<?php echo esc_attr( (string) $action['key'] ); ?>">
+							<?php self::render_icon( 'download' ); ?>
 							<?php echo esc_html( 'installed' === $action['status'] ? __( 'Activate', 'epasscard' ) : __( 'Install and activate', 'epasscard' ) ); ?>
 							<span class="screen-reader-text"><?php echo esc_html( (string) $action['label'] ); ?></span>
 						</button>
 					<?php elseif ( '' !== (string) $action['url'] ) : ?>
-						<a href="<?php echo esc_url( (string) $action['url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Get it', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( (string) $action['label'] ); ?> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span></a>
+						<a class="button epc-get-btn" href="<?php echo esc_url( (string) $action['url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Get it', 'epasscard' ); ?><span class="screen-reader-text"> <?php echo esc_html( (string) $action['label'] ); ?> <?php esc_html_e( '(opens in a new tab)', 'epasscard' ); ?></span><?php self::render_icon( 'external' ); ?></a>
 					<?php elseif ( 'installed' === $action['status'] ) : ?>
 						<a href="<?php echo esc_url( admin_url( 'plugins.php' ) ); ?>"><?php esc_html_e( 'Activate on the Plugins screen', 'epasscard' ); ?></a>
 					<?php endif; ?>
@@ -176,6 +192,106 @@ class EPC_Admin_Setup {
 			<?php endforeach; ?>
 		</ul>
 		<p class="epc-install-status" aria-live="polite"></p>
+		<?php
+	}
+
+	/**
+	 * The picture of a job, on the Setup cards and the Home list. Integrations added by other
+	 * plugins get a plain card.
+	 *
+	 * @param string $job Job slug.
+	 * @return void
+	 */
+	public static function render_job_icon( $job ) {
+		?>
+		<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+		<?php
+		switch ( $job ) {
+			case 'loyalty':
+				?>
+				<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+				<?php
+				break;
+			case 'membership':
+				?>
+				<rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M15 8h2M15 12h2M7 16h10"></path>
+				<?php
+				break;
+			case 'events':
+				?>
+				<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v2M13 17v2M13 11v2"></path>
+				<?php
+				break;
+			case 'gift-cards':
+				?>
+				<rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"></path>
+				<?php
+				break;
+			case 'products':
+				?>
+				<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle>
+				<?php
+				break;
+			case 'appointments':
+				?>
+				<rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path><path d="m9 16 2 2 4-4"></path>
+				<?php
+				break;
+			case 'forms':
+				?>
+				<rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"></path>
+				<?php
+				break;
+			default:
+				?>
+				<rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path>
+				<?php
+				break;
+		}
+		?>
+		</svg>
+		<?php
+	}
+
+	/**
+	 * A small line icon for the job cards (decorative: the text next to it says the same).
+	 *
+	 * @param string $name check, info, download, external or arrow.
+	 * @return void
+	 */
+	public static function render_icon( $name ) {
+		?>
+		<svg class="epc-jobcard__glyph" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+		<?php
+		switch ( $name ) {
+			case 'check':
+				?>
+				<path d="M20 6 9 17l-5-5"></path>
+				<?php
+				break;
+			case 'info':
+				?>
+				<circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path>
+				<?php
+				break;
+			case 'download':
+				?>
+				<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+				<?php
+				break;
+			case 'external':
+				?>
+				<path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+				<?php
+				break;
+			default:
+				?>
+				<path d="M5 12h14M13 6l6 6-6 6"></path>
+				<?php
+				break;
+		}
+		?>
+		</svg>
 		<?php
 	}
 

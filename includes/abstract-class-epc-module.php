@@ -616,20 +616,20 @@ abstract class EPC_Module {
 		}
 		?>
 		<div id="epc-section-reminders" class="epc-section epc-section--native-reminders">
-			<div class="epc-card">
-				<div class="epc-card__icon-head">
-					<span class="epc-icon" aria-hidden="true">schedule</span>
+			<div class="epc-card epc-reminder-timing">
+				<span class="epc-pushrow__icon" aria-hidden="true">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+				</span>
+				<div class="epc-reminder-timing__body">
 					<h2><?php esc_html_e( 'Reminder timing', 'epasscard' ); ?></h2>
+					<p class="description">
+						<?php esc_html_e( 'When each push is sent is controlled by this integration’s reminder system. Configure how many days before an event reminders fire in its settings.', 'epasscard' ); ?>
+					</p>
 				</div>
-				<p class="description">
-					<?php esc_html_e( 'When each push is sent is controlled by this integration’s reminder system. Configure how many days before an event reminders fire using the link below.', 'epasscard' ); ?>
-				</p>
-				<p>
-					<a href="<?php echo esc_url( $settings_url ); ?>" class="button epc-btn-outline-primary">
-						<?php echo esc_html( $settings_label ); ?>
-						<span class="epc-icon" aria-hidden="true" style="font-size:16px;vertical-align:middle;">open_in_new</span>
-					</a>
-				</p>
+				<a href="<?php echo esc_url( $settings_url ); ?>" class="button epc-btn-outline-primary epc-reminder-timing__link">
+					<?php echo esc_html( $settings_label ); ?>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+				</a>
 			</div>
 		</div>
 		<?php
@@ -2084,126 +2084,84 @@ abstract class EPC_Module {
 		}
 		?>
 		<div id="epc-section-push" class="epc-section epc-section--notification-rules">
-			<div class="epc-page-header">
-				<h2 class="epc-page-title"><?php esc_html_e( 'Push notification copy', 'epasscard' ); ?></h2>
-				<p class="description">
-					<?php
-					if ( $native_timing ) {
-						esc_html_e( 'Plain-text wallet push title and message for each reminder. Timing follows your integration’s reminder settings; only the push copy is configured here.', 'epasscard' );
-					} else {
-						esc_html_e( 'Send wallet push notifications before important dates. Reminders are checked once per day and each reminder is sent only once per pass.', 'epasscard' );
-					}
-					?>
-				</p>
-			</div>
+			<form class="epc-ajax-form epc-pushset" data-epc-action="<?php echo esc_attr( 'epc_save_notification_rules_' . $this->get_slug() ); ?>" method="post" action="">
+				<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
 
-			<?php if ( ! $native_timing ) : ?>
-				<form class="epc-ajax-form epc-card" data-epc-action="<?php echo esc_attr( 'epc_save_notification_rules_' . $this->get_slug() ); ?>" method="post" action="">
-					<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
-					<table class="widefat striped epc-notification-rules-table">
-						<thead>
-							<tr>
-								<th scope="col"><?php esc_html_e( 'Reminder', 'epasscard' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'Push enabled', 'epasscard' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'Days before', 'epasscard' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'Push title', 'epasscard' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'Push message', 'epasscard' ); ?></th>
-							</tr>
-						</thead>
-						<tbody>
-							<?php foreach ( $types as $type => $label ) : ?>
-								<?php $rule = $rules[ $type ] ?? array(); ?>
-								<tr>
-									<td><strong><?php echo esc_html( $label ); ?></strong></td>
-									<td>
-										<label class="epc-toggle">
-											<input type="checkbox" name="epc_notification_enabled_<?php echo esc_attr( $type ); ?>" value="1" <?php checked( ! empty( $rule['enabled'] ) ); ?> aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Push enabled: %s', 'epasscard' ), $label ) ); ?>" />
-											<span class="epc-toggle__track" aria-hidden="true"></span>
-										</label>
-									</td>
-									<td>
-										<input type="number" class="small-text" min="1" max="90" name="epc_notification_days_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['days'] ?? 7 ) ); ?>" aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Days before: %s', 'epasscard' ), $label ) ); ?>" />
-									</td>
-									<td>
-										<input type="text" class="regular-text" name="epc_notification_title_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['title'] ?? '' ) ); ?>" aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Push title: %s', 'epasscard' ), $label ) ); ?>" />
-									</td>
-									<td>
-										<textarea class="large-text" rows="2" name="epc_notification_message_<?php echo esc_attr( $type ); ?>" aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Push message: %s', 'epasscard' ), $label ) ); ?>"><?php echo esc_textarea( (string) ( $rule['message'] ?? '' ) ); ?></textarea>
-									</td>
-								</tr>
-							<?php endforeach; ?>
-						</tbody>
-					</table>
-					<p style="margin-top:16px;margin-bottom:0;">
-						<?php submit_button( __( 'Save push notification settings', 'epasscard' ), 'primary', 'submit', false ); ?>
-					</p>
-				</form>
-			<?php else : ?>
-				<div class="epc-push-layout">
-					<div class="epc-push-sidebar">
-						<?php if ( ! empty( $tags ) ) : ?>
-							<div class="epc-card">
-								<div class="epc-card__icon-head">
-									<span class="epc-icon" aria-hidden="true">data_object</span>
-									<h3><?php esc_html_e( 'Dynamic tags', 'epasscard' ); ?></h3>
-								</div>
-								<p class="description" style="margin-bottom:12px;text-transform:uppercase;font-size:12px;letter-spacing:0.04em;">
-									<?php esc_html_e( 'Available placeholders', 'epasscard' ); ?>
-								</p>
-								<div class="epc-tag-list">
-									<?php foreach ( $tags as $tag ) : ?>
-										<span class="epc-tag">{<?php echo esc_html( $tag ); ?>}</span>
-									<?php endforeach; ?>
-								</div>
-							</div>
-						<?php endif; ?>
+				<div class="epc-pushset__head">
+					<div>
+						<h2 class="epc-pushset__title"><?php esc_html_e( 'Push notification copy', 'epasscard' ); ?></h2>
+						<p class="epc-pushset__lead">
+							<?php
+							if ( $native_timing ) {
+								esc_html_e( 'Plain-text wallet push title and message for each reminder. Timing follows your integration’s reminder settings; only the push copy is configured here.', 'epasscard' );
+							} else {
+								esc_html_e( 'Send wallet push notifications before important dates. Reminders are checked once per day and each reminder is sent only once per pass.', 'epasscard' );
+							}
+							?>
+						</p>
 					</div>
-
-					<form class="epc-ajax-form epc-push-card" data-epc-action="<?php echo esc_attr( 'epc_save_notification_rules_' . $this->get_slug() ); ?>" method="post" action="">
-						<input type="hidden" name="epc_module_slug" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
-
-						<div class="epc-push-card__header">
-							<h3><?php esc_html_e( 'Push notification copy', 'epasscard' ); ?></h3>
-							<?php if ( $enabled_count > 0 ) : ?>
-								<span class="epc-status-badge epc-status-badge--active"><?php esc_html_e( 'Syncing active', 'epasscard' ); ?></span>
-							<?php else : ?>
-								<span class="epc-status-badge epc-status-badge--pending"><?php esc_html_e( 'All disabled', 'epasscard' ); ?></span>
-							<?php endif; ?>
-						</div>
-
-						<?php foreach ( $types as $type => $label ) : ?>
-							<?php $rule = $rules[ $type ] ?? array(); ?>
-							<div class="epc-push-row">
-								<div class="epc-push-row__head">
-									<div>
-										<p class="epc-push-row__title"><?php echo esc_html( $label ); ?></p>
-										<p class="epc-push-row__desc"><?php echo esc_html( $this->get_notification_type_description( $type ) ); ?></p>
-									</div>
-									<label class="epc-toggle">
-										<span class="epc-toggle__label"><?php esc_html_e( 'Enabled', 'epasscard' ); ?></span>
-										<input type="checkbox" name="epc_notification_enabled_<?php echo esc_attr( $type ); ?>" value="1" <?php checked( ! empty( $rule['enabled'] ) ); ?> />
-										<span class="epc-toggle__track" aria-hidden="true"></span>
-									</label>
-								</div>
-								<div class="epc-push-row__fields">
-									<div>
-										<label for="epc-notification-title-<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Push title', 'epasscard' ); ?></label>
-										<input type="text" class="regular-text" id="epc-notification-title-<?php echo esc_attr( $type ); ?>" name="epc_notification_title_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['title'] ?? '' ) ); ?>" />
-									</div>
-									<div>
-										<label for="epc-notification-message-<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Push message', 'epasscard' ); ?></label>
-										<textarea class="large-text" rows="3" id="epc-notification-message-<?php echo esc_attr( $type ); ?>" name="epc_notification_message_<?php echo esc_attr( $type ); ?>"><?php echo esc_textarea( (string) ( $rule['message'] ?? '' ) ); ?></textarea>
-									</div>
-								</div>
-							</div>
-						<?php endforeach; ?>
-
-						<div class="epc-push-card__footer">
-							<?php submit_button( __( 'Save reminder settings', 'epasscard' ), 'primary', 'submit', false ); ?>
-						</div>
-					</form>
+					<span class="epc-pushset__count<?php echo $enabled_count > 0 ? ' is-on' : ''; ?>">
+						<?php
+						/* translators: 1: reminders turned on, 2: all reminders */
+						echo esc_html( sprintf( __( '%1$d of %2$d on', 'epasscard' ), $enabled_count, count( $types ) ) );
+						?>
+					</span>
 				</div>
-			<?php endif; ?>
+
+				<?php if ( ! empty( $tags ) ) : ?>
+					<div class="epc-pushset__tags">
+						<span class="epc-pushset__tags-label"><?php esc_html_e( 'Available placeholders', 'epasscard' ); ?></span>
+						<?php foreach ( $tags as $tag ) : ?>
+							<code class="epc-pushset__tag">{<?php echo esc_html( $tag ); ?>}</code>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+
+				<?php foreach ( $types as $type => $label ) : ?>
+					<?php
+					$rule        = $rules[ $type ] ?? array();
+					$description = $this->get_notification_type_description( $type );
+					?>
+					<div class="epc-pushrow">
+						<div class="epc-pushrow__head">
+							<span class="epc-pushrow__icon" aria-hidden="true">
+								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+							</span>
+							<div class="epc-pushrow__name">
+								<p class="epc-pushrow__title"><?php echo esc_html( $label ); ?></p>
+								<?php if ( '' !== $description ) : ?>
+									<p class="epc-pushrow__desc"><?php echo esc_html( $description ); ?></p>
+								<?php endif; ?>
+							</div>
+							<label class="epc-toggle">
+								<span class="epc-toggle__label"><?php esc_html_e( 'Push enabled', 'epasscard' ); ?></span>
+								<input type="checkbox" name="epc_notification_enabled_<?php echo esc_attr( $type ); ?>" value="1" <?php checked( ! empty( $rule['enabled'] ) ); ?> aria-label="<?php /* translators: %s: reminder name */ echo esc_attr( sprintf( __( 'Push enabled: %s', 'epasscard' ), $label ) ); ?>" />
+								<span class="epc-toggle__track" aria-hidden="true"></span>
+							</label>
+						</div>
+						<div class="epc-pushrow__fields<?php echo $native_timing ? '' : ' has-days'; ?>">
+							<?php if ( ! $native_timing ) : ?>
+								<div class="epc-pushrow__field">
+									<label for="epc-notification-days-<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Days before', 'epasscard' ); ?></label>
+									<input type="number" min="1" max="90" id="epc-notification-days-<?php echo esc_attr( $type ); ?>" name="epc_notification_days_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['days'] ?? 7 ) ); ?>" />
+								</div>
+							<?php endif; ?>
+							<div class="epc-pushrow__field">
+								<label for="epc-notification-title-<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Push title', 'epasscard' ); ?></label>
+								<input type="text" id="epc-notification-title-<?php echo esc_attr( $type ); ?>" name="epc_notification_title_<?php echo esc_attr( $type ); ?>" value="<?php echo esc_attr( (string) ( $rule['title'] ?? '' ) ); ?>" />
+							</div>
+							<div class="epc-pushrow__field epc-pushrow__field--wide">
+								<label for="epc-notification-message-<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Push message', 'epasscard' ); ?></label>
+								<textarea rows="3" id="epc-notification-message-<?php echo esc_attr( $type ); ?>" name="epc_notification_message_<?php echo esc_attr( $type ); ?>"><?php echo esc_textarea( (string) ( $rule['message'] ?? '' ) ); ?></textarea>
+							</div>
+						</div>
+					</div>
+				<?php endforeach; ?>
+
+				<div class="epc-pushset__footer">
+					<?php submit_button( $native_timing ? __( 'Save reminder settings', 'epasscard' ) : __( 'Save push notification settings', 'epasscard' ), 'primary', 'submit', false ); ?>
+				</div>
+			</form>
 
 			<?php $this->render_push_notification_test_tool( $types ); ?>
 		</div>
@@ -2233,44 +2191,39 @@ abstract class EPC_Module {
 		}
 		?>
 		<div class="epc-test-push-tool epc-card">
-			<h3><?php esc_html_e( 'Send test notification', 'epasscard' ); ?></h3>
-			<p class="description">
-				<?php esc_html_e( 'Send a one-off push using the title and message above for the selected reminder type. Pass UUID is shown in the Issued passes list.', 'epasscard' ); ?>
-			</p>
+			<div class="epc-test-push-tool__head">
+				<span class="epc-pushrow__icon" aria-hidden="true">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
+				</span>
+				<div>
+					<h3><?php esc_html_e( 'Send test notification', 'epasscard' ); ?></h3>
+					<p class="description">
+						<?php esc_html_e( 'Send a one-off push using the title and message above for the selected reminder type. The pass UUID is the Card ID on the Cards screen.', 'epasscard' ); ?>
+					</p>
+				</div>
+			</div>
 			<?php if ( ! EPC_Api_Client::is_configured() ) : ?>
-				<p class="description"><?php esc_html_e( 'Connect your EpassCard API key before sending test notifications.', 'epasscard' ); ?></p>
+				<p class="epc-test-push-tool__notice"><?php esc_html_e( 'Connect your EpassCard API key before sending test notifications.', 'epasscard' ); ?></p>
 			<?php endif; ?>
-			<table class="form-table" role="presentation">
-				<tbody>
-					<tr>
-						<th scope="row">
-							<label for="epc-test-push-pass-id"><?php esc_html_e( 'Pass ID', 'epasscard' ); ?></label>
-						</th>
-						<td>
-							<input type="text" class="regular-text" id="epc-test-push-pass-id" placeholder="<?php esc_attr_e( 'Pass UUID, record ID, or source ID', 'epasscard' ); ?>" />
-						</td>
-					</tr>
-					<tr>
-						<th scope="row">
-							<label for="epc-test-push-type"><?php esc_html_e( 'Reminder type', 'epasscard' ); ?></label>
-						</th>
-						<td>
-							<select id="epc-test-push-type">
-								<option value=""><?php esc_html_e( '— Select —', 'epasscard' ); ?></option>
-								<?php foreach ( $types as $type => $label ) : ?>
-									<option value="<?php echo esc_attr( $type ); ?>"><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			<p>
-				<button type="button" class="button button-secondary" id="epc-send-test-push" <?php disabled( ! EPC_Api_Client::is_configured() ); ?>>
+			<div class="epc-test-push-tool__row">
+				<div class="epc-pushrow__field">
+					<label for="epc-test-push-pass-id"><?php esc_html_e( 'Pass ID', 'epasscard' ); ?></label>
+					<input type="text" id="epc-test-push-pass-id" placeholder="<?php esc_attr_e( 'Pass UUID, record ID, or source ID', 'epasscard' ); ?>" />
+				</div>
+				<div class="epc-pushrow__field">
+					<label for="epc-test-push-type"><?php esc_html_e( 'Reminder type', 'epasscard' ); ?></label>
+					<select id="epc-test-push-type">
+						<option value=""><?php esc_html_e( '— Select —', 'epasscard' ); ?></option>
+						<?php foreach ( $types as $type => $label ) : ?>
+							<option value="<?php echo esc_attr( $type ); ?>"><?php echo esc_html( $label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+				<button type="button" class="button button-secondary epc-test-push-tool__send" id="epc-send-test-push" <?php disabled( ! EPC_Api_Client::is_configured() ); ?>>
 					<span class="epc-btn-label"><?php esc_html_e( 'Send test notification', 'epasscard' ); ?></span>
 					<span class="spinner"></span>
 				</button>
-			</p>
+			</div>
 			<p class="epc-test-push-status" aria-live="polite"></p>
 		</div>
 		<?php
