@@ -95,7 +95,7 @@ class EPC_Admin_Cards {
 					__( 'Card', 'epasscard' ),
 					__( 'Integration', 'epasscard' ),
 					__( 'Status', 'epasscard' ),
-					__( 'Shows', 'epasscard' ),
+					__( 'Issued for', 'epasscard' ),
 					__( 'Record ID', 'epasscard' ),
 					__( 'Card ID', 'epasscard' ),
 					__( 'Card link', 'epasscard' ),

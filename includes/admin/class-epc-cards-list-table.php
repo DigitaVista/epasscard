@@ -70,7 +70,7 @@ class EPC_Cards_List_Table extends WP_List_Table {
 			'customer'   => __( 'Customer', 'epasscard' ),
 			'card_type'  => __( 'Card', 'epasscard' ),
 			'status'     => __( 'Status', 'epasscard' ),
-			'shows'      => __( 'Shows', 'epasscard' ),
+			'shows'      => __( 'Issued for', 'epasscard' ),
 			'updated_at' => __( 'Last update', 'epasscard' ),
 			'actions'    => __( 'Actions', 'epasscard' ),
 		);
