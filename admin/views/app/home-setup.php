@@ -77,7 +77,7 @@ if ( 'wployalty' === $epc_slug ) {
 					<?php endif; ?>
 				</div>
 				<?php if ( 'current' === $steps['connect']['status'] ) : ?>
-					<p class="epc-step__text"><?php esc_html_e( 'EpassCard creates and signs the wallet cards. Connect an account; the free plan includes 50 live cards.', 'epasscard' ); ?></p>
+					<p class="epc-step__text"><?php esc_html_e( 'EpassCard creates and signs the wallet cards. Connect an account; the free plan includes 20 live cards.', 'epasscard' ); ?></p>
 					<?php include EPC_PLUGIN_DIR . 'admin/views/settings/connect-forms.php'; ?>
 				<?php endif; ?>
 			</section>
