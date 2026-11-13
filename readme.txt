@@ -4,7 +4,7 @@ Tags: apple wallet, google wallet, wallet pass, woocommerce, membership
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.2
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -266,6 +266,9 @@ Yes. From **EpassCard → Cards** (or the member screens of your membership plug
 7. Reminders & push: lock-screen reminders before a membership ends or an event starts, and a test notification.
 
 == Changelog ==
+= 1.2.2 =
+* Changed: the plugin package no longer includes the docs folder (developer and user documentation pages). The plugin never loaded them.
+
 = 1.2.1 =
 * New: Setup shows each kind of card in its own colour with an icon, and the Install and activate buttons stand out. Plugins from WordPress.org say so; the others say they come from the plugin's website.
 * New: Home's "What you give customers" list has the same icons, a clear status badge and Cards and Design buttons.
@@ -429,6 +432,9 @@ Yes. From **EpassCard → Cards** (or the member screens of your membership plug
 * Initial release: Connection, MemberPress module, WooCommerce Subscriptions module.
 
 == Upgrade Notice ==
+
+= 1.2.2 =
+A smaller package: the docs folder is no longer shipped. No code changes.
 
 = 1.2.1 =
 A clearer Setup, Home and Reminders & push, Customers renamed to Loyalty customers, and the new EpassCard plan limits. No data changes; safe to update from 1.2.0.

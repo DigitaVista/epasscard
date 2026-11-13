@@ -13,9 +13,8 @@ bin
 plan
 chatpgt.txt
 composer.lock
-docs/marketing
-docs/README.md
-docs/.htaccess
+# Developer and user docs - never shipped
+docs
 *.log
 *.md
 # Claude working folder - never shipped
