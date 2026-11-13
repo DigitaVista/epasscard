@@ -4,11 +4,11 @@ Tags: apple wallet, google wallet, wallet pass, woocommerce, membership
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.2
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty cards, membership cards, event tickets & gift cards. Free: 50 passes.
+Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty cards, membership cards, event tickets & gift cards. Free: 20 passes.
 
 == Description ==
 
@@ -23,7 +23,7 @@ Issue Apple Wallet & Google Wallet passes from WordPress – WooCommerce loyalty
 * **A loyalty program with a wallet card, built in.** Points, tiers and rewards for WooCommerce, with the card living in Apple Wallet and Google Wallet.
 * **Both wallets from one template.** Apple Wallet (`.pkpass` for iPhone, iPad and Apple Watch) and Google Wallet (Android).
 * **Passes stay up to date.** When points, a balance, a membership level or an expiry date changes, the pass on the phone changes too, and you can send push notifications.
-* **Free to start.** 50 live passes free. Paid plans from $19/month, or $13/month billed yearly.
+* **Free to start.** 20 live passes and 1 template free. Paid plans from $10/month, or $8/month billed yearly.
 
 [Documentation](https://www.epasscard.com/documentation/) | [Pricing](https://www.epasscard.com/pricing/) | [Book a demo](https://www.epasscard.com/book-a-demo/)
 
@@ -85,13 +85,18 @@ Because passes are designed in EpassCard, you can also issue stamp cards, coupon
 
 Plans are based on **live passes**: passes in your customers' wallets that you can update and send notifications to at any time. Delete a pass you no longer need to free its slot.
 
-* **Free** – 50 live passes, 3 templates
-* **Starter** – $19/month – 250 live passes, 5 templates, AI pass designer
-* **Growth** – $39/month – 1,000 live passes, 10 templates
-* **Business** – $65/month – 5,000 live passes, 25 templates
-* **Pro, Scale and Scale+** – up to 50,000 live passes
+* **Free** – 20 live passes, 1 template
+* **Solo** – $10/month – 150 live passes, 3 templates
+* **Launch** – $15/month – 300 live passes, 5 templates
+* **Team** – $29/month – 1,000 live passes, 10 templates
+* **Plus** – $45/month – 2,500 live passes, 15 templates
+* **Business, Pro, Scale and Scale+** – up to 50,000 live passes
 
-Save 30%+ with yearly billing. See [all plans](https://www.epasscard.com/pricing/).
+Save 20% with yearly billing.
+
+**Static plans** are for one-time passes such as coupons, offers and one-off tickets. Static passes can't be updated and don't get notifications. **Static Basic** is $10/month for 500 passes a month and 1 template; **Static Plus** is $25/month for 2,000 passes a month and 3 templates.
+
+See [all plans](https://www.epasscard.com/pricing/).
 
 = A PassKit alternative for WordPress =
 
@@ -147,7 +152,7 @@ This plugin relies on the following third-party services. Nothing is sent to the
 
 **Crisp** (`https://client.crisp.chat`) — EpassCard's support chat. Nothing is loaded from Crisp until an administrator clicks "Chat with us" in the EpassCard top bar and starts a chat; the panel says what is sent before that. Starting a chat loads Crisp's chat window and sends the administrator's name and email and these site details: site address, WordPress, PHP and plugin versions, the connected EpassCard email and plan, the integrations turned on, the number of card designs and active cards, the EpassCard screen in use, and the last failed call to EpassCard (endpoint and error, never the API key). No data about the site's customers is sent. Each administrator can hide the button under Settings → Advanced. [Crisp Terms of Use](https://crisp.chat/en/terms/) and [Crisp Privacy Policy](https://crisp.chat/en/privacy/).
 
-**Google Fonts** (`https://fonts.googleapis.com`) — the WooCommerce Loyalty program page (EpassCard → Customers) loads the Material Symbols icon font. Your browser requests it from Google when you open that page. The other EpassCard screens make no request to Google. The DM Sans and Inter text fonts are bundled with the plugin. [Google Privacy Policy](https://policies.google.com/privacy).
+**Google Fonts** (`https://fonts.googleapis.com`) — the WooCommerce Loyalty program page (EpassCard → Loyalty customers) loads the Material Symbols icon font. Your browser requests it from Google when you open that page. The other EpassCard screens make no request to Google. The DM Sans and Inter text fonts are bundled with the plugin. [Google Privacy Policy](https://policies.google.com/privacy).
 
 **YouTube** (`https://www.youtube-nocookie.com`) — when a tutorial video is available in a "How this works" panel or on EpassCard → Help, it plays from YouTube's privacy-enhanced player. Nothing is requested from YouTube until you click play; then your browser loads the video from YouTube. [Google Privacy Policy](https://policies.google.com/privacy).
 
@@ -176,7 +181,7 @@ Learn more about how [Appsero collects and uses this data](https://appsero.com/p
 
 = How much does EpassCard cost? =
 
-The plugin is free. The EpassCard service has a free plan with 50 live passes. Paid plans start at $19/month for 250 live passes, or $13/month billed yearly. See [pricing](https://www.epasscard.com/pricing/).
+The plugin is free. The EpassCard service has a free plan with 20 live passes and 1 template. Paid plans start at $10/month (Solo: 150 live passes, 3 templates), or $8/month billed yearly. For one-time passes that never need updates or notifications, Static Basic is $10/month for 500 passes a month. See [pricing](https://www.epasscard.com/pricing/).
 
 = What is a live pass? =
 
@@ -252,11 +257,24 @@ Yes. From **EpassCard → Cards** (or the member screens of your membership plug
 
 == Screenshots ==
 
-1. Connection settings — connect your EpassCard account and enable integrations.
-2. Pass Template mapping — map membership fields to Apple Wallet and Google Wallet pass fields.
-3. Issued passes — searchable list of wallet passes and delivery links.
+1. Home: a five-step checklist (Connect, Setup, Design, Try it, Go live) with a preview of your card.
+2. Setup: choose what to give your customers. EpassCard finds the plugins you use; a missing plugin installs and activates in one click.
+3. Design: one card design for each kind of card you give, with a preview.
+4. Home after you go live: active cards, new cards, cards that need attention, and each kind of card you give.
+5. Cards: every card from every integration. Search, filter, export to CSV, and update, view, email or expire a card.
+6. Loyalty customers: points, tier and wallet card for each loyalty member, with a staff barcode lookup.
+7. Reminders & push: lock-screen reminders before a membership ends or an event starts, and a test notification.
 
 == Changelog ==
+= 1.2.1 =
+* New: Setup shows each kind of card in its own colour with an icon, and the Install and activate buttons stand out. Plugins from WordPress.org say so; the others say they come from the plugin's website.
+* New: Home's "What you give customers" list has the same icons, a clear status badge and Cards and Design buttons.
+* New: Settings, Reminders & push has a cleaner layout: one card per reminder, the placeholders you can use, and a compact test notification form.
+* Fix: "schedule", "open_in_new" and "data_object" showed as words on Reminders & push; they are icons again.
+* Changed: the Customers section is now called Loyalty customers, because it lists the members of the WooCommerce loyalty program. Every integration's cards are on Cards.
+* Changed: on Cards, the "Shows" column is now "Issued for" (also in the CSV export).
+* Changed: the plan names, prices and limits in the plugin and this readme follow the new EpassCard plans: Free has 20 live passes and 1 template.
+
 = 1.2.0 =
 **New integrations**
 
@@ -411,6 +429,9 @@ Yes. From **EpassCard → Cards** (or the member screens of your membership plug
 * Initial release: Connection, MemberPress module, WooCommerce Subscriptions module.
 
 == Upgrade Notice ==
+
+= 1.2.1 =
+A clearer Setup, Home and Reminders & push, Customers renamed to Loyalty customers, and the new EpassCard plan limits. No data changes; safe to update from 1.2.0.
 
 = 1.2.0 =
 A new admin (Home, Setup, Design, Try it, Cards, Settings) and six new integrations (WooCommerce tickets/vouchers/cards, Tickera, Amelia, Ultimate Member, WPLoyalty, WPForms). Existing connections, mappings and cards are kept. After updating, going back to 1.1 needs a reconnect.
