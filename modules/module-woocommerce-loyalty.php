@@ -756,8 +756,8 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 
 		add_submenu_page(
 			'epasscard',
-			__( 'Customers', 'epasscard' ),
-			__( 'Customers', 'epasscard' ),
+			__( 'Loyalty customers', 'epasscard' ),
+			__( 'Loyalty customers', 'epasscard' ),
 			epc_manage_passes_menu_capability(),
 			$this->get_customers_page_slug(),
 			array( $this, 'render_customers_page' )
@@ -859,7 +859,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		}
 
 		if ( ! $this->is_available() ) {
-			$this->render_unavailable_screen( __( 'Customers', 'epasscard' ) );
+			$this->render_unavailable_screen( __( 'Loyalty customers', 'epasscard' ) );
 			return;
 		}
 
@@ -871,7 +871,7 @@ class EPC_Module_WooCommerce_Loyalty extends EPC_Module {
 		EPC_Admin_Shell::render_open(
 			array(
 				'context'        => 'module',
-				'title'          => __( 'Customers', 'epasscard' ),
+				'title'          => __( 'Loyalty customers', 'epasscard' ),
 				'module'         => $this,
 				'active_section' => 'loyalty-customers',
 				'subnav'         => $this->get_customers_subnav(),

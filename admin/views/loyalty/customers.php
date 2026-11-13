@@ -38,7 +38,7 @@ $export_url = wp_nonce_url(
 ?>
 <div id="epc-section-loyalty-customers" class="epc-section epc-loyalty-customers">
 	<div class="epc-page-header">
-		<h2 class="epc-page-title"><?php esc_html_e( 'Customers', 'epasscard' ); ?></h2>
+		<h2 class="epc-page-title"><?php esc_html_e( 'Loyalty customers', 'epasscard' ); ?></h2>
 		<p class="description">
 			<?php esc_html_e( 'Everyone in your loyalty program, with their points, tier and wallet card. Scan a customer\'s card to look them up, adjust points, or export the list. The barcode on the card holds only the member ID, never the balance.', 'epasscard' ); ?>
 		</p>

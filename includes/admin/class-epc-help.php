@@ -144,7 +144,7 @@ class EPC_Help {
 			),
 			'customers'     => array(
 				'group' => 'daily',
-				'label' => __( 'Customers', 'epasscard' ),
+				'label' => __( 'Loyalty customers', 'epasscard' ),
 				'title' => __( 'Points, tiers and rewards', 'epasscard' ),
 				'why'   => __( 'Points and rewards give customers a reason to come back.', 'epasscard' ),
 				'what'  => __( 'Earning rules, tiers, rewards and paying with points at checkout.', 'epasscard' ),

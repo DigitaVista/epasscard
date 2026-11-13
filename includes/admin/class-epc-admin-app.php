@@ -1,6 +1,6 @@
 <?php
 /**
- * EpassCard admin: the five sections (Home, Cards, Design, Customers, Settings).
+ * EpassCard admin: the five sections (Home, Cards, Design, Loyalty customers, Settings).
  *
  * @package EpassCard
  */
@@ -175,7 +175,7 @@ class EPC_Admin_App {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
 			if ( self::PAGE_CUSTOMERS === $slug ) {
 				$customers    = $item;
-				$customers[0] = __( 'Customers', 'epasscard' );
+				$customers[0] = __( 'Loyalty customers', 'epasscard' );
 			}
 			if ( ! in_array( $slug, $keep, true ) ) {
 				unset( $submenu[ self::PAGE_HOME ][ $index ] );
@@ -304,7 +304,7 @@ class EPC_Admin_App {
 		);
 		if ( self::loyalty_enabled() ) {
 			$sections['customers'] = array(
-				'label' => __( 'Customers', 'epasscard' ),
+				'label' => __( 'Loyalty customers', 'epasscard' ),
 				'url'   => self::url( 'customers' ),
 			);
 		}
